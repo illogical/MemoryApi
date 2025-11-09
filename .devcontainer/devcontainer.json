@@ -1,0 +1,15 @@
+{
+  "name": "Node.js & TypeScript API",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "api",
+  "workspaceFolder": "/app",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/sh"
+  },
+  "extensions": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ],
+  "forwardPorts": [3000],
+  "postCreateCommand": "npm install"
+}
