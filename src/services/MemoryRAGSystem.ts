@@ -2,9 +2,11 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { LMStudioClient } from '@lmstudio/sdk';
 import { PromptTemplateService } from '../services/promptTemplateService';
 import { env } from 'process';
-import { MemoryCategory, Memory, MemoryWithId } from '../samples/qdrantAPI';
+import { MemoryCategory } from '../models/memoryCategory';
+import { Memory, MemoryWithId } from '../models/memory';
 
-const DefaultEmbeddingModelName = 'nomic-embed-text-v1.5';
+const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
+const DEFAULT_MODEL_NAME = 'llama-3.2-3b-instruct';
 
 class MemoryRAGSystem {
     private client: QdrantClient;
@@ -13,11 +15,10 @@ class MemoryRAGSystem {
     private modelName: string;
     private promptTemplateService: PromptTemplateService = new PromptTemplateService('../prompts');
 
-    private readonly defaultModelName = 'llama-3.2-3b-instruct';
     private readonly COLLECTION_NAME = 'memories';
     private readonly VECTOR_SIZE = 768;
 
-    constructor(qdrantUrl: string, embeddingModelName: string = DefaultEmbeddingModelName) {
+    constructor(qdrantUrl: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL) {
         this.client = new QdrantClient({ url: qdrantUrl });
         this.lmStudio = new LMStudioClient();
         this.modelName = embeddingModelName;
@@ -69,7 +70,7 @@ class MemoryRAGSystem {
         }
     }
 
-    async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[];}> {
+    async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
         try {
             const [summary, classification, tags] = await Promise.all([
                 this.summarizeText(text),
@@ -84,17 +85,17 @@ class MemoryRAGSystem {
     }
 
     private async summarizeText(text: string): Promise<string> {
-        const model = await this.lmStudio.llm.model(env.SUMMARIZATION_MODEL || this.defaultModelName);
+        const model = await this.lmStudio.llm.model(env.SUMMARIZATION_MODEL || DEFAULT_MODEL_NAME);
         const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
-        const response = await model.respond(prompt);
+        const response = await this.timeModelResponse(() => model.respond(prompt), 'summarizeText');
         return response.content.trim();
     }
 
     private async classifyText(text: string): Promise<string> {
         try {
-            const model = await this.lmStudio.llm.model(env.CLASSIFICATION_MODEL || this.defaultModelName);
+            const model = await this.lmStudio.llm.model(env.CLASSIFICATION_MODEL || DEFAULT_MODEL_NAME);
             const prompt = this.promptTemplateService.renderClassification(text);
-            const response = await model.respond(prompt);
+            const response = await this.timeModelResponse(() => model.respond(prompt), 'classifyText');
             const raw = response.content.trim();
             console.debug('Raw classification response:', raw);
             return raw;
@@ -106,9 +107,9 @@ class MemoryRAGSystem {
 
     private async tagText(text: string): Promise<string[]> {
         try {
-            const model = await this.lmStudio.llm.model(env.TAGGING_MODEL || this.defaultModelName);
+            const model = await this.lmStudio.llm.model(env.TAGGING_MODEL || DEFAULT_MODEL_NAME);
             const prompt = this.promptTemplateService.renderTagging(text);
-            const response = await model.respond(prompt);
+            const response = await this.timeModelResponse(() => model.respond(prompt), 'tagText');
             const raw = response.content.trim();
             console.debug('Raw tags response:', raw);
             return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
@@ -124,8 +125,8 @@ class MemoryRAGSystem {
         }
 
         try {
-            const { embedding } = await this.embeddingModel.embed(text);
-            return embedding;
+            const result = await this.timeModelResponse(() => this.embeddingModel.embed(text), 'generateEmbedding') as { embedding: number[] };
+            return result.embedding;
         } catch (error) {
             console.error('Error generating embedding:', error);
             throw new Error('Failed to generate embedding');
@@ -302,6 +303,7 @@ class MemoryRAGSystem {
         });
     }
 
+    // Get counts of memories per category
     async getCategoryCounts(): Promise<Record<MemoryCategory, number>> {
         const counts = {} as Record<MemoryCategory, number>;
 
@@ -323,6 +325,15 @@ class MemoryRAGSystem {
         }
 
         return counts;
+    }
+
+    // Helper to time and log model responses
+    private async timeModelResponse<T>(fn: () => Promise<T>, caller: string): Promise<T> {
+        const start = Date.now();
+        const result = await fn();
+        const duration = Date.now() - start;
+        console.info(`[${caller}] Model response time: ${duration}ms`);
+        return result;
     }
 }
 

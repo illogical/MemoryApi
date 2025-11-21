@@ -1,33 +1,12 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import { MemoryRAGSystem } from '../services/MemoryRAGSystem';
+import { MemoryCategory } from '../models/memoryCategory';
+import { Memory } from '../models/memory';
 
 dotenv.config();
 
-const DefaultEmbeddingModelName = 'nomic-embed-text-v1.5';
-
-// Types and Interfaces
-export enum MemoryCategory {
-    PREFERENCES = 'Preferences',
-    REMINDERS = 'Reminders',
-    CODE_SNIPPETS = 'Code Snippets',
-    HISTORY = 'History',
-    NOTES = 'Notes',
-    PROMPTS = 'Prompts'
-}
-
-export interface Memory {
-    Content: string;
-    LastUpdated: string;
-    Category?: MemoryCategory;
-    Description?: string;
-    Tags?: string[];
-}
-
-export interface MemoryWithId extends Memory {
-    id: string;
-}
-
-import { MemoryRAGSystem } from '../services/MemoryRAGSystem';
+const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
 
 // Express API Setup
 const app = express();
@@ -35,7 +14,7 @@ app.use(express.json());
 
 const memorySystem = new MemoryRAGSystem(
     process.env.QDRANT_URL || 'http://localhost:6333',
-    process.env.EMBEDDING_MODEL || DefaultEmbeddingModelName
+    process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
 );
 
 // Initialize on startup
@@ -184,7 +163,7 @@ app.get('/api/memories/stats', async (req: Request, res: Response) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Memory RAG API running on port ${PORT}`);
-    console.log(`Using embedding model: ${process.env.EMBEDDING_MODEL || DefaultEmbeddingModelName}`);
+    console.log(`Using embedding model: ${process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL}`);
 });
 
 export { MemoryRAGSystem, app };
