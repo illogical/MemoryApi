@@ -1,11 +1,12 @@
-
 import { config } from 'dotenv';
 config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { SeedMemoryLoader } from '../services/SeedMemoryLoader';
 import { Memory } from '../models/memory';
+import { MemoryReportService, ReportStats } from '../services/MemoryReportService';
 
 async function main() {
+    const startTime = Date.now();
     // Load config from environment
     const qdrantUrl = process.env.QDRANT_URL;
     const embeddingModel = process.env.EMBEDDING_MODEL;
@@ -73,13 +74,27 @@ async function main() {
     for (const mem of validMemories) {
         try {
             const embedding = await ragSystem.generateEmbedding(mem.Content);
-            await ragSystem.upsertMemory(mem, embedding);
+            const id = await ragSystem.upsertMemory(mem, embedding);
+            (mem as any).id = id;
             loadedCount++;
         } catch (err) {
             console.error('Error upserting memory:', err, mem);
         }
     }
-    console.log(`Loaded ${loadedCount} seed memories from ${seedFilePath}`);
+        console.log(`Loaded ${loadedCount} seed memories from ${seedFilePath}`);
+
+    // Generate Report
+    const reportService = new MemoryReportService();
+    const reportStats: ReportStats = {
+        totalProcessed: seedMemories.length,
+        successCount: loadedCount,
+        durationMs: Date.now() - startTime,
+        timestamp: new Date(),
+        embeddingModel: embeddingModel
+    };
+    const markdown = reportService.generateIgenestionMarkdown(validMemories, reportStats);
+    const reportPath = await reportService.generateAndSaveReport(markdown, reportStats, 'SeedMemoryLoadReport');
+    console.log(`Report generated at: ${reportPath}`);
 }
 
 main().catch((err) => {

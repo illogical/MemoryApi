@@ -4,6 +4,7 @@ import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import path from 'path';
 import { FeedbackQueryLoader } from '../helpers/FeedbackQueryLoader';
+import { MemoryReportService, ReportStats } from '../services/MemoryReportService';
 
 async function main() {
     const qdrantUrl = process.env.QDRANT_URL;
@@ -28,45 +29,51 @@ async function main() {
         process.exit(1);
     }
 
+    const startTime = Date.now();
+
     // 1. Get category counts
     const categoryCounts = await ragSystem.getCategoryCounts();
-    console.log('Memory counts by category:', categoryCounts);
 
     // 2. List memories by category (showing first 3 for each)
+    const memoriesByCategory: Record<string, any[]> = {};
     for (const category of Object.values(MemoryCategory)) {
         const memories = await ragSystem.getMemoriesByCategory(category as MemoryCategory, 3);
-        console.log(`\nMemories in category '${category}':`);
-        memories.forEach(m => {
-            console.log(`- ID: ${m.id}, Description: ${m.Description}, Tags: ${m.Tags?.join(', ')}`);
-        });
+        memoriesByCategory[category] = memories;
     }
 
     // 3. Semantic search examples (from JSON)
+    const semanticSearches: Array<{ query: string; results: any[] }> = [];
     for (const query of feedbackQueries.semanticQueries) {
         const results = await ragSystem.searchMemories(query, undefined, 2);
-        console.log(`\nSemantic search for "${query}":`);
-        results.forEach(m => {
-            // If score is present, print it; otherwise, print without score
-            if (typeof m.score !== 'undefined') {
-                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}, Score: ${m.score}`);
-            } else {
-                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
-            }
-        });
+        semanticSearches.push({ query, results });
     }
 
     // 4. Tag-based search examples (from JSON)
+    const tagSearches: Array<{ tags: string[]; results: any[] }> = [];
     for (const tags of feedbackQueries.tagSearches) {
         const results = await ragSystem.searchByTags(tags);
-        console.log(`\nTag search for [${tags.join(', ')}]:`);
-        results.slice(0, 3).forEach(m => {
-            if (typeof m.score !== 'undefined') {
-                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}, Score: ${m.score}`);
-            } else {
-                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
-            }
-        });
+        tagSearches.push({ tags, results });
     }
+
+    // Generate feedback report
+    const reportService = new MemoryReportService();
+    const reportStats: ReportStats = {
+        totalProcessed: semanticSearches.length + tagSearches.length,
+        successCount: semanticSearches.reduce((acc, s) => acc + s.results.length, 0) + tagSearches.reduce((acc, t) => acc + t.results.length, 0),
+        durationMs: Date.now() - startTime,
+        timestamp: new Date(),
+        embeddingModel: embeddingModel
+    };
+    const feedbackMarkdown = reportService.generateFeedbackMarkdown({
+        categoryCounts,
+        memoriesByCategory,
+        semanticSearches,
+        tagSearches,
+        embeddingModel,
+        timestamp: reportStats.timestamp
+    });
+    const reportPath = await reportService.generateAndSaveReport(feedbackMarkdown, reportStats, 'MemoryFeedbackReport');
+    console.log(`Feedback report generated at: ${reportPath}`);
 }
 
 main().catch((err) => {
