@@ -4,5 +4,6 @@ export enum MemoryCategory {
     CODE_SNIPPETS = 'Code Snippets',
     HISTORY = 'History',
     NOTES = 'Notes',
-    PROMPTS = 'Prompts'
+    PROMPTS = 'Prompts',
+    IDEAS = 'Ideas'
 }

@@ -7,6 +7,7 @@ Categories:
 - History
 - Note
 - Prompt
+- Idea
 
 Examples:
 Input: "Remember to buy groceries tomorrow"
@@ -24,8 +25,18 @@ Category: History
 Input: "Meeting notes from 2024-11-09"
 Category: Note
 
-Input: "Generate a Python function to add two numbers"
+Input: "Create an AI prompt that will ..."
 Category: Prompt
+
+Input: "I want to make a ..."
+Category: Idea
+
+Input: "I want to develop a ..."
+Category: Idea
+
+Input: "I have an idea for ..."
+Category: Idea
+
 
 Now classify the following input:
 

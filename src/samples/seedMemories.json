@@ -1,0 +1,46 @@
+{
+  "memories": [
+    {
+      "content": "Remember to buy groceries tomorrow",
+      "description": "Grocery shopping reminder",
+      "category": "Reminder",
+      "tags": ["Shopping", "Reminder", "Personal"]
+    },
+    {
+      "content": "My favorite programming language is C#",
+      "description": "Programming language preference",
+      "category": "Preference",
+      "tags": ["Programming", "Personal"]
+    },
+    {
+      "content": "foreach(int i = 0; i < count; i++) { }",
+      "description": "C# foreach loop code snippet",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "Met John at the conference last June",
+      "description": "Conference meeting history",
+      "category": "History",
+      "tags": ["Work", "Personal"]
+    },
+    {
+      "content": "Meeting notes from 2024-11-09",
+      "description": "Notes from meeting on 2024-11-09",
+      "category": "Note",
+      "tags": ["Notes", "Work", "Summary"]
+    },
+    {
+      "content": "Create an AI prompt that will ...",
+      "description": "Prompt for AI creation",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Project"]
+    },
+    {
+      "content": "I want to make a ...",
+      "description": "Idea for a new project",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration"]
+    }
+  ]
+}
