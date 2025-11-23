@@ -1,6 +1,6 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { LMStudioClient } from '@lmstudio/sdk';
-import { PromptTemplateService } from '../services/promptTemplateService';
+import { PromptTemplateService } from './promptTemplateService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';

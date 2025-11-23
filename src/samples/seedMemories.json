@@ -41,6 +41,90 @@
       "description": "Idea for a new project",
       "category": "Idea",
       "tags": ["Project", "Inspiration"]
+    },
+    {
+      "content": "I prefer working in the afternoons.",
+      "description": "Work time preference",
+      "category": "Preference",
+      "tags": ["Personal", "Productivity"]
+    },
+    {
+      "content": "Doctor appointment next Friday at 10am.",
+      "description": "Doctor appointment reminder",
+      "category": "Reminder",
+      "tags": ["Appointment", "Reminder", "Personal"]
+    },
+    {
+      "content": "console.log('Hello, world!');",
+      "description": "JavaScript hello world code snippet",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "Traveled to Orlando in 2025 for a conference.",
+      "description": "Orlando conference travel history",
+      "category": "History",
+      "tags": ["Travel", "Work", "Archive"]
+    },
+    {
+      "content": "Read later: 'The Art of Machine Learning' article.",
+      "description": "Read later note for ML article",
+      "category": "Note",
+      "tags": ["Read Later", "Machine Learning", "Learning"]
+    },
+    {
+      "content": "Write a prompt for generating creative story ideas.",
+      "description": "Prompt for story idea generation",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Inspiration"]
+    },
+    {
+      "content": "Idea: Build a fitness tracking app.",
+      "description": "Fitness app project idea",
+      "category": "Idea",
+      "tags": ["Fitness", "Project", "Inspiration"]
+    },
+    {
+      "content": "My favorite cuisine is Mexican.",
+      "description": "Cuisine preference",
+      "category": "Preference",
+      "tags": ["Personal", "Cooking"]
+    },
+    {
+      "content": "Update project documentation by Monday.",
+      "description": "Project documentation update reminder",
+      "category": "Reminder",
+      "tags": ["Update", "Project", "Work"]
+    },
+    {
+      "content": "SELECT * FROM users WHERE active = 1;",
+      "description": "SQL query code snippet to select active users",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Command", "Programming"]
+    },
+    {
+      "content": "Completed UX design course in 2022.",
+      "description": "UX design course history",
+      "category": "History",
+      "tags": ["UX", "Learning", "Archive"]
+    },
+    {
+      "content": "Checklist for deployment: test, optimize, integrate.",
+      "description": "Deployment checklist note",
+      "category": "Note",
+      "tags": ["Checklist", "Testing", "Optimization", "Integration"]
+    },
+    {
+      "content": "Create a template for API integration.",
+      "description": "API integration template prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Template", "API", "Integration"]
+    },
+    {
+      "content": "Idea: Automate daily workflow tasks.",
+      "description": "Workflow automation project idea",
+      "category": "Idea",
+      "tags": ["Automation", "Workflow", "Project"]
     }
   ]
 }

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import { MemoryRAGSystem } from '../services/MemoryRAGSystem';
+import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory } from '../models/memory';
 

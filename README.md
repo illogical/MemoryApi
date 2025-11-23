@@ -65,7 +65,15 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
    ```
 4. **Start LM Studio:**
    Ensure LM Studio is running and the embedding model is loaded.
-5. **Run the API (development):**
+
+5. **Load seed memories from sample data:**
+   To bulk load the sample seed memories into your system, run the following command (passing the path to the JSON file):
+   ```pwsh
+   npx ts-node src/scripts/loadSeedMemories.ts src/samples/seedMemories.json
+   ```
+   This will use the `SeedMemoryLoader` to import all memories from the specified JSON file (e.g., `src/samples/seedMemories.json`).
+
+6. **Run the API (development):**
    ```pwsh
    npm run dev
    ```
