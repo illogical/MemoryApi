@@ -18,7 +18,7 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 
 ## Intentions
 - **Semantic Memory Storage:** Store user memories (preferences, reminders, code snippets, history, notes, prompts) as vector embeddings for efficient semantic search and retrieval.
-- **RAG Architecture:** Use LM Studio to generate embeddings, summaries, categories, and tags, and Qdrant to store and search memories by similarity.
+- **RAG Architecture:** Use LM Studio models to generate embeddings, summaries, categories, and tags, and Qdrant to store and search memories by similarity.
 - **Automatic Categorization & Tagging:** When adding a memory, the system uses LM Studio and prompt templates to automatically classify, tag, and summarize the content in parallel.
 - **Flexible Categorization & Tagging:** Memories are categorized and tagged for advanced filtering and organization. Tag-based and category-based search endpoints are available.
 - **RESTful API:** Expose endpoints for adding, searching, updating, and deleting memories, as well as retrieving statistics.
@@ -71,14 +71,14 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 5. **Load seed memories from sample data:**
    To bulk load the sample seed memories into your system, run the following command (passing the path to the JSON file):
    ```pwsh
-   npx ts-node src/scripts/loadSeedMemories.ts src/samples/seedMemories.json
+   npx tsx src/scripts/loadSeedMemories.ts src/samples/seedMemories.json
    ```
    This will use the `SeedMemoryLoader` to import all memories from the specified JSON file (e.g., `src/samples/seedMemories.json`).
 
 6. **Run feedback queries and get memory statistics:**
    To run feedback queries and get statistics or search results, use:
    ```pwsh
-   npx ts-node src/scripts/memoryFeedback.ts src/samples/feedbackQueries.json
+   npx tsx src/scripts/memoryFeedback.ts src/samples/feedbackQueries.json
    ```
    You can pass a custom path to your feedback queries JSON file as the second argument. If omitted, it defaults to `src/samples/feedbackQueries.json`.
 
