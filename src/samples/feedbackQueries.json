@@ -1,0 +1,26 @@
+{
+  "semanticQueries": [
+    "grocery shopping",
+    "programming language",
+    "doctor appointment",
+    "SQL query for active users",
+    "conference travel",
+    "prompt for story idea",
+    "fitness app project",
+    "work time preference",
+    "project documentation update",
+    "UX design course"
+  ],
+  "tagSearches": [
+    ["Reminder"],
+    ["Programming"],
+    ["Project"],
+    ["Prompt Engineering"],
+    ["Personal"],
+    ["Archive"],
+    ["Inspiration"],
+    ["Appointment"],
+    ["Notes"],
+    ["Fitness"]
+  ]
+}

@@ -75,7 +75,14 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
    ```
    This will use the `SeedMemoryLoader` to import all memories from the specified JSON file (e.g., `src/samples/seedMemories.json`).
 
-6. **Run the API (development):**
+6. **Run feedback queries and get memory statistics:**
+   To run feedback queries and get statistics or search results, use:
+   ```pwsh
+   npx ts-node src/scripts/memoryFeedback.ts src/samples/feedbackQueries.json
+   ```
+   You can pass a custom path to your feedback queries JSON file as the second argument. If omitted, it defaults to `src/samples/feedbackQueries.json`.
+
+## Run the API (development):
    ```pwsh
    npm run dev
    ```
