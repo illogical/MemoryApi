@@ -13,6 +13,7 @@ async function main() {
         process.exit(1);
     }
     const ragSystem = new MemoryRAGSystem(qdrantUrl, embeddingModel);
+    await ragSystem.loadEmbeddingModel();
 
     // Load feedback queries from JSON file
     const feedbackQueriesArg = process.argv[2];
@@ -45,7 +46,12 @@ async function main() {
         const results = await ragSystem.searchMemories(query, undefined, 2);
         console.log(`\nSemantic search for "${query}":`);
         results.forEach(m => {
-            console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
+            // If score is present, print it; otherwise, print without score
+            if (typeof m.score !== 'undefined') {
+                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}, Score: ${m.score}`);
+            } else {
+                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
+            }
         });
     }
 
@@ -54,7 +60,11 @@ async function main() {
         const results = await ragSystem.searchByTags(tags);
         console.log(`\nTag search for [${tags.join(', ')}]:`);
         results.slice(0, 3).forEach(m => {
-            console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
+            if (typeof m.score !== 'undefined') {
+                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}, Score: ${m.score}`);
+            } else {
+                console.log(`- ID: ${m.id}, Description: ${m.Description}, Category: ${m.Category}, Tags: ${m.Tags?.join(', ')}`);
+            }
         });
     }
 }

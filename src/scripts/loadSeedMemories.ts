@@ -4,7 +4,6 @@ config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { SeedMemoryLoader } from '../services/SeedMemoryLoader';
 import { Memory } from '../models/memory';
-import { MemoryCategory } from '../models/memoryCategory';
 
 async function main() {
     // Load config from environment

@@ -10,4 +10,5 @@ export interface Memory {
 
 export interface MemoryWithId extends Memory {
     id: string;
+    score?: number;
 }

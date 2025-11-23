@@ -294,7 +294,8 @@ class MemoryRAGSystem {
 
         return response.map(result => ({
             id: result.id.toString(),
-            ...(result.payload as unknown as Memory)
+            ...(result.payload as unknown as Memory),
+            score: typeof result.score === 'number' ? result.score : undefined
         }));
     }
 
