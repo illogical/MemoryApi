@@ -61,7 +61,9 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
    ```env
    QDRANT_URL=http://localhost:6333
    EMBEDDING_MODEL=nomic-embed-text-v1.5
-   PORT=3000
+   SUMMARIZATION_MODEL=llama-3.2-3b-instruct
+   CLASSIFICATION_MODEL=llama-3.2-3b-instruct
+   TAGGING_MODEL=llama-3.2-3b-instruct
    ```
 4. **Start LM Studio:**
    Ensure LM Studio is running and the embedding model is loaded.

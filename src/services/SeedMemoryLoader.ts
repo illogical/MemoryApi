@@ -10,6 +10,9 @@ export class SeedMemoryLoader {
 
     async loadSeedMemories(jsonFilePath: string): Promise<void> {
         try {
+            // Ensure the collection exists before loading seed memories
+            await this.ragSystem.initializeCollection();
+
             const absPath = path.isAbsolute(jsonFilePath)
                 ? jsonFilePath
                 : path.join(process.cwd(), jsonFilePath);

@@ -121,7 +121,12 @@ class MemoryRAGSystem {
 
     private async generateEmbedding(text: string): Promise<number[]> {
         if (!this.embeddingModel) {
-            throw new Error('Embedding model not loaded. Call loadEmbeddingModel() first.');
+            try {
+                await this.loadEmbeddingModel();
+            } catch (error) {
+                console.error(`Error loading embedding model ${this.embeddingModel}`, error);
+                throw new Error('Failed to generate embedding');
+            }
         }
 
         try {
@@ -134,46 +139,51 @@ class MemoryRAGSystem {
     }
 
     async addMemory(memory: Memory): Promise<string> {
-        const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        try {
+            const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-        const { summary, classification, tags } = await this.summarizeClassifyAndTagTextParallel(memory.Content);
+            const { summary, classification, tags } = await this.summarizeClassifyAndTagTextParallel(memory.Content);
 
-        let description = memory.Description;
-        if (!description || description.trim().length === 0) {
-            description = summary;
-        }
+            let description = memory.Description;
+            if (!description || description.trim().length === 0) {
+                description = summary;
+            }
 
-        let category = memory.Category;
-        if (!category) {
-            category = classification as MemoryCategory;
-        }
+            let category = memory.Category;
+            if (!category) {
+                category = classification as MemoryCategory;
+            }
 
-        let tagsList = memory.Tags;
-        if (!tagsList || tagsList.length === 0) {
-            tagsList = tags;
-        }
+            let tagsList = memory.Tags;
+            if (!tagsList || tagsList.length === 0) {
+                tagsList = tags;
+            }
 
-        const searchableText = memory.Content;
-        const embedding = await this.generateEmbedding(searchableText);
+            const searchableText = memory.Content;
+            const embedding = await this.generateEmbedding(searchableText);
 
-        await this.client.upsert(this.COLLECTION_NAME, {
-            points: [
-                {
-                    id,
-                    vector: embedding,
-                    payload: {
-                        Content: memory.Content,
-                        Description: description,
-                        Tags: tagsList,
-                        Category: category,
-                        LastUpdated: new Date().toISOString()
+            await this.client.upsert(this.COLLECTION_NAME, {
+                points: [
+                    {
+                        id,
+                        vector: embedding,
+                        payload: {
+                            Content: memory.Content,
+                            Description: description,
+                            Tags: tagsList,
+                            Category: category,
+                            LastUpdated: new Date().toISOString()
+                        }
                     }
-                }
-            ]
-        });
+                ]
+            });
 
-        console.log(`Memory added with ID: ${id}`);
-        return id;
+            console.log(`Memory added with ID: ${id}`);
+            return id;
+        } catch (error) {
+            console.error('Error adding memory:', error);
+            throw new Error('Failed to add memory. ' + (error instanceof Error ? error.message : String(error)));
+        }
     }
 
     async getMemoriesByCategory(
