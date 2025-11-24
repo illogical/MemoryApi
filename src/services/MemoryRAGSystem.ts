@@ -1,11 +1,26 @@
+// Cluster summary interfaces
+export interface CategoryClusterSummary {
+    key: string;
+    type: 'category';
+    narrative?: string;
+    bullets?: string[];
+}
+
+export interface TagClusterSummary {
+    key: string;
+    type: 'tag';
+    narrative?: string;
+    bullets?: string[];
+}
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
 import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
 import { PromptTemplateService } from './promptTemplateService';
-import { LoggingService } from './loggingService';
+import { LoggingService } from './LoggingService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
+import { MemoryPostSearchAggregator, CategoryClusterSummary, TagClusterSummary } from './memoryPostSearchAggregator';
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
 const DEFAULT_MODEL_NAME = 'llama-3.2-3b-instruct';
@@ -20,8 +35,27 @@ class MemoryRAGSystem {
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
     private loggingService: LoggingService = new LoggingService();
 
+    // Config knobs for summarization
+    private readonly SUMMARY_SCORE_THRESHOLD = 0.7;
+    private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
+    private readonly MAX_CLUSTERS = 5;
+    private readonly MAX_MEMORIES_PER_CLUSTER = 5;
+    private readonly SIMILARITY_WEIGHT = 0.7;
+    private readonly RECENCY_WEIGHT = 0.3;
+
     private readonly COLLECTION_NAME = 'memories';
     private readonly VECTOR_SIZE = 768;
+
+    private postSearchAggregator: MemoryPostSearchAggregator = new MemoryPostSearchAggregator(
+        () => this.loadInferenceModel(),
+        () => this.model!,
+        this.promptTemplateService,
+        this.loggingService,
+        {
+            MAX_CLUSTERS: this.MAX_CLUSTERS,
+            MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER
+        }
+    );
 
     constructor(qdrantUrl: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL, modelName: string = DEFAULT_MODEL_NAME) {
         this.client = new QdrantClient({ url: qdrantUrl });
@@ -475,6 +509,62 @@ class MemoryRAGSystem {
             throw new Error(`Failed to delete collection '${this.COLLECTION_NAME}'.`);
         }
     }
+
+    /// Post-search Aggregation Interfaces
+
+    /**
+     * MCP-friendly search and summarization method.
+     * Returns top memories and aggregate summary (narrative and/or bullets), optionally with cluster summaries.
+     */
+    async searchAndSummarizeForMcp(
+        query: string,
+        options?: {
+            category?: MemoryCategory;
+            limit?: number;
+            scoreThreshold?: number;
+            strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
+            format?: 'narrative' | 'bullets' | 'both';
+        }
+    ): Promise<{
+        query: string;
+        topMemories: MemoryWithId[];
+        aggregateNarrative?: string;
+        aggregateBullets?: string[];
+        clusterSummaries?: Array<{
+            key: string;
+            type: 'category' | 'tag';
+            narrative?: string;
+            bullets?: string[];
+        }>;
+        parameters: any;
+    }> {
+        // Delegate to aggregator
+        return await this.postSearchAggregator.searchAndSummarizeForMcp(query, options, (opts) =>
+            this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
+        );
+    }
+
+    private async summarizeMemoriesLinear(
+        memories: MemoryWithId[],
+        options: { mode: 'narrative' | 'bullets' | 'both' }
+    ): Promise<{ narrative?: string; bullets?: string[] }> {
+        return await this.postSearchAggregator.summarizeMemoriesLinear(memories, options);
+    }
+
+    private async summarizeMemoriesByCategory(
+        memories: MemoryWithId[],
+        options: { mode: 'narrative' | 'bullets' | 'both' }
+    ): Promise<CategoryClusterSummary[]> {
+        return await this.postSearchAggregator.summarizeMemoriesByCategory(memories, options);
+    }
+
+    private async summarizeMemoriesByTag(
+        memories: MemoryWithId[],
+        options: { mode: 'narrative' | 'bullets' | 'both' }
+    ): Promise<TagClusterSummary[]> {
+        return await this.postSearchAggregator.summarizeMemoriesByTag(memories, options);
+    }
 }
+
 
 export { MemoryRAGSystem };

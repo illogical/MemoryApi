@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
-import { SeedMemoryLoader } from '../services/SeedMemoryLoader';
+import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { Memory } from '../models/memory';
 import { MemoryReportService, ReportStats } from '../services/MemoryReportService';
 

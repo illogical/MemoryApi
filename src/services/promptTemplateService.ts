@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 export class PromptTemplateService {
+
   private templateBasePath: string;
 
   // Cache for classification prompts: key is userInput, value is rendered output
@@ -23,7 +24,7 @@ export class PromptTemplateService {
   }
 
   renderClassification(userInput: string): string {
-      // Returns a rendered classification prompt, using cache for repeated inputs
+    // Returns a rendered classification prompt, using cache for repeated inputs
     if (this.classificationCache.has(userInput)) {
       return this.classificationCache.get(userInput)!;
     }
@@ -35,8 +36,8 @@ export class PromptTemplateService {
   }
 
   renderTagging(content: string): string {
-      // Returns a rendered tagging prompt, using cache for repeated content
-      // Loads tags from allTags.json and formats them for the template
+    // Returns a rendered tagging prompt, using cache for repeated content
+    // Loads tags from allTags.json and formats them for the template
     if (this.taggingCache.has(content)) {
       return this.taggingCache.get(content)!;
     }
@@ -63,6 +64,19 @@ export class PromptTemplateService {
     // TEMPORARY DEBUG LOGGING
     console.debug('[renderTagging] Rendered tagging prompt:', template);
 
+    return template;
+  }
+
+  /**
+   * Renders the memory_summary.txt template with provided variables.
+   */
+  renderMemorySearchSummary(variables: { memories: string; mode: string; cluster_type: string; cluster_key: string }): string {
+    const templatePath = this.resolveTemplatePath('memory_summary.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      template = template.replace(regex, value);
+    }
     return template;
   }
 }
