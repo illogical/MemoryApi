@@ -2,6 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
 import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
 import { PromptTemplateService } from './promptTemplateService';
+import { LoggingService } from './LoggingService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
@@ -17,6 +18,7 @@ class MemoryRAGSystem {
     private model: LLM | null = null;
     private modelName: string;
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
+    private loggingService: LoggingService = new LoggingService();
 
     private readonly COLLECTION_NAME = 'memories';
     private readonly VECTOR_SIZE = 768;
@@ -35,13 +37,13 @@ class MemoryRAGSystem {
         }
 
         try {
-            console.log(`Loading embedding model: ${this.embeddingModelName}`);
+            this.loggingService.log(`Loading embedding model: ${this.embeddingModelName}`);
             const loadedEmbeddingModel = await this.lmStudio.embedding.model(this.embeddingModelName);
             this.embeddingModel = loadedEmbeddingModel;
             this.model = null; // Clear inference model to force reload if needed
-            console.log('Embedding model loaded successfully');
+            this.loggingService.log('Embedding model loaded successfully');
         } catch (error) {
-            console.error('Error loading embedding model:', error);
+            this.loggingService.error(`Error loading embedding model: ${error}`);
             throw new Error('Failed to load embedding model. Make sure LM Studio is running and the model is loaded.');
         }
     }
@@ -53,13 +55,13 @@ class MemoryRAGSystem {
         }
 
         try {
-            console.log(`Loading inference model: ${this.modelName}`);
+            this.loggingService.log(`Loading inference model: ${this.modelName}`);
             const loadedModel = await this.lmStudio.llm.model(this.modelName);
             this.model = loadedModel;
             this.embeddingModel = null; // Clear embedding model to force reload if needed
-            console.log('Inference model loaded successfully');
+            this.loggingService.log('Inference model loaded successfully');
         } catch (error) {
-            console.error('Error loading inference model:', error);
+            this.loggingService.error(`Error loading inference model: ${error}`);
             throw new Error('Failed to load inference model. Make sure LM Studio is running and the model is loaded.');
         }
     }
@@ -89,12 +91,12 @@ class MemoryRAGSystem {
                     field_schema: 'keyword'
                 });
 
-                console.log('Collection initialized successfully');
+                this.loggingService.log('Collection initialized successfully');
             } else {
-                console.log('Collection already exists');
+                this.loggingService.log('Collection already exists');
             }
         } catch (error) {
-            console.error('Error initializing collection:', error);
+            this.loggingService.error(`Error initializing collection: ${error}`);
             throw error;
         }
     }
@@ -108,7 +110,7 @@ class MemoryRAGSystem {
             ]);
             return { summary, classification, tags };
         } catch (error) {
-            console.error('Error in summarizeClassifyAndTagTextParallel:', error);
+            this.loggingService.error(`Error in summarizeClassifyAndTagTextParallel: ${error}`);
             throw new Error('Failed to classify, tag, and summarize text in parallel');
         }
     }
@@ -126,10 +128,10 @@ class MemoryRAGSystem {
             const prompt = this.promptTemplateService.renderClassification(text);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'classifyText');
             const raw = response.content.trim();
-            console.debug('Raw classification response:', raw);
+            this.loggingService.debug(`Raw classification response: ${raw}`);
             return raw;
         } catch (error) {
-            console.error('[classifyText] Error classifying text:', error);
+            this.loggingService.error(`[classifyText] Error classifying text: ${error}`);
             throw new Error('Failed to classify text');
         }
     }
@@ -140,10 +142,10 @@ class MemoryRAGSystem {
             const prompt = this.promptTemplateService.renderTagging(text);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'tagText');
             const raw = response.content.trim();
-            console.debug('Raw tags response:', raw);
+            this.loggingService.debug(`Raw tags response: ${raw}`);
             return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
         } catch (error) {
-            console.error('[tagText] Error tagging text:', error);
+            this.loggingService.error(`[tagText] Error tagging text: ${error}`);
             throw new Error('Failed to generate tags');
         }
     }
@@ -182,7 +184,7 @@ class MemoryRAGSystem {
      */
     async generateEmbedding(text: string): Promise<number[]> {
         if (!this.embeddingModel) {
-            console.error(`Error loading embedding model`);
+            this.loggingService.error(`Error loading embedding model`);
             throw new Error('Failed to generate embedding');
         }
 
@@ -190,7 +192,7 @@ class MemoryRAGSystem {
             const result = await this.timeModelResponse(() => this.embeddingModel!.embed(text), 'generateEmbedding') as { embedding: number[] };
             return result.embedding;
         } catch (error) {
-            console.error('Error generating embedding:', error);
+            this.loggingService.error(`Error generating embedding: ${error}`);
             throw new Error('Failed to generate embedding');
         }
     }
@@ -217,7 +219,7 @@ class MemoryRAGSystem {
                 }
             ]
         });
-        console.log(`Memory added with ID: ${memoryId}`);
+        this.loggingService.log(`Memory added with ID: ${memoryId}`);
         return memoryId;
     }
 
@@ -226,20 +228,20 @@ class MemoryRAGSystem {
      */
     async addMemory(memory: Memory): Promise<string> {
         try {
-            console.log('[addMemory] Received memory:', JSON.stringify(memory, null, 2));
+            this.loggingService.log(`[addMemory] Received memory: ${JSON.stringify(memory, null, 2)}`);
             // Step 1: Summarize, classify, tag, and prepare memory fields
-            console.log('[addMemory] Loading inference model...');
+            this.loggingService.log('[addMemory] Loading inference model...');
             await this.loadInferenceModel();
-            console.log('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
+            this.loggingService.log('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
-            console.log('[addMemory] Prepared memory fields:', JSON.stringify(prepared, null, 2));
+            this.loggingService.log(`[addMemory] Prepared memory fields: ${JSON.stringify(prepared, null, 2)}`);
             // Step 2: Generate embedding
-            console.log('[addMemory] Loading embedding model...');
+            this.loggingService.log('[addMemory] Loading embedding model...');
             await this.loadEmbeddingModel();
-            console.log('[addMemory] Embedding model loaded. Generating embedding for content:', prepared.description ? prepared.description : memory.Content);
+            this.loggingService.log(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
             try {
                 const embedding = await this.generateEmbedding(memory.Content);
-                console.log('[addMemory] Embedding generated. Length:', embedding.length);
+                this.loggingService.log(`[addMemory] Embedding generated. Length: ${embedding.length}`);
                 // Step 3: Upsert memory
                 const memoryToUpsert: Memory = {
                     ...memory,
@@ -248,14 +250,14 @@ class MemoryRAGSystem {
                     Tags: prepared.tagsList,
                     LastUpdated: new Date().toISOString()
                 };
-                console.log('[addMemory] Upserting memory:', JSON.stringify(memoryToUpsert, null, 2));
+                this.loggingService.log(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
                 return await this.upsertMemory(memoryToUpsert, embedding);
             } catch (embeddingError) {
-                console.error('[addMemory] Error during embedding generation:', embeddingError);
+                this.loggingService.error(`[addMemory] Error during embedding generation: ${embeddingError}`);
                 throw new Error('Failed to generate embedding. ' + (embeddingError instanceof Error ? embeddingError.message : String(embeddingError)));
             }
         } catch (error) {
-            console.error('[addMemory] Error adding memory:', error);
+            this.loggingService.error(`[addMemory] Error adding memory: ${error}`);
             throw new Error('Failed to add memory. ' + (error instanceof Error ? error.message : String(error)));
         }
     }
@@ -418,16 +420,16 @@ class MemoryRAGSystem {
         const start = Date.now();
         const result = await fn();
         const duration = Date.now() - start;
-        console.info(`[${caller}] Model response time: ${duration}ms`);
+        this.loggingService.info(`[${caller}] Model response time: ${duration}ms`);
         return result;
     }
 
     async deleteCollection(): Promise<void> {
         try {
             await this.client.deleteCollection(this.COLLECTION_NAME);
-            console.log(`Collection '${this.COLLECTION_NAME}' deleted successfully.`);
+            this.loggingService.log(`Collection '${this.COLLECTION_NAME}' deleted successfully.`);
         } catch (error) {
-            console.error(`Error deleting collection '${this.COLLECTION_NAME}':`, error);
+            this.loggingService.error(`Error deleting collection '${this.COLLECTION_NAME}': ${error}`);
             throw new Error(`Failed to delete collection '${this.COLLECTION_NAME}'.`);
         }
     }

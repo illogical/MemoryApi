@@ -42,6 +42,12 @@
       "category": "Idea",
       "tags": ["Project", "Inspiration"]
     },
+        {
+      "content": "I have an idea for a ...",
+      "description": "Idea for a new project",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Notes"]
+    },
     {
       "content": "I prefer working in the afternoons.",
       "description": "Work time preference",
@@ -82,13 +88,13 @@
       "content": "Idea: Build a fitness tracking app.",
       "description": "Fitness app project idea",
       "category": "Idea",
-      "tags": ["Fitness", "Project", "Inspiration"]
+      "tags": ["Health", "Project", "Inspiration"]
     },
     {
       "content": "My favorite cuisine is Mexican.",
       "description": "Cuisine preference",
       "category": "Preference",
-      "tags": ["Personal", "Cooking"]
+      "tags": ["Personal", "Food"]
     },
     {
       "content": "Update project documentation by Monday.",

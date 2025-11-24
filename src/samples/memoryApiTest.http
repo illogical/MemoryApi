@@ -4,7 +4,7 @@ Content-Type: application/json
 
 {
   "Description": "My favorite southern chicken restaurant is Bojangles",
-  "Content": "My favorite southern chicken restaurant is Bojangles because of the seasoned fries and chicken breading.",
+  "Content": "My favorite southern chicken restaurant is Bojangles because of the seasoned fries and their chicken breading.",
   "Category": "Preference",
   "Tags": ["Food", "Personal", "Favorite"]
 }
