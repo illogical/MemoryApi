@@ -38,6 +38,7 @@ class MemoryRAGSystem {
             console.log(`Loading embedding model: ${this.embeddingModelName}`);
             const loadedEmbeddingModel = await this.lmStudio.embedding.model(this.embeddingModelName);
             this.embeddingModel = loadedEmbeddingModel;
+            this.model = null; // Clear inference model to force reload if needed
             console.log('Embedding model loaded successfully');
         } catch (error) {
             console.error('Error loading embedding model:', error);
@@ -55,6 +56,7 @@ class MemoryRAGSystem {
             console.log(`Loading inference model: ${this.modelName}`);
             const loadedModel = await this.lmStudio.llm.model(this.modelName);
             this.model = loadedModel;
+            this.embeddingModel = null; // Clear embedding model to force reload if needed
             console.log('Inference model loaded successfully');
         } catch (error) {
             console.error('Error loading inference model:', error);
@@ -112,7 +114,7 @@ class MemoryRAGSystem {
     }
 
     private async summarizeText(text: string): Promise<string> {
-        if (!this.model) throw new Error('Inference model not loaded');
+        if (!this.model) throw new Error('[summarizeText] Inference model not loaded');
         const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
         const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'summarizeText');
         return response.content.trim();
@@ -120,28 +122,28 @@ class MemoryRAGSystem {
 
     private async classifyText(text: string): Promise<string> {
         try {
-            if (!this.model) throw new Error('Inference model not loaded');
+            if (!this.model) throw new Error('[classifyText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderClassification(text);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'classifyText');
             const raw = response.content.trim();
             console.debug('Raw classification response:', raw);
             return raw;
         } catch (error) {
-            console.error('Error classifying text:', error);
+            console.error('[classifyText] Error classifying text:', error);
             throw new Error('Failed to classify text');
         }
     }
 
     private async tagText(text: string): Promise<string[]> {
         try {
-            if (!this.model) throw new Error('Inference model not loaded');
+            if (!this.model) throw new Error('[tagText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderTagging(text);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'tagText');
             const raw = response.content.trim();
             console.debug('Raw tags response:', raw);
             return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
         } catch (error) {
-            console.error('Error tagging text:', error);
+            console.error('[tagText] Error tagging text:', error);
             throw new Error('Failed to generate tags');
         }
     }
@@ -224,21 +226,36 @@ class MemoryRAGSystem {
      */
     async addMemory(memory: Memory): Promise<string> {
         try {
+            console.log('[addMemory] Received memory:', JSON.stringify(memory, null, 2));
             // Step 1: Summarize, classify, tag, and prepare memory fields
+            console.log('[addMemory] Loading inference model...');
+            await this.loadInferenceModel();
+            console.log('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
+            console.log('[addMemory] Prepared memory fields:', JSON.stringify(prepared, null, 2));
             // Step 2: Generate embedding
-            const embedding = await this.generateEmbedding(memory.Content);
-            // Step 3: Upsert memory
-            const memoryToUpsert: Memory = {
-                ...memory,
-                Description: prepared.description,
-                Category: prepared.category,
-                Tags: prepared.tagsList,
-                LastUpdated: new Date().toISOString()
-            };
-            return await this.upsertMemory(memoryToUpsert, embedding);
+            console.log('[addMemory] Loading embedding model...');
+            await this.loadEmbeddingModel();
+            console.log('[addMemory] Embedding model loaded. Generating embedding for content:', prepared.description ? prepared.description : memory.Content);
+            try {
+                const embedding = await this.generateEmbedding(memory.Content);
+                console.log('[addMemory] Embedding generated. Length:', embedding.length);
+                // Step 3: Upsert memory
+                const memoryToUpsert: Memory = {
+                    ...memory,
+                    Description: prepared.description,
+                    Category: prepared.category,
+                    Tags: prepared.tagsList,
+                    LastUpdated: new Date().toISOString()
+                };
+                console.log('[addMemory] Upserting memory:', JSON.stringify(memoryToUpsert, null, 2));
+                return await this.upsertMemory(memoryToUpsert, embedding);
+            } catch (embeddingError) {
+                console.error('[addMemory] Error during embedding generation:', embeddingError);
+                throw new Error('Failed to generate embedding. ' + (embeddingError instanceof Error ? embeddingError.message : String(embeddingError)));
+            }
         } catch (error) {
-            console.error('Error adding memory:', error);
+            console.error('[addMemory] Error adding memory:', error);
             throw new Error('Failed to add memory. ' + (error instanceof Error ? error.message : String(error)));
         }
     }
@@ -272,6 +289,7 @@ class MemoryRAGSystem {
         category?: MemoryCategory,
         limit: number = 5
     ): Promise<MemoryWithId[]> {
+        await this.loadEmbeddingModel();
         const queryEmbedding = await this.generateEmbedding(query);
 
         const filter = category
