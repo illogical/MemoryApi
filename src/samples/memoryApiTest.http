@@ -18,3 +18,10 @@ Content-Type: application/json
   "query": "favorite restaurant with good chicken and fries",
   "limit": 3
 }
+
+###
+# Delete a memory by ID
+DELETE http://localhost:3000/api/memories/{{memoryId}}
+Content-Type: application/json
+
+# Replace {{memoryId}} with the actual memory ID to delete

@@ -2,7 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
 import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
 import { PromptTemplateService } from './promptTemplateService';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from './loggingService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
@@ -31,49 +31,54 @@ class MemoryRAGSystem {
     }
 
     async loadEmbeddingModel(): Promise<void> {
+        this.loggingService.debug('[loadEmbeddingModel] Called');
         if (this.embeddingModel) {
-            // Model already loaded, skip reloading
+            this.loggingService.info('[loadEmbeddingModel] Embedding model already loaded, skipping reload');
             return;
         }
 
         try {
-            this.loggingService.log(`Loading embedding model: ${this.embeddingModelName}`);
+            this.loggingService.log(`[loadEmbeddingModel] Loading embedding model: ${this.embeddingModelName}`);
             const loadedEmbeddingModel = await this.lmStudio.embedding.model(this.embeddingModelName);
             this.embeddingModel = loadedEmbeddingModel;
             this.model = null; // Clear inference model to force reload if needed
-            this.loggingService.log('Embedding model loaded successfully');
+            this.loggingService.log('[loadEmbeddingModel] Embedding model loaded successfully');
         } catch (error) {
-            this.loggingService.error(`Error loading embedding model: ${error}`);
+            this.loggingService.error(`[loadEmbeddingModel] Error loading embedding model: ${error}`);
             throw new Error('Failed to load embedding model. Make sure LM Studio is running and the model is loaded.');
         }
     }
 
     async loadInferenceModel(): Promise<void> {
+        this.loggingService.debug('[loadInferenceModel] Called');
         if (this.model) {
-            // Model already loaded, skip reloading
+            this.loggingService.info('[loadInferenceModel] Inference model already loaded, skipping reload');
             return;
         }
 
         try {
-            this.loggingService.log(`Loading inference model: ${this.modelName}`);
+            this.loggingService.log(`[loadInferenceModel] Loading inference model: ${this.modelName}`);
             const loadedModel = await this.lmStudio.llm.model(this.modelName);
             this.model = loadedModel;
             this.embeddingModel = null; // Clear embedding model to force reload if needed
-            this.loggingService.log('Inference model loaded successfully');
+            this.loggingService.log('[loadInferenceModel] Inference model loaded successfully');
         } catch (error) {
-            this.loggingService.error(`Error loading inference model: ${error}`);
+            this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
             throw new Error('Failed to load inference model. Make sure LM Studio is running and the model is loaded.');
         }
     }
 
     async initializeCollection(): Promise<void> {
+        this.loggingService.debug('[initializeCollection] Called');
         try {
             const collections = await this.client.getCollections();
+            this.loggingService.info(`[initializeCollection] Collections fetched: ${JSON.stringify(collections.collections.map(c => c.name))}`);
             const exists = collections.collections.some(
                 c => c.name === this.COLLECTION_NAME
             );
 
             if (!exists) {
+                this.loggingService.log(`[initializeCollection] Creating collection: ${this.COLLECTION_NAME}`);
                 await this.client.createCollection(this.COLLECTION_NAME, {
                     vectors: {
                         size: this.VECTOR_SIZE,
@@ -81,54 +86,64 @@ class MemoryRAGSystem {
                     }
                 });
 
+                this.loggingService.log('[initializeCollection] Creating payload index for Category');
                 await this.client.createPayloadIndex(this.COLLECTION_NAME, {
                     field_name: 'Category',
                     field_schema: 'keyword'
                 });
 
+                this.loggingService.log('[initializeCollection] Creating payload index for Tags');
                 await this.client.createPayloadIndex(this.COLLECTION_NAME, {
                     field_name: 'Tags',
                     field_schema: 'keyword'
                 });
 
-                this.loggingService.log('Collection initialized successfully');
+                this.loggingService.log('[initializeCollection] Collection initialized successfully');
             } else {
-                this.loggingService.log('Collection already exists');
+                this.loggingService.log('[initializeCollection] Collection already exists');
             }
         } catch (error) {
-            this.loggingService.error(`Error initializing collection: ${error}`);
+            this.loggingService.error(`[initializeCollection] Error initializing collection: ${error}`);
             throw error;
         }
     }
 
     async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
+        this.loggingService.debug('[summarizeClassifyAndTagTextParallel] Called');
         try {
+            this.loggingService.info('[summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag');
             const [summary, classification, tags] = await Promise.all([
                 this.summarizeText(text),
                 this.classifyText(text),
                 this.tagText(text)
             ]);
+            this.loggingService.info('[summarizeClassifyAndTagTextParallel] Parallel summarize/classify/tag complete');
             return { summary, classification, tags };
         } catch (error) {
-            this.loggingService.error(`Error in summarizeClassifyAndTagTextParallel: ${error}`);
+            this.loggingService.error(`[summarizeClassifyAndTagTextParallel] Error: ${error}`);
             throw new Error('Failed to classify, tag, and summarize text in parallel');
         }
     }
 
     private async summarizeText(text: string): Promise<string> {
+        this.loggingService.debug('[summarizeText] Called');
         if (!this.model) throw new Error('[summarizeText] Inference model not loaded');
         const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
+        this.loggingService.debug(`[summarizeText] Prompt: ${prompt}`);
         const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'summarizeText');
+        this.loggingService.debug(`[summarizeText] Response: ${response.content}`);
         return response.content.trim();
     }
 
     private async classifyText(text: string): Promise<string> {
+        this.loggingService.debug('[classifyText] Called');
         try {
             if (!this.model) throw new Error('[classifyText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderClassification(text);
+            this.loggingService.debug(`[classifyText] Prompt: ${prompt}`);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'classifyText');
             const raw = response.content.trim();
-            this.loggingService.debug(`Raw classification response: ${raw}`);
+            this.loggingService.debug(`[classifyText] Response: ${raw}`);
             return raw;
         } catch (error) {
             this.loggingService.error(`[classifyText] Error classifying text: ${error}`);
@@ -137,12 +152,14 @@ class MemoryRAGSystem {
     }
 
     private async tagText(text: string): Promise<string[]> {
+        this.loggingService.debug('[tagText] Called');
         try {
             if (!this.model) throw new Error('[tagText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderTagging(text);
+            this.loggingService.debug(`[tagText] Prompt: ${prompt}`);
             const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'tagText');
             const raw = response.content.trim();
-            this.loggingService.debug(`Raw tags response: ${raw}`);
+            this.loggingService.debug(`[tagText] Response: ${raw}`);
             return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
         } catch (error) {
             this.loggingService.error(`[tagText] Error tagging text: ${error}`);
@@ -183,16 +200,19 @@ class MemoryRAGSystem {
      * Generates embedding for memory content.
      */
     async generateEmbedding(text: string): Promise<number[]> {
+        this.loggingService.debug('[generateEmbedding] Called');
         if (!this.embeddingModel) {
-            this.loggingService.error(`Error loading embedding model`);
+            this.loggingService.error('[generateEmbedding] Embedding model not loaded');
             throw new Error('Failed to generate embedding');
         }
 
         try {
+            this.loggingService.debug(`[generateEmbedding] Generating embedding for text: ${text}`);
             const result = await this.timeModelResponse(() => this.embeddingModel!.embed(text), 'generateEmbedding') as { embedding: number[] };
+            this.loggingService.debug(`[generateEmbedding] Embedding result length: ${result.embedding.length}`);
             return result.embedding;
         } catch (error) {
-            this.loggingService.error(`Error generating embedding: ${error}`);
+            this.loggingService.error(`[generateEmbedding] Error generating embedding: ${error}`);
             throw new Error('Failed to generate embedding');
         }
     }
@@ -202,8 +222,10 @@ class MemoryRAGSystem {
      * Upserts the memory record into Qdrant.
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
+        this.loggingService.debug('[upsertMemory] Called');
         // Use a valid UUID for the memory ID
         const memoryId = id || randomUUID();
+        this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
         await this.client.upsert(this.COLLECTION_NAME, {
             points: [
                 {
@@ -219,7 +241,7 @@ class MemoryRAGSystem {
                 }
             ]
         });
-        this.loggingService.log(`Memory added with ID: ${memoryId}`);
+        this.loggingService.log(`[upsertMemory] Memory added with ID: ${memoryId}`);
         return memoryId;
     }
 
@@ -227,21 +249,22 @@ class MemoryRAGSystem {
      * Main addMemory method, now orchestrates the above steps.
      */
     async addMemory(memory: Memory): Promise<string> {
+        this.loggingService.debug('[addMemory] Called');
         try {
-            this.loggingService.log(`[addMemory] Received memory: ${JSON.stringify(memory, null, 2)}`);
+            this.loggingService.info(`[addMemory] Received memory: ${JSON.stringify(memory, null, 2)}`);
             // Step 1: Summarize, classify, tag, and prepare memory fields
-            this.loggingService.log('[addMemory] Loading inference model...');
+            this.loggingService.debug('[addMemory] Loading inference model...');
             await this.loadInferenceModel();
-            this.loggingService.log('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
+            this.loggingService.info('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
-            this.loggingService.log(`[addMemory] Prepared memory fields: ${JSON.stringify(prepared, null, 2)}`);
+            this.loggingService.debug(`[addMemory] Prepared memory fields: ${JSON.stringify(prepared, null, 2)}`);
             // Step 2: Generate embedding
-            this.loggingService.log('[addMemory] Loading embedding model...');
+            this.loggingService.debug('[addMemory] Loading embedding model...');
             await this.loadEmbeddingModel();
-            this.loggingService.log(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
+            this.loggingService.info(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
             try {
                 const embedding = await this.generateEmbedding(memory.Content);
-                this.loggingService.log(`[addMemory] Embedding generated. Length: ${embedding.length}`);
+                this.loggingService.info(`[addMemory] Embedding generated. Length: ${embedding.length}`);
                 // Step 3: Upsert memory
                 const memoryToUpsert: Memory = {
                     ...memory,
@@ -250,7 +273,7 @@ class MemoryRAGSystem {
                     Tags: prepared.tagsList,
                     LastUpdated: new Date().toISOString()
                 };
-                this.loggingService.log(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
+                this.loggingService.info(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
                 return await this.upsertMemory(memoryToUpsert, embedding);
             } catch (embeddingError) {
                 this.loggingService.error(`[addMemory] Error during embedding generation: ${embeddingError}`);
@@ -266,6 +289,7 @@ class MemoryRAGSystem {
         category: MemoryCategory,
         limit: number = 10
     ): Promise<MemoryWithId[]> {
+        this.loggingService.info(`[getMemoriesByCategory] Called with category: ${category}, limit: ${limit}`);
         const response = await this.client.scroll(this.COLLECTION_NAME, {
             filter: {
                 must: [
@@ -279,7 +303,8 @@ class MemoryRAGSystem {
             with_payload: true,
             with_vector: false
         });
-
+        this.loggingService.info(`[getMemoriesByCategory] Retrieved ${response.points.length} memories`);
+        this.loggingService.debug(`[getMemoriesByCategory] Response: ${JSON.stringify(response.points, null, 2)}`);
         return response.points.map(point => ({
             id: point.id.toString(),
             ...(point.payload as unknown as Memory)
@@ -291,6 +316,7 @@ class MemoryRAGSystem {
         category?: MemoryCategory,
         limit: number = 5
     ): Promise<MemoryWithId[]> {
+        this.loggingService.info(`[searchMemories] Called with query: ${query}, category: ${category}, limit: ${limit}`);
         await this.loadEmbeddingModel();
         const queryEmbedding = await this.generateEmbedding(query);
 
@@ -305,13 +331,15 @@ class MemoryRAGSystem {
             }
             : undefined;
 
+        this.loggingService.debug(`[searchMemories] Searching with filter: ${JSON.stringify(filter)}`);
         const response = await this.client.search(this.COLLECTION_NAME, {
             vector: queryEmbedding,
             limit,
             filter,
             with_payload: true
         });
-
+        this.loggingService.info(`[searchMemories] Search returned ${response.length} results`);
+        this.loggingService.debug(`[searchMemories] Response: ${JSON.stringify(response, null, 2)}`);
         return response.map(result => ({
             id: result.id.toString(),
             ...(result.payload as unknown as Memory),
@@ -323,6 +351,7 @@ class MemoryRAGSystem {
         tags: string[],
         category?: MemoryCategory
     ): Promise<MemoryWithId[]> {
+        this.loggingService.info(`[searchByTags] Called with tags: ${JSON.stringify(tags)}, category: ${category}`);
         const mustConditions: any[] = [
             {
                 key: 'Tags',
@@ -337,13 +366,15 @@ class MemoryRAGSystem {
             });
         }
 
+        this.loggingService.debug(`[searchByTags] Filter: ${JSON.stringify(mustConditions)}`);
         const response = await this.client.scroll(this.COLLECTION_NAME, {
             filter: { must: mustConditions },
             limit: 100,
             with_payload: true,
             with_vector: false
         });
-
+        this.loggingService.info(`[searchByTags] Retrieved ${response.points.length} memories`);
+        this.loggingService.debug(`[searchByTags] Response: ${JSON.stringify(response.points, null, 2)}`);
         return response.points.map(point => ({
             id: point.id.toString(),
             ...(point.payload as unknown as Memory)
@@ -351,6 +382,7 @@ class MemoryRAGSystem {
     }
 
     async updateMemory(id: string, updates: Partial<Memory>): Promise<void> {
+        this.loggingService.log(`[updateMemory] Called for ID: ${id} with updates: ${JSON.stringify(updates)}`);
         const points = await this.client.retrieve(this.COLLECTION_NAME, {
             ids: [id],
             with_payload: true,
@@ -358,6 +390,7 @@ class MemoryRAGSystem {
         });
 
         if (points.length === 0) {
+            this.loggingService.error(`[updateMemory] Memory with ID ${id} not found`);
             throw new Error(`Memory with ID ${id} not found`);
         }
 
@@ -370,10 +403,12 @@ class MemoryRAGSystem {
 
         let vector = points[0].vector as number[];
         if (updates.Content || updates.Description || updates.Tags) {
+            this.loggingService.info('[updateMemory] Content/Description/Tags updated, regenerating embedding');
             const searchableText = updatedMemory.Content;
             vector = await this.generateEmbedding(searchableText);
         }
 
+        this.loggingService.info('[updateMemory] Upserting updated memory');
         await this.client.upsert(this.COLLECTION_NAME, {
             points: [
                 {
@@ -383,19 +418,24 @@ class MemoryRAGSystem {
                 }
             ]
         });
+        this.loggingService.log(`[updateMemory] Memory with ID ${id} updated successfully`);
     }
 
     async deleteMemory(id: string): Promise<void> {
+        this.loggingService.log(`[deleteMemory] Called for ID: ${id}`);
         await this.client.delete(this.COLLECTION_NAME, {
             points: [id]
         });
+        this.loggingService.log(`[deleteMemory] Memory with ID ${id} deleted`);
     }
 
     // Get counts of memories per category
     async getCategoryCounts(): Promise<Record<MemoryCategory, number>> {
+        this.loggingService.log('[getCategoryCounts] Called');
         const counts = {} as Record<MemoryCategory, number>;
 
         for (const category of Object.values(MemoryCategory)) {
+            this.loggingService.debug(`[getCategoryCounts] Counting for category: ${category}`);
             const response = await this.client.scroll(this.COLLECTION_NAME, {
                 filter: {
                     must: [
@@ -410,8 +450,10 @@ class MemoryRAGSystem {
                 with_vector: false
             });
             counts[category as MemoryCategory] = response.points.length;
+            this.loggingService.debug(`[getCategoryCounts] Category: ${category}, Count: ${response.points.length}`);
         }
 
+        this.loggingService.info(`[getCategoryCounts] Counts: ${JSON.stringify(counts)}`);
         return counts;
     }
 
