@@ -1,0 +1,28 @@
+{
+  "TagGroups": [
+    {
+      "Description": "Context & Purpose Tags (describe why or how something is remembered):",
+      "Tags": [
+        "Work", "Personal", "Project", "Learning", "Inspiration", "Resource", "Workflow", "Checklist", "Draft", "Plan", "Summary", "Archive", "Prompt", "Appointment", "Favorite"
+      ]
+    },
+    {
+      "Description": "Cognitive or Intent Tags (describe what action, goal, or mental context the memory relates to):",
+      "Tags": [
+        "To Do", "Review", "Read Later", "Watch Later", "Follow Up", "Research", "Update", "Test", "Improve", "Reminder", "Action Required", "Notes", "Comparison"
+      ]
+    },
+    {
+      "Description": "Domain or Subject Tags (categorize notes, ideas, or topics by field or domain):",
+      "Tags": [
+        "Data Science", "Machine Learning", "Generative AI", "Design", "UX", "Productivity", "Travel", "Career", "Health", "Food", "Shopping"
+      ]
+    },
+    {
+      "Description": "Technical & Usage Tags (categorize technical content, code, prompts, or tool usage):",
+      "Tags": [
+        "Snippet", "Config", "Command", "API", "Automation", "Prompt Engineering", "Template", "Deployment", "Debugging", "Testing", "Optimization", "Integration", "Programming"
+      ]
+    }
+  ]
+}

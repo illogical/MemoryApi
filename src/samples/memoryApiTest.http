@@ -1,0 +1,20 @@
+# Add a new memory
+POST http://localhost:3000/api/memories
+Content-Type: application/json
+
+{
+  "Description": "My favorite southern chicken restaurant is Bojangles",
+  "Content": "My favorite southern chicken restaurant is Bojangles because of the seasoned fries and chicken breading.",
+  "Category": "Preference",
+  "Tags": ["Food", "Personal", "Favorite"]
+}
+
+###
+# Semantic search for the memory
+POST http://localhost:3000/api/memories/search
+Content-Type: application/json
+
+{
+  "query": "favorite restaurant with good chicken and fries",
+  "limit": 3
+}

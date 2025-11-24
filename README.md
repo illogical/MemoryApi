@@ -103,6 +103,14 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 ## Example Usage
 See `src/samples/qdrantAPI.ts` for example usage and implementation details. When adding a memory, you may omit `Description`, `Category`, or `Tags`—the system will generate them automatically if missing.
 
+## HTTP File Testing in VS Code
+To easily test API endpoints using the provided `.http` files (such as `src/samples/memoryApiTest.http`), install the **REST Client** extension for VS Code:
+
+- Extension: [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
+- After installation, open any `.http` file and click the `Send Request` link above each request to execute it directly in VS Code and view the response inline.
+
+This is useful for quickly verifying your API endpoints during development.
+
 ## Extending the Project
 - Add new categories or metadata fields in the `MemoryCategory` enum and `Memory` interface.
 - Create new prompt templates in `src/prompts/` and use `PromptTemplateService` for custom classification or tagging tasks.

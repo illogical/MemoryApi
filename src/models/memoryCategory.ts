@@ -1,9 +1,9 @@
 export enum MemoryCategory {
-    PREFERENCES = 'Preferences',
-    REMINDERS = 'Reminders',
-    CODE_SNIPPETS = 'Code Snippets',
+    PREFERENCES = 'Preference',
+    REMINDERS = 'Reminder',
+    CODE_SNIPPETS = 'Code Snippet',
     HISTORY = 'History',
-    NOTES = 'Notes',
-    PROMPTS = 'Prompts',
-    IDEAS = 'Ideas'
+    NOTES = 'Note',
+    PROMPTS = 'Prompt',
+    IDEAS = 'Idea'
 }
