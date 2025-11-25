@@ -160,6 +160,28 @@ app.get('/api/memories/stats', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/memories/search-and-summarize - Semantic search and MCP summary
+app.post('/api/memories/search-and-summarize', async (req: Request, res: Response) => {
+    try {
+        const { query, category, limit, scoreThreshold, strategy, format } = req.body;
+        if (!query) {
+            return res.status(400).json({ error: 'Query is required' });
+        }
+        const options = {
+            category,
+            limit,
+            scoreThreshold,
+            strategy,
+            format
+        };
+        const result = await memorySystem.searchAndSummarizeForMcp(query, options);
+        res.json(result);
+    } catch (error) {
+        console.error('Error in search-and-summarize:', error);
+        res.status(500).json({ error: 'Failed to search and summarize memories' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Memory RAG API running on port ${PORT}`);
