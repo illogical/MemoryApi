@@ -1,0 +1,13 @@
+{
+	"servers": {
+		"MemoryMcpServer": {
+			"type": "stdio",
+			"command": "npx",
+			"args": [
+				"tsx",
+				"src/app/memoryMcpServer.ts"
+			]
+		}
+	},
+	"inputs": []
+}

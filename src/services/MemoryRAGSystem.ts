@@ -360,7 +360,7 @@ class MemoryRAGSystem {
         return response.map(result => ({
             id: result.id.toString(),
             ...(result.payload as unknown as Memory),
-            score: typeof result.score === 'number' ? result.score : undefined
+            score: result.score as number | undefined
         }));
     }
 
@@ -525,27 +525,6 @@ class MemoryRAGSystem {
         return await this.postSearchAggregator.searchAndSummarizeForMcp(query, options, (opts) =>
             this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
         );
-    }
-
-    private async summarizeMemoriesLinear(
-        memories: MemoryWithId[],
-        options: { mode: 'narrative' | 'bullets' | 'both' }
-    ): Promise<{ narrative?: string; bullets?: string[] }> {
-        return await this.postSearchAggregator.summarizeMemoriesLinear(memories, options);
-    }
-
-    private async summarizeMemoriesByCategory(
-        memories: MemoryWithId[],
-        options: { mode: 'narrative' | 'bullets' | 'both' }
-    ): Promise<CategoryClusterSummary[]> {
-        return await this.postSearchAggregator.summarizeMemoriesByCategory(memories, options);
-    }
-
-    private async summarizeMemoriesByTag(
-        memories: MemoryWithId[],
-        options: { mode: 'narrative' | 'bullets' | 'both' }
-    ): Promise<TagClusterSummary[]> {
-        return await this.postSearchAggregator.summarizeMemoriesByTag(memories, options);
     }
 }
 

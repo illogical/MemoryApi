@@ -21,6 +21,8 @@ Content-Type: application/json
 
 ###
 # MCP-friendly semantic search and summary
+# strategy options: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid',
+# format options: 'summary' | 'detailed' | 'both'
 POST http://localhost:3000/api/memories/search-and-summarize
 Content-Type: application/json
 
@@ -28,8 +30,8 @@ Content-Type: application/json
   "query": "favorite restaurant",
   "limit": 3,
   "scoreThreshold": 0.6,
-  "strategy": "hybrid", // Options: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid'
-  "format": "both" // Options: 'narrative' | 'bullets' | 'both'
+  "strategy": "hybrid", 
+  "format": "both"
 }
 
 ###

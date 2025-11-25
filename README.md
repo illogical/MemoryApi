@@ -106,6 +106,28 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    docker-compose up --build
    ```
 
+## Run the MCP Server
+The project provides a Model Context Protocol (MCP) server so VS Code (or any MCP-compatible client) can call a tool that performs semantic memory search plus summarization/clustering.
+
+1. Install dependencies (if not already):
+   ```pwsh
+   npm install
+   ```
+2. Start LM Studio with the embedding + inference models defined in your `.env`.
+3. Launch the MCP server:
+   ```pwsh
+   npm run mcp
+   ```
+4. In VS Code, use an MCP-capable extension/client and register this server via a command that starts the process (`npm run mcp`). The tool name exposed is `search_memories` and accepts:
+   - `query` (required)
+   - `category` (optional enum of categories)
+   - `limit`, `scoreThreshold`
+   - `strategy`: `linear` | `cluster-category` | `cluster-tag` | `hybrid`
+   - `format`: `narrative` | `bullets` | `both`
+
+The tool returns a JSON payload containing `topMemories`, optional `aggregateNarrative`, `aggregateBullets`, and any `clusterSummaries` depending on strategy, mirroring the REST endpoint `POST /api/memories/search-and-summarize`.
+
+
 ### API Endpoints
 - `POST /api/memories`: Add a new memory. The API will automatically summarize, categorize, and tag the memory content using LM Studio and prompt templates. Required fields: `Description`, `Content`, and `Category`.
 - `GET /api/memories/category/:category`: Get memories by category. Returns all memories in the specified category.
