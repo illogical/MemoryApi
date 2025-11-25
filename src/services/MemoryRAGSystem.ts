@@ -1,22 +1,8 @@
-// Cluster summary interfaces
-export interface CategoryClusterSummary {
-    key: string;
-    type: 'category';
-    narrative?: string;
-    bullets?: string[];
-}
-
-export interface TagClusterSummary {
-    key: string;
-    type: 'tag';
-    narrative?: string;
-    bullets?: string[];
-}
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
 import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
 import { PromptTemplateService } from './promptTemplateService';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from './loggingService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
@@ -36,12 +22,9 @@ class MemoryRAGSystem {
     private loggingService: LoggingService = new LoggingService();
 
     // Config knobs for summarization
-    private readonly SUMMARY_SCORE_THRESHOLD = 0.7;
     private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
     private readonly MAX_CLUSTERS = 5;
     private readonly MAX_MEMORIES_PER_CLUSTER = 5;
-    private readonly SIMILARITY_WEIGHT = 0.7;
-    private readonly RECENCY_WEIGHT = 0.3;
 
     private readonly COLLECTION_NAME = 'memories';
     private readonly VECTOR_SIZE = 768;
@@ -65,7 +48,7 @@ class MemoryRAGSystem {
     }
 
     async loadEmbeddingModel(): Promise<void> {
-        this.loggingService.debug('[loadEmbeddingModel] Called');
+        this.loggingService.trace('[loadEmbeddingModel] Called');
         if (this.embeddingModel) {
             this.loggingService.info('[loadEmbeddingModel] Embedding model already loaded, skipping reload');
             return;
@@ -84,7 +67,7 @@ class MemoryRAGSystem {
     }
 
     async loadInferenceModel(): Promise<void> {
-        this.loggingService.debug('[loadInferenceModel] Called');
+        this.loggingService.trace('[loadInferenceModel] Called');
         if (this.model) {
             this.loggingService.info('[loadInferenceModel] Inference model already loaded, skipping reload');
             return;
@@ -103,7 +86,7 @@ class MemoryRAGSystem {
     }
 
     async initializeCollection(): Promise<void> {
-        this.loggingService.debug('[initializeCollection] Called');
+        this.loggingService.trace('[initializeCollection] Called');
         try {
             const collections = await this.client.getCollections();
             this.loggingService.info(`[initializeCollection] Collections fetched: ${JSON.stringify(collections.collections.map(c => c.name))}`);
@@ -143,7 +126,7 @@ class MemoryRAGSystem {
     }
 
     async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
-        this.loggingService.debug('[summarizeClassifyAndTagTextParallel] Called');
+        this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         try {
             this.loggingService.info('[summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag');
             const [summary, classification, tags] = await Promise.all([
@@ -160,7 +143,7 @@ class MemoryRAGSystem {
     }
 
     private async summarizeText(text: string): Promise<string> {
-        this.loggingService.debug('[summarizeText] Called');
+        this.loggingService.trace('[summarizeText] Called');
         if (!this.model) throw new Error('[summarizeText] Inference model not loaded');
         const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
         this.loggingService.debug(`[summarizeText] Prompt: ${prompt}`);
@@ -170,7 +153,7 @@ class MemoryRAGSystem {
     }
 
     private async classifyText(text: string): Promise<string> {
-        this.loggingService.debug('[classifyText] Called');
+        this.loggingService.trace('[classifyText] Called');
         try {
             if (!this.model) throw new Error('[classifyText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderClassification(text);
@@ -186,7 +169,7 @@ class MemoryRAGSystem {
     }
 
     private async tagText(text: string): Promise<string[]> {
-        this.loggingService.debug('[tagText] Called');
+        this.loggingService.trace('[tagText] Called');
         try {
             if (!this.model) throw new Error('[tagText] Inference model not loaded');
             const prompt = this.promptTemplateService.renderTagging(text);
@@ -234,7 +217,7 @@ class MemoryRAGSystem {
      * Generates embedding for memory content.
      */
     async generateEmbedding(text: string): Promise<number[]> {
-        this.loggingService.debug('[generateEmbedding] Called');
+        this.loggingService.trace('[generateEmbedding] Called');
         if (!this.embeddingModel) {
             this.loggingService.error('[generateEmbedding] Embedding model not loaded');
             throw new Error('Failed to generate embedding');
@@ -256,7 +239,7 @@ class MemoryRAGSystem {
      * Upserts the memory record into Qdrant.
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
-        this.loggingService.debug('[upsertMemory] Called');
+        this.loggingService.trace('[upsertMemory] Called');
         // Use a valid UUID for the memory ID
         const memoryId = id || randomUUID();
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
@@ -283,7 +266,7 @@ class MemoryRAGSystem {
      * Main addMemory method, now orchestrates the above steps.
      */
     async addMemory(memory: Memory): Promise<string> {
-        this.loggingService.debug('[addMemory] Called');
+        this.loggingService.trace('[addMemory] Called');
         try {
             this.loggingService.info(`[addMemory] Received memory: ${JSON.stringify(memory, null, 2)}`);
             // Step 1: Summarize, classify, tag, and prepare memory fields
@@ -323,7 +306,7 @@ class MemoryRAGSystem {
         category: MemoryCategory,
         limit: number = 10
     ): Promise<MemoryWithId[]> {
-        this.loggingService.info(`[getMemoriesByCategory] Called with category: ${category}, limit: ${limit}`);
+        this.loggingService.trace(`[getMemoriesByCategory] Called with category: ${category}, limit: ${limit}`);
         const response = await this.client.scroll(this.COLLECTION_NAME, {
             filter: {
                 must: [
@@ -350,7 +333,7 @@ class MemoryRAGSystem {
         category?: MemoryCategory,
         limit: number = 5
     ): Promise<MemoryWithId[]> {
-        this.loggingService.info(`[searchMemories] Called with query: ${query}, category: ${category}, limit: ${limit}`);
+        this.loggingService.trace(`[searchMemories] Called with query: ${query}, category: ${category}, limit: ${limit}`);
         await this.loadEmbeddingModel();
         const queryEmbedding = await this.generateEmbedding(query);
 
@@ -385,7 +368,7 @@ class MemoryRAGSystem {
         tags: string[],
         category?: MemoryCategory
     ): Promise<MemoryWithId[]> {
-        this.loggingService.info(`[searchByTags] Called with tags: ${JSON.stringify(tags)}, category: ${category}`);
+        this.loggingService.trace(`[searchByTags] Called with tags: ${JSON.stringify(tags)}, category: ${category}`);
         const mustConditions: any[] = [
             {
                 key: 'Tags',
@@ -416,7 +399,7 @@ class MemoryRAGSystem {
     }
 
     async updateMemory(id: string, updates: Partial<Memory>): Promise<void> {
-        this.loggingService.log(`[updateMemory] Called for ID: ${id} with updates: ${JSON.stringify(updates)}`);
+        this.loggingService.trace(`[updateMemory] Called for ID: ${id} with updates: ${JSON.stringify(updates)}`);
         const points = await this.client.retrieve(this.COLLECTION_NAME, {
             ids: [id],
             with_payload: true,
@@ -456,7 +439,7 @@ class MemoryRAGSystem {
     }
 
     async deleteMemory(id: string): Promise<void> {
-        this.loggingService.log(`[deleteMemory] Called for ID: ${id}`);
+        this.loggingService.trace(`[deleteMemory] Called for ID: ${id}`);
         await this.client.delete(this.COLLECTION_NAME, {
             points: [id]
         });
@@ -465,7 +448,7 @@ class MemoryRAGSystem {
 
     // Get counts of memories per category
     async getCategoryCounts(): Promise<Record<MemoryCategory, number>> {
-        this.loggingService.log('[getCategoryCounts] Called');
+        this.loggingService.trace('[getCategoryCounts] Called');
         const counts = {} as Record<MemoryCategory, number>;
 
         for (const category of Object.values(MemoryCategory)) {

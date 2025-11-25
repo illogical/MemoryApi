@@ -1,7 +1,7 @@
 import { MemoryCategory } from '../models/memoryCategory';
 import { MemoryWithId } from '../models/memory';
 import { PromptTemplateService } from './promptTemplateService';
-import { LoggingService } from './LoggingService';
+import { LoggingService } from './loggingService';
 
 // Cluster summary interfaces for category/tag clusters
 export interface CategoryClusterSummary {
@@ -79,7 +79,7 @@ export class MemoryPostSearchAggregator {
         clusterSummaries?: Array<CategoryClusterSummary | TagClusterSummary>;
         parameters: any;
     }> {
-        this.loggingService.debug('[searchAndSummarizeForMcp] Called');
+        this.loggingService.trace('[searchAndSummarizeForMcp] Called');
         // Step 1: Run semantic search
         const limit = options.limit ?? 10;
         const scoreThreshold = options.scoreThreshold ?? 0.7;
@@ -142,7 +142,7 @@ export class MemoryPostSearchAggregator {
         memories: MemoryWithId[],
         options: { mode: 'narrative' | 'bullets' | 'both' }
     ): Promise<{ narrative?: string; bullets?: string[] }> {
-        this.loggingService.info('[summarizeMemoriesLinear] Called');
+        this.loggingService.trace('[summarizeMemoriesLinear] Called');
         if (!memories.length) {
             this.loggingService.debug('[summarizeMemoriesLinear] No memories to summarize');
             return {};
@@ -192,7 +192,7 @@ export class MemoryPostSearchAggregator {
         memories: MemoryWithId[],
         options: { mode: 'narrative' | 'bullets' | 'both' }
     ): Promise<CategoryClusterSummary[]> {
-        this.loggingService.debug('[summarizeMemoriesByCategory] Called');
+        this.loggingService.trace('[summarizeMemoriesByCategory] Called');
         if (!memories.length) {
             this.loggingService.debug('[summarizeMemoriesByCategory] No memories to cluster');
             return [];
@@ -287,7 +287,7 @@ export class MemoryPostSearchAggregator {
         memories: MemoryWithId[],
         options: { mode: 'narrative' | 'bullets' | 'both' }
     ): Promise<TagClusterSummary[]> {
-        this.loggingService.info('[summarizeMemoriesByTag] Called');
+        this.loggingService.trace('[summarizeMemoriesByTag] Called');
         if (!memories.length) {
             this.loggingService.debug('[summarizeMemoriesByTag] No memories to cluster');
             return [];

@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-type LogLevel = 'error' | 'info' | 'log' | 'debug';
+type LogLevel = 'error' | 'info' | 'log' | 'debug' | 'trace';
 
-const LOG_LEVELS: LogLevel[] = ['error', 'info', 'log', 'debug'];
+const LOG_LEVELS: LogLevel[] = ['error', 'info', 'log', 'debug', 'trace'];
 
 class LoggingService {
     private logDir: string;
@@ -98,6 +98,17 @@ class LoggingService {
         }
         if (this.shouldLog('debug', 'console')) {
             console.debug(formatted);
+        }
+    }
+
+        trace(message: string) {
+        this.updateLogStream();
+        const formatted = this.formatMessage('trace', message);
+        if (this.shouldLog('trace', 'file')) {
+            this.logStream!.write(formatted + '\n');
+        }
+        if (this.shouldLog('trace', 'console')) {
+            console.trace(formatted);
         }
     }
 
