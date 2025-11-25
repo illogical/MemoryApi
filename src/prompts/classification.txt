@@ -20,7 +20,7 @@ Input: "foreach(int i = 0; i < count; i++) { }"
 Category: Code snippet
 
 Input: "Met John at the conference last June"
-Category: History
+Category: Event
 
 Input: "Meeting notes from 2024-11-09"
 Category: Note

@@ -2,15 +2,21 @@
   "memories": [
     {
       "content": "I do not enjoy cooking because I find it time-consuming and not rewarding enough.",
-      "description": "Grocery shopping reminder",
-      "category": "Reminder",
-      "tags": ["Shopping", "Reminder", "Personal"]
+      "description": "I'm not a fan of cooking due to its time-consuming nature and lack of personal satisfaction.",
+      "category": "Preference",
+      "tags": ["Food", "Avoid"]
+    },
+    {
+      "content": "I prefer working in the afternoons.",
+      "description": "Work time preference",
+      "category": "Preference",
+      "tags": ["Personal", "Productivity"]
     },
     {
       "content": "My favorite programming language is C#",
       "description": "Programming language preference",
       "category": "Preference",
-      "tags": ["Programming", "Personal"]
+      "tags": ["Programming", "Personal", "Favorite"]
     },
     {
       "content": "foreach(int i = 0; i < count; i++) { }",
@@ -19,16 +25,10 @@
       "tags": ["Snippet", "Programming"]
     },
     {
-      "content": "Met John at the conference last June",
-      "description": "Conference meeting history",
-      "category": "History",
-      "tags": ["Work", "Personal"]
-    },
-    {
-      "content": "Meeting notes from 2024-11-09",
-      "description": "Notes from meeting on 2024-11-09",
-      "category": "Note",
-      "tags": ["Notes", "Work", "Summary"]
+      "content": "I went to the VSLive conference in 2025 in Orlando.",
+      "description": "I went to the VSLive conference in 2025 in Orlando.",
+      "category": "Event",
+      "tags": ["Work", "Personal", "Travel"]
     },
     {
       "content": "Create an AI prompt that will ...",
@@ -47,18 +47,6 @@
       "description": "Idea for a new project",
       "category": "Idea",
       "tags": ["Project", "Inspiration", "Notes"]
-    },
-    {
-      "content": "I prefer working in the afternoons.",
-      "description": "Work time preference",
-      "category": "Preference",
-      "tags": ["Personal", "Productivity"]
-    },
-    {
-      "content": "Doctor appointment next Friday at 10am.",
-      "description": "Doctor appointment reminder",
-      "category": "Reminder",
-      "tags": ["Appointment", "Reminder", "Personal"]
     },
     {
       "content": "console.log('Hello, world!');",

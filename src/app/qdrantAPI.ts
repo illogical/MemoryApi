@@ -153,6 +153,21 @@ memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/memories/:id - Retrieve a memory by ID
+memoryRouter.get('/memories/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const memory = await memorySystem.getMemoryById(id);
+        if (!memory) {
+            return res.status(404).json({ error: 'Memory not found' });
+        }
+        res.json(memory);
+    } catch (error) {
+        console.error('Error retrieving memory by id:', error);
+        res.status(500).json({ error: 'Failed to retrieve memory by id' });
+    }
+});
+
 // POST /api/memories/search-and-summarize - Semantic search and MCP summary
 memoryRouter.post('/memories/search-and-summarize', async (req: Request, res: Response) => {
     try {

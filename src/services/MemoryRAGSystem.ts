@@ -446,6 +446,35 @@ class MemoryRAGSystem {
         this.loggingService.log(`[deleteMemory] Memory with ID ${id} deleted`);
     }
 
+    /**
+     * Retrieve a single memory by its ID. Returns null if not found.
+     */
+    async getMemoryById(id: string): Promise<MemoryWithId | null> {
+        this.loggingService.trace(`[getMemoryById] Called with ID: ${id}`);
+        try {
+            const points = await this.client.retrieve(this.COLLECTION_NAME, {
+                ids: [id],
+                with_payload: true,
+                with_vector: false
+            });
+            if (!points || points.length === 0) {
+                this.loggingService.info(`[getMemoryById] Memory not found for ID: ${id}`);
+                return null;
+            }
+            const point = points[0];
+            const memory = point.payload as unknown as Memory;
+            const result: MemoryWithId = {
+                id: point.id.toString(),
+                ...memory
+            };
+            this.loggingService.debug(`[getMemoryById] Retrieved memory: ${JSON.stringify(result, null, 2)}`);
+            return result;
+        } catch (error) {
+            this.loggingService.error(`[getMemoryById] Error retrieving memory: ${error}`);
+            throw new Error('Failed to retrieve memory by id');
+        }
+    }
+
     // Get counts of memories per category
     async getCategoryCounts(): Promise<Record<MemoryCategory, number>> {
         this.loggingService.trace('[getCategoryCounts] Called');

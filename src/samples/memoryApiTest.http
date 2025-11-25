@@ -44,6 +44,12 @@ Content-Type: application/json
 }
 
 ###
+# Get a memory by ID
+# First create a memory above, copy the returned "id" and use it here
+GET http://localhost:3000/api/memories/{{memoryId}}
+Accept: application/json
+
+###
 # Delete a memory by ID
 DELETE http://localhost:3000/api/memories/{{memoryId}}
 Content-Type: application/json
