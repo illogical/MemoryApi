@@ -48,11 +48,10 @@ export class PromptTemplateService {
     const tagsPath = path.join(this.templateBasePath, '../samples/allTags.json');
     const tagsData = JSON.parse(fs.readFileSync(tagsPath, 'utf-8'));
 
-    // Format tags: *Description*\ntag1, tag2, ...
+    // Format tags: tag1, tag2, ...
     const formattedTags = tagsData.TagGroups.map((group: any) => {
-      const desc = `*${group.Description}*`;
       const tags = group.Tags.join(', ');
-      return `${desc}\n${tags}`;
+      return `${tags}`;
     }).join('\n');
 
     // Replace placeholders in template
