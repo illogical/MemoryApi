@@ -10,6 +10,15 @@ Content-Type: application/json
 }
 
 ###
+# Add another new memory to test automatic tagging and categorization
+POST http://localhost:3000/api/memories
+Content-Type: application/json
+
+{
+  "Content": "I do not enjoy cooking because I find it time-consuming and not rewarding enough."
+}
+
+###
 # Semantic search for the memory
 POST http://localhost:3000/api/memories/search
 Content-Type: application/json
@@ -40,3 +49,15 @@ DELETE http://localhost:3000/api/memories/{{memoryId}}
 Content-Type: application/json
 
 # Replace {{memoryId}} with the actual memory ID to delete
+
+
+### More samples
+###
+# Semantic search for the memory if I add a memory that I do not enjoy cooking
+POST http://localhost:3000/api/memories/search
+Content-Type: application/json
+
+{
+  "query": "Do I like to cook?",
+  "limit": 2
+}

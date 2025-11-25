@@ -106,6 +106,15 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    docker-compose up --build
    ```
 
+### API Endpoints
+- `POST /api/memories`: Add a new memory. The API will automatically summarize, categorize, and tag the memory content using LM Studio and prompt templates. Required fields: `Description`, `Content`, and `Category`.
+- `GET /api/memories/category/:category`: Get memories by category. Returns all memories in the specified category.
+- `POST /api/memories/search`: Semantic search across memories. Finds memories similar to the provided query, optionally filtered by category.
+- `GET /api/memories/tags?tags=tag1,tag2`: Search by tags. Returns memories matching any of the provided tags, optionally filtered by category.
+- `PUT /api/memories/:id`: Update a memory. Allows partial updates to memory fields.
+- `DELETE /api/memories/:id`: Delete a memory by ID.
+- `GET /api/memories/stats`: Get category statistics. Returns counts of memories per category.
+
 ## Run the MCP Server
 The project provides a Model Context Protocol (MCP) server so VS Code (or any MCP-compatible client) can call a tool that performs semantic memory search plus summarization/clustering.
 
@@ -126,16 +135,6 @@ The project provides a Model Context Protocol (MCP) server so VS Code (or any MC
    - `format`: `narrative` | `bullets` | `both`
 
 The tool returns a JSON payload containing `topMemories`, optional `aggregateNarrative`, `aggregateBullets`, and any `clusterSummaries` depending on strategy, mirroring the REST endpoint `POST /api/memories/search-and-summarize`.
-
-
-### API Endpoints
-- `POST /api/memories`: Add a new memory. The API will automatically summarize, categorize, and tag the memory content using LM Studio and prompt templates. Required fields: `Description`, `Content`, and `Category`.
-- `GET /api/memories/category/:category`: Get memories by category. Returns all memories in the specified category.
-- `POST /api/memories/search`: Semantic search across memories. Finds memories similar to the provided query, optionally filtered by category.
-- `GET /api/memories/tags?tags=tag1,tag2`: Search by tags. Returns memories matching any of the provided tags, optionally filtered by category.
-- `PUT /api/memories/:id`: Update a memory. Allows partial updates to memory fields.
-- `DELETE /api/memories/:id`: Delete a memory by ID.
-- `GET /api/memories/stats`: Get category statistics. Returns counts of memories per category.
 
 ## Example Usage
 See `src/samples/qdrantAPI.ts` for example usage and implementation details. When adding a memory, you may omit `Description`, `Category`, or `Tags`—the system will generate them automatically if missing.

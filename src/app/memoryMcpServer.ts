@@ -103,7 +103,7 @@ server.registerTool(
   {
     title: 'Add Memory',
     description:
-      'Store a new personal memory with automatic semantic categorization and tagging for future search and retrieval.'
+      'Store a new personal memory with automatic semantic categorization and tagging for future search and retrieval.',
     inputSchema: z.object({
       Content: z.string().describe('Full content of the memory.'),
       //Metadata: z.record(z.string(), z.any()).describe('Additional metadata.').optional()

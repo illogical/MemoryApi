@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
@@ -8,46 +8,39 @@ dotenv.config();
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
 
-// Express API Setup
-const app = express();
-app.use(express.json());
-
+// Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem(
     process.env.QDRANT_URL || 'http://localhost:6333',
     process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
 );
 
-// Initialize on startup
-async function initializeServer() {
-    try {
-        console.log('Initializing server...');
-        await memorySystem.loadEmbeddingModel();
-        await memorySystem.initializeCollection();
-        console.log('Server initialization complete');
-    } catch (error) {
-        console.error('Failed to initialize server:', error);
-        process.exit(1);
-    }
+// Initialization function to be called by the main entrypoint
+export async function initializeMemorySystem() {
+    console.log('Initializing MemoryRAGSystem...');
+    await memorySystem.loadEmbeddingModel();
+    await memorySystem.initializeCollection();
+    console.log('MemoryRAGSystem initialization complete');
 }
 
-initializeServer();
+// Exported router instead of standalone app
+const memoryRouter = Router();
 
-// API Endpoints
+// Memory API Endpoints (mounted under /api in index.ts)
 
 // POST /api/memories - Add a new memory
-app.post('/api/memories', async (req: Request, res: Response) => {
+memoryRouter.post('/memories', async (req: Request, res: Response) => {
     try {
         const memory: Memory = req.body;
 
         // Validate required fields
-        if (!memory.Description || !memory.Content || !memory.Category) {
+        if (!memory.Content) {
             return res.status(400).json({
-                error: 'Description, Content, and Category are required'
+                error: 'Content is required'
             });
         }
 
         // Validate category
-        if (!Object.values(MemoryCategory).includes(memory.Category)) {
+        if (memory.Category && !Object.values(MemoryCategory).includes(memory.Category)) {
             return res.status(400).json({
                 error: 'Invalid category',
                 validCategories: Object.values(MemoryCategory)
@@ -63,7 +56,7 @@ app.post('/api/memories', async (req: Request, res: Response) => {
 });
 
 // GET /api/memories/category/:category - Get memories by category
-app.get('/api/memories/category/:category', async (req: Request, res: Response) => {
+memoryRouter.get('/memories/category/:category', async (req: Request, res: Response) => {
     try {
         const category = req.params.category as MemoryCategory;
         const limit = parseInt(req.query.limit as string) || 10;
@@ -84,7 +77,7 @@ app.get('/api/memories/category/:category', async (req: Request, res: Response) 
 });
 
 // POST /api/memories/search - Semantic search across memories
-app.post('/api/memories/search', async (req: Request, res: Response) => {
+memoryRouter.post('/memories/search', async (req: Request, res: Response) => {
     try {
         const { query, category, limit } = req.body;
 
@@ -106,7 +99,7 @@ app.post('/api/memories/search', async (req: Request, res: Response) => {
 });
 
 // GET /api/memories/tags - Search by tags
-app.get('/api/memories/tags', async (req: Request, res: Response) => {
+memoryRouter.get('/memories/tags', async (req: Request, res: Response) => {
     try {
         const tags = (req.query.tags as string)?.split(',') || [];
         const category = req.query.category as MemoryCategory | undefined;
@@ -124,7 +117,7 @@ app.get('/api/memories/tags', async (req: Request, res: Response) => {
 });
 
 // PUT /api/memories/:id - Update a memory
-app.put('/api/memories/:id', async (req: Request, res: Response) => {
+memoryRouter.put('/memories/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const updates: Partial<Memory> = req.body;
@@ -138,7 +131,7 @@ app.put('/api/memories/:id', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/memories/:id - Delete a memory
-app.delete('/api/memories/:id', async (req: Request, res: Response) => {
+memoryRouter.delete('/memories/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         await memorySystem.deleteMemory(id);
@@ -150,7 +143,7 @@ app.delete('/api/memories/:id', async (req: Request, res: Response) => {
 });
 
 // GET /api/memories/stats - Get statistics
-app.get('/api/memories/stats', async (req: Request, res: Response) => {
+memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     try {
         const counts = await memorySystem.getCategoryCounts();
         res.json({ categoryCounts: counts });
@@ -161,7 +154,7 @@ app.get('/api/memories/stats', async (req: Request, res: Response) => {
 });
 
 // POST /api/memories/search-and-summarize - Semantic search and MCP summary
-app.post('/api/memories/search-and-summarize', async (req: Request, res: Response) => {
+memoryRouter.post('/memories/search-and-summarize', async (req: Request, res: Response) => {
     try {
         const { query, category, limit, scoreThreshold, strategy, format } = req.body;
         if (!query) {
@@ -182,10 +175,4 @@ app.post('/api/memories/search-and-summarize', async (req: Request, res: Respons
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Memory RAG API running on port ${PORT}`);
-    console.log(`Using embedding model: ${process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL}`);
-});
-
-export { MemoryRAGSystem, app };
+export { MemoryRAGSystem, memoryRouter, memorySystem };
