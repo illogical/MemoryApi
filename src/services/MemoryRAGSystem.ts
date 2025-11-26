@@ -6,7 +6,7 @@ import { LoggingService } from './loggingService';
 import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
-import { MemoryPostSearchAggregator, CategoryClusterSummary, TagClusterSummary } from './memoryPostSearchAggregator';
+import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './MemoryTextProcessor';
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';

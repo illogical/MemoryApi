@@ -31,6 +31,21 @@
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
             ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug evaluateTagging.ts",
+            "sourceMaps": true,
+            "skipFiles": [
+                "<node_internals>/**"
+
+            ],
+            "program": "${workspaceFolder}\\dist\\app\\evaluateTagging.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ]
         }
     ]
 }
