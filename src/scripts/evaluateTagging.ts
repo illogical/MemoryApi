@@ -15,13 +15,13 @@
  * 
  * Usage:
  *   npm run eval:tagging
- *   npm run eval:tagging -- --model llama-3.2-3b-instruct
+ *   npm run eval:tagging -- --model llama-3.2-3b-instruct --provider lmstudio
  *   npm run eval:tagging -- --output ./reports/tagging_eval.json
  */
 
-import { LMStudioClient } from '@lmstudio/sdk';
 import { PromptTemplateService } from '../services/promptTemplateService';
 import { LoggingService } from '../services/loggingService';
+import { ModelClient, LMStudioModelClient, OllamaModelClient, ModelProvider } from '../services/modelClients';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -78,24 +78,36 @@ interface EvaluationReport {
 
 // ==================== Evaluation Engine ====================
 
+// Model provider abstractions moved to ../services/modelClients
+
 class TaggingEvaluator {
-    private lmStudio: LMStudioClient;
     private promptService: PromptTemplateService;
     private logger: LoggingService;
     private modelName: string;
     private validTags: Set<string>;
-    private model: any;
+    private modelClient: ModelClient;
+    private provider: ModelProvider;
 
     constructor(
         modelName: string = (process.env.MODEL_NAME || 'llama-3.2-3b-instruct'),
-        promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts'))
+        promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
+        provider: ModelProvider = ((process.env.MODEL_PROVIDER as ModelProvider) || 'lmstudio')
     ) {
-        this.lmStudio = new LMStudioClient();
         this.promptService = new PromptTemplateService(promptBasePath);
         this.logger = new LoggingService(path.join(process.cwd(), 'logs'), 'debug', 'info');
         this.modelName = modelName;
         this.validTags = this.loadValidTags(promptBasePath);
-        this.model = null;
+        this.provider = provider;
+        this.modelClient = provider === 'ollama' ? new OllamaModelClient() : new LMStudioModelClient();
+    }
+
+    /**
+     * Initialize the model client (load model once)
+     */
+    async initialize(): Promise<void> {
+        this.logger.info(`Loading model: ${this.modelName} (provider: ${this.provider})`);
+        await this.modelClient.load(this.modelName);
+        this.logger.info('Model loaded successfully');
     }
 
     /**
@@ -127,20 +139,16 @@ class TaggingEvaluator {
      * Generate tags for a given content using the current model and prompt
      */
     async generateTags(content: string): Promise<string[]> {
-        if (!this.model) {
-            this.model = await this.lmStudio.llm.load(this.modelName);
-        }
         const prompt = this.promptService.renderTagging(content);
-        this.logger.debug(`Generating tags for content: ${content.substring(0, 50)}...`);
-        const response = await this.model.respond([
+        this.logger.debug(`Generating tags (${this.provider}) for content: ${content.substring(0, 50)}...`);
+        const response = await this.modelClient.respond([
             { role: 'system', content: 'You are a precise tagging assistant. Output only comma-separated tags, nothing else.' },
             { role: 'user', content: prompt }
         ], {
-            temperature: 0.3,  // Lower temperature for more deterministic output
+            temperature: 0.3,
             maxTokens: 100
         });
-        // Parse the response - expecting comma-separated tags
-        const responseText = response.content.trim();
+        const responseText = (response.content || '').trim();
         this.logger.debug(`Raw model response: ${responseText}`);
         // Clean up the response and split into tags
         const tags = responseText
@@ -267,6 +275,9 @@ class TaggingEvaluator {
         this.logger.log('Starting Tagging Evaluation');
         this.logger.log('========================================');
         
+        // Load model once before evaluation
+        await this.initialize();
+        
         const startTime = Date.now();
         const seedMemories = this.loadSeedMemories(seedPath);
         const cases: EvaluationCase[] = [];
@@ -321,7 +332,7 @@ class TaggingEvaluator {
         // Generate report
         const report: EvaluationReport = {
             timestamp: new Date().toISOString(),
-            modelName: this.modelName,
+            modelName: `${this.provider}:${this.modelName}`,
             promptVersion: '1.0', // You can increment this when you modify the prompt
             aggregateMetrics,
             cases,
@@ -449,6 +460,7 @@ async function main() {
     console.log('[Tagging Evaluation] Starting script...');
     const modelNameArg = args.find(arg => arg.startsWith('--model='));
     const outputArg = args.find(arg => arg.startsWith('--output='));
+    const providerArg = args.find(arg => arg.startsWith('--provider='));
 
     const modelName = modelNameArg ? modelNameArg.split('=')[1] : undefined;
     if (!modelName) {
@@ -456,6 +468,12 @@ async function main() {
         process.exit(1);
     }
     console.log(`[Tagging Evaluation] Using model: ${modelName}`);
+    const provider = providerArg ? (providerArg.split('=')[1] as ModelProvider) : 'lmstudio';
+    if (provider !== 'lmstudio' && provider !== 'ollama') {
+        console.error('Error: --provider must be either "lmstudio" or "ollama"');
+        process.exit(1);
+    }
+    console.log(`[Tagging Evaluation] Provider: ${provider}`);
     const outputPath = outputArg 
         ? outputArg.split('=')[1] 
         : path.join(process.cwd(), 'reports', `tagging_eval_${new Date().toISOString().replace(/:/g, '-')}.json`);
@@ -466,7 +484,7 @@ async function main() {
     console.log(`[Tagging Evaluation] Seed memories path: ${seedPath}`);
 
     // Create evaluator and run evaluation
-    const evaluator = new TaggingEvaluator(modelName);
+    const evaluator = new TaggingEvaluator(modelName, (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')), provider);
     console.log('[Tagging Evaluation] Running evaluation...');
     const report = await evaluator.runEvaluation(seedPath);
     console.log('[Tagging Evaluation] Evaluation complete. Saving reports...');

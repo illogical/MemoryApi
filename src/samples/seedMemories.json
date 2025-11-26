@@ -82,7 +82,7 @@
       "content": "My favorite cuisine is Mexican.",
       "description": "Cuisine preference",
       "category": "Preference",
-      "tags": ["Personal", "Food"]
+      "tags": ["Personal", "Food", "Favorite"]
     },
     {
       "content": "Update project documentation by Monday.",
