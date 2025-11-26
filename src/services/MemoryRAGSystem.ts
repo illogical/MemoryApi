@@ -7,6 +7,7 @@ import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator, CategoryClusterSummary, TagClusterSummary } from './memoryPostSearchAggregator';
+import { MemoryTextProcessor } from './MemoryTextProcessor';
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
 const DEFAULT_MODEL_NAME = 'llama-3.2-3b-instruct';
@@ -28,6 +29,8 @@ class MemoryRAGSystem {
 
     private readonly COLLECTION_NAME = 'memories';
     private readonly VECTOR_SIZE = 768;
+
+    private memoryTextProcessor: MemoryTextProcessor | null = null;
 
     private postSearchAggregator: MemoryPostSearchAggregator = new MemoryPostSearchAggregator(
         () => this.loadInferenceModel(),
@@ -125,63 +128,22 @@ class MemoryRAGSystem {
         }
     }
 
+
+    private getOrCreateTextProcessor(): MemoryTextProcessor {
+        if (!this.model) throw new Error('[MemoryRAGSystem] Inference model not loaded');
+        if (!this.memoryTextProcessor) {
+            this.memoryTextProcessor = new MemoryTextProcessor(
+                this.model!,
+                this.promptTemplateService,
+                this.loggingService
+            );
+        }
+        return this.memoryTextProcessor;
+    }
+
     async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
-        this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
-        try {
-            this.loggingService.info('[summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag');
-            const [summary, classification, tags] = await Promise.all([
-                this.summarizeText(text),
-                this.classifyText(text),
-                this.tagText(text)
-            ]);
-            this.loggingService.info('[summarizeClassifyAndTagTextParallel] Parallel summarize/classify/tag complete');
-            return { summary, classification, tags };
-        } catch (error) {
-            this.loggingService.error(`[summarizeClassifyAndTagTextParallel] Error: ${error}`);
-            throw new Error('Failed to classify, tag, and summarize text in parallel');
-        }
-    }
-
-    private async summarizeText(text: string): Promise<string> {
-        this.loggingService.trace('[summarizeText] Called');
-        if (!this.model) throw new Error('[summarizeText] Inference model not loaded');
-        const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
-        this.loggingService.debug(`[summarizeText] Prompt: ${prompt}`);
-        const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'summarizeText');
-        this.loggingService.debug(`[summarizeText] Response: ${response.content}`);
-        return response.content.trim();
-    }
-
-    private async classifyText(text: string): Promise<string> {
-        this.loggingService.trace('[classifyText] Called');
-        try {
-            if (!this.model) throw new Error('[classifyText] Inference model not loaded');
-            const prompt = this.promptTemplateService.renderClassification(text);
-            this.loggingService.debug(`[classifyText] Prompt: ${prompt}`);
-            const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'classifyText');
-            const raw = response.content.trim();
-            this.loggingService.debug(`[classifyText] Response: ${raw}`);
-            return raw;
-        } catch (error) {
-            this.loggingService.error(`[classifyText] Error classifying text: ${error}`);
-            throw new Error('Failed to classify text');
-        }
-    }
-
-    private async tagText(text: string): Promise<string[]> {
-        this.loggingService.trace('[tagText] Called');
-        try {
-            if (!this.model) throw new Error('[tagText] Inference model not loaded');
-            const prompt = this.promptTemplateService.renderTagging(text);
-            this.loggingService.debug(`[tagText] Prompt: ${prompt}`);
-            const response = await this.timeModelResponse(() => this.model!.respond(prompt), 'tagText');
-            const raw = response.content.trim();
-            this.loggingService.debug(`[tagText] Response: ${raw}`);
-            return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
-        } catch (error) {
-            this.loggingService.error(`[tagText] Error tagging text: ${error}`);
-            throw new Error('Failed to generate tags');
-        }
+        const processor = this.getOrCreateTextProcessor();
+        return await processor.summarizeClassifyAndTagTextParallel(text);
     }
 
     /**
