@@ -40,6 +40,7 @@ interface EvaluationCase {
     groundTruthTags: string[];
     predictedTags: string[];
     metrics: CaseMetrics;
+    prompt: string;
 }
 
 interface CaseMetrics {
@@ -73,7 +74,9 @@ interface EvaluationReport {
         temperature: number;
         maxTokens: number;
         seedMemoriesPath: string;
+        averageTagGenTime?: number;
     };
+    prompt?: string;
 }
 
 // ==================== Evaluation Engine ====================
@@ -274,50 +277,60 @@ class TaggingEvaluator {
         this.logger.log('========================================');
         this.logger.log('Starting Tagging Evaluation');
         this.logger.log('========================================');
-        
+
         // Load model once before evaluation
         await this.initialize();
-        
+
         const startTime = Date.now();
         const seedMemories = this.loadSeedMemories(seedPath);
         const cases: EvaluationCase[] = [];
-        
+        let totalTagGenTime = 0;
+
         this.logger.info(`Evaluating ${seedMemories.length} seed memories...`);
-        
+
         // Evaluate each seed memory
         for (let i = 0; i < seedMemories.length; i++) {
             const memory = seedMemories[i];
             this.logger.info(`\n[${i + 1}/${seedMemories.length}] Evaluating: "${memory.content.substring(0, 50)}..."`);
-            
+
             try {
+                const prompt = this.promptService.renderTagging(memory.content);
+                const tagGenStart = Date.now();
                 const predictedTags = await this.generateTags(memory.content);
+                const tagGenEnd = Date.now();
+                const tagGenTime = tagGenEnd - tagGenStart;
+                totalTagGenTime += tagGenTime;
+
                 const metrics = this.calculateCaseMetrics(memory.tags, predictedTags);
-                
+
                 cases.push({
                     id: i + 1,
                     content: memory.content,
                     groundTruthTags: memory.tags,
                     predictedTags,
-                    metrics
+                    metrics,
+                    prompt
                 });
-                
+
                 // Log immediate feedback
                 this.logger.info(`  Ground Truth: [${memory.tags.join(', ')}]`);
                 this.logger.info(`  Predicted:    [${predictedTags.join(', ')}]`);
                 this.logger.info(`  Precision: ${(metrics.precision * 100).toFixed(1)}% | Recall: ${(metrics.recall * 100).toFixed(1)}% | F1: ${(metrics.f1Score * 100).toFixed(1)}%`);
-                
+                this.logger.info(`  Tag Generation Time: ${(tagGenTime / 1000).toFixed(2)}s`);
+
                 if (metrics.hallucinatedTags.length > 0) {
                     this.logger.error(`  ⚠️  Hallucinated tags: [${metrics.hallucinatedTags.join(', ')}]`);
                 }
-                
+
             } catch (error) {
                 this.logger.error(`  Error evaluating case ${i + 1}: ${error}`);
             }
         }
-        
+
         // Calculate aggregate metrics
         const aggregateMetrics = this.calculateAggregateMetrics(cases);
-        
+        const averageTagGenTime = cases.length > 0 ? totalTagGenTime / cases.length : 0;
+
         const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
         this.logger.log('\n========================================');
         this.logger.log('Evaluation Complete');
@@ -328,8 +341,11 @@ class TaggingEvaluator {
         this.logger.log(`Average F1 Score: ${(aggregateMetrics.averageF1Score * 100).toFixed(2)}%`);
         this.logger.log(`Exact Match Rate: ${(aggregateMetrics.exactMatchRate * 100).toFixed(2)}%`);
         this.logger.log(`Hallucination Rate: ${(aggregateMetrics.hallucinationRate * 100).toFixed(2)}%`);
-        
+        this.logger.log(`Average Tag Generation Time: ${(averageTagGenTime / 1000).toFixed(2)}s`);
+
         // Generate report
+        // Use the first prompt (all prompts are the same for this run)
+        const firstPrompt = cases.length > 0 ? cases[0].prompt : '';
         const report: EvaluationReport = {
             timestamp: new Date().toISOString(),
             modelName: `${this.provider}:${this.modelName}`,
@@ -339,10 +355,12 @@ class TaggingEvaluator {
             config: {
                 temperature: 0.3,
                 maxTokens: 100,
-                seedMemoriesPath: seedPath
-            }
+                seedMemoriesPath: seedPath,
+                averageTagGenTime: Number((averageTagGenTime / 1000).toFixed(2))
+            },
+            prompt: firstPrompt
         };
-        
+
         return report;
     }
 
@@ -366,13 +384,17 @@ class TaggingEvaluator {
         const { aggregateMetrics, cases, config, modelName, promptVersion, timestamp } = report;
         
         let markdown = `# Tagging Evaluation Report\n\n`;
-        markdown += `**Date:** ${new Date(timestamp).toLocaleString()}\n\n`;
-        markdown += `**Model:** ${modelName}\n\n`;
+        markdown += `**Date:** ${new Date(timestamp).toLocaleString()}\n`;
+        markdown += `**Model:** ${modelName}\n`;
         markdown += `**Prompt Version:** ${promptVersion}\n\n`;
         markdown += `**Configuration:**\n`;
         markdown += `- Temperature: ${config.temperature}\n`;
         markdown += `- Max Tokens: ${config.maxTokens}\n`;
-        markdown += `- Seed Memories: ${config.seedMemoriesPath}\n\n`;
+        markdown += `- Seed Memories: ${config.seedMemoriesPath}\n`;
+        if ('averageTagGenTime' in config) {
+            markdown += `- Average Tag Generation Time: ${config.averageTagGenTime}s\n`;
+        }
+        markdown += `\n`;
         
         markdown += `## 📊 Aggregate Metrics\n\n`;
         markdown += `| Metric | Score |\n`;
@@ -419,6 +441,13 @@ class TaggingEvaluator {
             });
             markdown += `</details>\n\n`;
         }
+
+        // Add prompt used for all cases (collapsed)
+        if (report.prompt) {
+            markdown += `<details>\n<summary>Show prompt used for all tag generations</summary>\n\n`;
+            markdown += `\n\`\`\`\n${report.prompt}\n\`\`\`\n`;
+            markdown += `</details>\n\n`;
+        }
         
         return markdown;
     }
@@ -433,7 +462,7 @@ class TaggingEvaluator {
         md += `- **Ground Truth:** [${groundTruthTags.join(', ')}]\n`;
         md += `- **Predicted:** [${predictedTags.join(', ')}]\n`;
         md += `- **Metrics:** P=${(metrics.precision * 100).toFixed(0)}% | R=${(metrics.recall * 100).toFixed(0)}% | F1=${(metrics.f1Score * 100).toFixed(0)}%\n`;
-        
+
         if (metrics.truePositives.length > 0) {
             md += `- ✅ **True Positives:** [${metrics.truePositives.join(', ')}]\n`;
         }
@@ -446,7 +475,7 @@ class TaggingEvaluator {
         if (metrics.hallucinatedTags.length > 0) {
             md += `- 🚫 **Hallucinated:** [${metrics.hallucinatedTags.join(', ')}]\n`;
         }
-        
+
         md += `\n`;
         return md;
     }

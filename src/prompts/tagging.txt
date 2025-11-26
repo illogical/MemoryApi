@@ -7,16 +7,16 @@ You are a classification assistant that assigns relevant tags to each memory bas
 Use the following examples as guidance for which tags to select:
 
 1. Memory: "Remember to buy groceries tomorrow"
-   Tags: Shopping, Reminder, Personal
+   Tags: Shopping, Reminder
 
 2. Memory: "My favorite programming language is C#"
-   Tags: Programming, Personal, Favorite
+   Tags: Programming, Favorite
 
 3. Memory: "foreach(int i = 0; i < count; i++) { }"
    Tags: Snippet, Programming
 
 4. Memory: "Met John at the conference last June"
-   Tags: Work, Personal
+   Tags: Work
 
 5. Memory: "Meeting notes from 2024-11-09"
    Tags: Notes, Work, Summary
@@ -31,10 +31,10 @@ Use the following examples as guidance for which tags to select:
    Tags: Project, Inspiration, Notes
 
 9. Memory: "I prefer working in the afternoons."
-   Tags: Personal, Productivity
+   Tags: Productivity
 
 10. Memory: "Doctor appointment next Friday at 10am."
-	Tags: Appointment, Reminder, Personal
+	Tags: Appointment, Reminder
 
 11. Memory: "console.log('Hello, world!');"
 	Tags: Snippet, Programming

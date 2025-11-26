@@ -10,13 +10,13 @@
       "content": "I prefer working in the afternoons.",
       "description": "Work time preference",
       "category": "Preference",
-      "tags": ["Personal", "Productivity"]
+      "tags": ["Productivity"]
     },
     {
       "content": "My favorite programming language is C#",
       "description": "Programming language preference",
       "category": "Preference",
-      "tags": ["Programming", "Personal", "Favorite"]
+      "tags": ["Programming", "Favorite"]
     },
     {
       "content": "foreach(int i = 0; i < count; i++) { }",
@@ -28,7 +28,7 @@
       "content": "I went to the VSLive conference in 2025 in Orlando.",
       "description": "I went to the VSLive conference in 2025 in Orlando.",
       "category": "Event",
-      "tags": ["Work", "Personal", "Travel"]
+      "tags": ["Work", "Travel"]
     },
     {
       "content": "Create an AI prompt that will ...",
@@ -55,12 +55,6 @@
       "tags": ["Snippet", "Programming"]
     },
     {
-      "content": "Traveled to Orlando in 2025 for a conference.",
-      "description": "Orlando conference travel history",
-      "category": "History",
-      "tags": ["Travel", "Work", "Archive"]
-    },
-    {
       "content": "Read later: 'The Art of Machine Learning' article.",
       "description": "Read later note for ML article",
       "category": "Note",
@@ -70,7 +64,7 @@
       "content": "Write a prompt for generating creative story ideas.",
       "description": "Prompt for story idea generation",
       "category": "Prompt",
-      "tags": ["Prompt", "Prompt Engineering", "Inspiration"]
+      "tags": ["Prompt", "Prompt Engineering", "Inspiration", "Idea"]
     },
     {
       "content": "Idea: Build a fitness tracking app.",
@@ -82,7 +76,7 @@
       "content": "My favorite cuisine is Mexican.",
       "description": "Cuisine preference",
       "category": "Preference",
-      "tags": ["Personal", "Food", "Favorite"]
+      "tags": ["Food", "Favorite"]
     },
     {
       "content": "Update project documentation by Monday.",
