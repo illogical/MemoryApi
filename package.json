@@ -10,7 +10,8 @@
     "api": "npx tsx src/app/index.ts",
     "mcp": "npx tsx src/app/memoryMcpServer.ts",
     "hot": "nodemon --watch src --ext ts,js,json --exec npx tsx src/app/index.ts",
-    "eval:tagging": "npx tsx src/scripts/evaluateTagging.ts --model=qwen2.5-coder-14b-instruct --provider=lmstudio  "
+    "eval:tagging": "npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio",
+    "eval:category": "npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio"
   },
   "dependencies": {
     "@lmstudio/sdk": "^1.5.0",

@@ -160,7 +160,25 @@ To easily test API endpoints using the provided `.http` files (such as `src/samp
 
 This is useful for quickly verifying your API endpoints during development.
 
-## Extending the Project
+
+## Tag & Category Evaluation
+A reports are generated to evaluate the performance of the auto-tagging and auto-categorization features. This allows different models, providers, and prompts to be benchmarked. The results are output as detailed markdown reports in the `reports/` directory.
+
+To evaluate the performance of the auto-tagging functionality, use the provided evaluation script:
+```pwsh
+npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio
+```
+
+To evaluate the performance of the auto-categorization functionality, use the provided evaluation script:
+```pwsh
+npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio
+```
+
+*Supported Providers:*
+- `lmstudio`
+- `ollama`
+
+### Extending the Project
 - Add new categories or metadata fields in the `MemoryCategory` enum and `Memory` interface.
 - Create new prompt templates in `src/prompts/` and use `PromptTemplateService` for custom classification or tagging tasks.
 - Expand API endpoints for additional features (e.g., user authentication, advanced analytics).

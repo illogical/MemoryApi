@@ -19,20 +19,12 @@
  *   npm run eval:tagging -- --output ./reports/tagging_eval.json
  */
 
-import { PromptTemplateService } from '../services/promptTemplateService';
-import { LoggingService } from '../services/loggingService';
-import { ModelClient, LMStudioModelClient, OllamaModelClient, ModelProvider } from '../services/modelClients';
+import { BaseEvaluator, SeedMemory, BaseEvaluationReport } from '../services/baseEvaluator';
+import { ModelProvider } from '../services/modelClients';
 import * as fs from 'fs';
 import * as path from 'path';
 
 // ==================== Type Definitions ====================
-
-interface SeedMemory {
-    content: string;
-    description: string;
-    category: string;
-    tags: string[];
-}
 
 interface EvaluationCase {
     id: number;
@@ -64,10 +56,7 @@ interface AggregateMetrics {
     tagFrequency: Record<string, { predicted: number; correct: number; missed: number }>;
 }
 
-interface EvaluationReport {
-    timestamp: string;
-    modelName: string;
-    promptVersion: string;
+interface EvaluationReport extends BaseEvaluationReport {
     aggregateMetrics: AggregateMetrics;
     cases: EvaluationCase[];
     config: {
@@ -76,41 +65,20 @@ interface EvaluationReport {
         seedMemoriesPath: string;
         averageTagGenTime?: number;
     };
-    prompt?: string;
 }
 
 // ==================== Evaluation Engine ====================
 
-// Model provider abstractions moved to ../services/modelClients
-
-class TaggingEvaluator {
-    private promptService: PromptTemplateService;
-    private logger: LoggingService;
-    private modelName: string;
+class TaggingEvaluator extends BaseEvaluator {
     private validTags: Set<string>;
-    private modelClient: ModelClient;
-    private provider: ModelProvider;
 
     constructor(
         modelName: string = (process.env.MODEL_NAME || 'llama-3.2-3b-instruct'),
         promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
         provider: ModelProvider = ((process.env.MODEL_PROVIDER as ModelProvider) || 'lmstudio')
     ) {
-        this.promptService = new PromptTemplateService(promptBasePath);
-        this.logger = new LoggingService(path.join(process.cwd(), 'logs'), 'debug', 'info');
-        this.modelName = modelName;
+        super(modelName, promptBasePath, provider, 0.3, 100);
         this.validTags = this.loadValidTags(promptBasePath);
-        this.provider = provider;
-        this.modelClient = provider === 'ollama' ? new OllamaModelClient() : new LMStudioModelClient();
-    }
-
-    /**
-     * Initialize the model client (load model once)
-     */
-    async initialize(): Promise<void> {
-        this.logger.info(`Loading model: ${this.modelName} (provider: ${this.provider})`);
-        await this.modelClient.load(this.modelName);
-        this.logger.info('Model loaded successfully');
     }
 
     /**
@@ -130,15 +98,6 @@ class TaggingEvaluator {
     }
 
     /**
-     * Load seed memories from JSON file
-     */
-    loadSeedMemories(seedPath: string): SeedMemory[] {
-        this.logger.info(`Loading seed memories from: ${seedPath}`);
-        const data = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
-        return data.memories;
-    }
-
-    /**
      * Generate tags for a given content using the current model and prompt
      */
     async generateTags(content: string): Promise<string[]> {
@@ -148,8 +107,8 @@ class TaggingEvaluator {
             { role: 'system', content: 'You are a precise tagging assistant. Output only comma-separated tags, nothing else.' },
             { role: 'user', content: prompt }
         ], {
-            temperature: 0.3,
-            maxTokens: 100
+            temperature: this.temperature,
+            maxTokens: this.maxTokens
         });
         const responseText = (response.content || '').trim();
         this.logger.debug(`Raw model response: ${responseText}`);
@@ -329,19 +288,15 @@ class TaggingEvaluator {
 
         // Calculate aggregate metrics
         const aggregateMetrics = this.calculateAggregateMetrics(cases);
-        const averageTagGenTime = cases.length > 0 ? totalTagGenTime / cases.length : 0;
+        const averageGenTime = cases.length > 0 ? totalTagGenTime / cases.length : 0;
 
-        const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-        this.logger.log('\n========================================');
-        this.logger.log('Evaluation Complete');
-        this.logger.log('========================================');
-        this.logger.log(`Total Time: ${elapsedTime}s`);
-        this.logger.log(`Average Precision: ${(aggregateMetrics.averagePrecision * 100).toFixed(2)}%`);
-        this.logger.log(`Average Recall: ${(aggregateMetrics.averageRecall * 100).toFixed(2)}%`);
-        this.logger.log(`Average F1 Score: ${(aggregateMetrics.averageF1Score * 100).toFixed(2)}%`);
-        this.logger.log(`Exact Match Rate: ${(aggregateMetrics.exactMatchRate * 100).toFixed(2)}%`);
-        this.logger.log(`Hallucination Rate: ${(aggregateMetrics.hallucinationRate * 100).toFixed(2)}%`);
-        this.logger.log(`Average Tag Generation Time: ${(averageTagGenTime / 1000).toFixed(2)}s`);
+        // Log evaluation summary using base class method
+        this.logEvaluationSummary(
+            startTime,
+            aggregateMetrics,
+            averageGenTime,
+            { 'Hallucination Rate': aggregateMetrics.hallucinationRate }
+        );
 
         // Generate report
         // Use the first prompt (all prompts are the same for this run)
@@ -353,10 +308,10 @@ class TaggingEvaluator {
             aggregateMetrics,
             cases,
             config: {
-                temperature: 0.3,
-                maxTokens: 100,
+                temperature: this.temperature,
+                maxTokens: this.maxTokens,
                 seedMemoriesPath: seedPath,
-                averageTagGenTime: Number((averageTagGenTime / 1000).toFixed(2))
+                averageTagGenTime: Number((averageGenTime / 1000).toFixed(2))
             },
             prompt: firstPrompt
         };
@@ -364,47 +319,18 @@ class TaggingEvaluator {
         return report;
     }
 
-    /**
-     * Save evaluation report to file
-     */
-    saveReport(report: EvaluationReport, outputPath: string): void {
-        const dir = path.dirname(outputPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        
-        fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
-        this.logger.log(`\nReport saved to: ${outputPath}`);
-    }
 
     /**
      * Generate a human-readable markdown report
      */
     generateMarkdownReport(report: EvaluationReport): string {
-        const { aggregateMetrics, cases, config, modelName, promptVersion, timestamp } = report;
+        const { aggregateMetrics, cases } = report;
         
-        let markdown = `# Tagging Evaluation Report\n\n`;
-        markdown += `**Date:** ${new Date(timestamp).toLocaleString()}\n`;
-        markdown += `**Model:** ${modelName}\n`;
-        markdown += `**Prompt Version:** ${promptVersion}\n\n`;
-        markdown += `**Configuration:**\n`;
-        markdown += `- Temperature: ${config.temperature}\n`;
-        markdown += `- Max Tokens: ${config.maxTokens}\n`;
-        markdown += `- Seed Memories: ${config.seedMemoriesPath}\n`;
-        if ('averageTagGenTime' in config) {
-            markdown += `- Average Tag Generation Time: ${config.averageTagGenTime}s\n`;
-        }
-        markdown += `\n`;
-        
-        markdown += `## 📊 Aggregate Metrics\n\n`;
-        markdown += `| Metric | Score |\n`;
-        markdown += `|--------|-------|\n`;
-        markdown += `| **Average Precision** | ${(aggregateMetrics.averagePrecision * 100).toFixed(2)}% |\n`;
-        markdown += `| **Average Recall** | ${(aggregateMetrics.averageRecall * 100).toFixed(2)}% |\n`;
-        markdown += `| **Average F1 Score** | ${(aggregateMetrics.averageF1Score * 100).toFixed(2)}% |\n`;
-        markdown += `| **Exact Match Rate** | ${(aggregateMetrics.exactMatchRate * 100).toFixed(2)}% |\n`;
-        markdown += `| **Hallucination Rate** | ${(aggregateMetrics.hallucinationRate * 100).toFixed(2)}% |\n`;
-        markdown += `| **Total Cases** | ${aggregateMetrics.totalCases} |\n\n`;
+        // Use base class methods for common markdown sections
+        let markdown = this.generateMarkdownHeader(report, 'Tagging Evaluation Report');
+        markdown += this.generateAggregateMetricsTable(aggregateMetrics, { 
+            'Hallucination Rate': aggregateMetrics.hallucinationRate 
+        });
         
         // Tag performance breakdown
         markdown += `## 🏷️ Tag Performance Analysis\n\n`;
