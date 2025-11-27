@@ -500,7 +500,8 @@ class MemoryRAGSystem {
             scoreThreshold?: number;
             strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
             format?: 'narrative' | 'bullets' | 'both';
-        }
+        },
+        generateReport: boolean = true
     ): Promise<{
         query: string;
         topMemories: MemoryWithId[];
@@ -519,15 +520,17 @@ class MemoryRAGSystem {
             this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
         );
 
-        // Generate and save a Markdown report after each search
-        try {
-            const filePath = await this.memoryReportService.generateAndSavePostSearchAggregationReport(
-                result as any,
-                this.embeddingModelName
-            );
-            this.loggingService.info(`[searchAndSummarizeForMcp] Report saved: ${filePath}`);
-        } catch (err) {
-            this.loggingService.error(`[searchAndSummarizeForMcp] Failed to save report: ${err}`);
+        if(generateReport) {
+            // Generate and save a Markdown report after each search
+            try {
+                const filePath = await this.memoryReportService.generateAndSavePostSearchAggregationReport(
+                    result as any,
+                    this.embeddingModelName
+                );
+                this.loggingService.info(`[searchAndSummarizeForMcp] Report saved: ${filePath}`);
+            } catch (err) {
+                this.loggingService.error(`[searchAndSummarizeForMcp] Failed to save report: ${err}`);
+            }
         }
 
         return result;

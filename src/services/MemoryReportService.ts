@@ -258,4 +258,80 @@ export class MemoryReportService {
         };
         return await this.generateAndSaveReport(markdown, stats, 'post_search_aggregation');
     }
+
+        /**
+         * Generates and saves a combined post-search aggregation report for multiple queries.
+         */
+        async generateAndSaveCombinedPostSearchAggregationReport(
+            results: Array<{
+                query: string;
+                topMemories: any[];
+                aggregateNarrative?: string;
+                aggregateBullets?: string[];
+                clusterSummaries?: Array<{ key: string; type: 'category' | 'tag'; narrative?: string; bullets?: string[] }>;
+                parameters: any;
+            }>,
+            embeddingModel: string = 'unknown'
+        ): Promise<string> {
+            const ts = new Date();
+            let md = `# Combined Post-Search Aggregation Report\n\n`;
+            md += `**Date:** ${ts.toLocaleString()}\n`;
+            md += `**Queries Run:** ${results.length}\n`;
+
+            results.forEach((res, idx) => {
+                md += `\n---\n`;
+                md += `## Query ${idx + 1}: \`${res.query}\`\n`;
+                md += `**Parameters:** ${JSON.stringify(res.parameters)}\n`;
+
+                // Top memories table
+                md += `\n### Top Memories\n`;
+                if (!res.topMemories || res.topMemories.length === 0) {
+                    md += `> _No top memories after filtering._\n`;
+                } else {
+                    md += `| Rank | ID | Description | Category | Tags | Score | LastUpdated |\n`;
+                    md += `|------|----|-------------|----------|------|-------|------------|\n`;
+                    res.topMemories.forEach((m: any, idx2: number) => {
+                        md += `| ${idx2 + 1} `;
+                        md += `| ${m.id || ''} `;
+                        md += `| ${(m.Description || '').replace(/\|/g, '\\|')} `;
+                        md += `| ${m.Category || ''} `;
+                        md += `| [${(m.Tags || []).join(', ')}] `;
+                        md += `| ${typeof m.score !== 'undefined' ? `__${m.score}__` : ''} `;
+                        md += `| ${m.LastUpdated || ''} |\n`;
+                    });
+                }
+
+                // Aggregate summaries
+                md += `\n### Aggregate Summary\n`;
+                if (res.aggregateNarrative) {
+                    md += `\n#### Narrative\n`;
+                    md += `${res.aggregateNarrative}\n`;
+                }
+                if (res.aggregateBullets && res.aggregateBullets.length) {
+                    md += `\n#### Bullets\n`;
+                    res.aggregateBullets.forEach((b: string) => md += `- ${b}\n`);
+                }
+
+                // Cluster summaries
+                md += `\n### Cluster Summaries\n`;
+                if (res.clusterSummaries && res.clusterSummaries.length) {
+                    res.clusterSummaries.forEach((c: any) => {
+                        md += `\n#### ${c.type === 'category' ? 'Category' : 'Tag'}: ${c.key}\n`;
+                        if (c.narrative) md += `${c.narrative}\n`;
+                        if (c.bullets && c.bullets.length) c.bullets.forEach((b: string) => md += `- ${b}\n`);
+                    });
+                } else {
+                    md += `> _No cluster summaries produced._\n`;
+                }
+            });
+
+            const filePath = await this.generateAndSaveReport(md, {
+                totalProcessed: results.reduce((sum, r) => sum + (r.topMemories?.length || 0), 0),
+                successCount: results.length,
+                durationMs: 0,
+                timestamp: ts,
+                embeddingModel
+            }, 'combined_post_search_aggregation');
+            return filePath;
+        }
 }

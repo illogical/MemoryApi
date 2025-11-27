@@ -1,0 +1,56 @@
+{
+  "queries": [
+    {
+      "query": "What programming languages does the user prefer?",
+      "options": { "format": "bullets" }
+    },
+    {
+      "query": "Summarize the user's stable work preferences",
+      "options": { "format": "narrative" }
+    },
+    {
+      "query": "Find ideas for projects the user mentioned",
+      "options": { "strategy": "cluster-category", "format": "bullets" }
+    },
+    {
+      "query": "Show prompts related to API integration and templates",
+      "options": { "strategy": "linear", "format": "bullets" }
+    },
+    {
+      "query": "Retrieve code snippets the user saved (C#, JS, SQL)",
+      "options": { "strategy": "linear", "format": "bullets", "limit": 10 }
+    },
+    {
+      "query": "What reminders or recurring tasks are active?",
+      "options": { "format": "bullets", "strategy": "linear" }
+    },
+    {
+      "query": "Find notes about learning or read-later items",
+      "options": { "strategy": "cluster-tag", "format": "bullets" }
+    },
+    {
+      "query": "Summarize health and workflow automation ideas",
+      "options": { "strategy": "hybrid", "format": "both" }
+    },
+    {
+      "query": "What conferences or events has the user attended?",
+      "options": { "format": "narrative" }
+    },
+    {
+      "query": "List the user's food preferences and aversions",
+      "options": { "strategy": "linear", "format": "bullets" }
+    },
+    {
+      "query": "Provide a deployment checklist summary from notes",
+      "options": { "format": "bullets", "strategy": "linear" }
+    },
+    {
+      "query": "Summarize prompt engineering items and creative prompts",
+      "options": { "strategy": "cluster-tag", "format": "both" }
+    },
+    {
+      "query": "Search for project-related items across categories",
+      "options": { "strategy": "hybrid", "format": "bullets", "limit": 12 }
+    }
+  ]
+}
