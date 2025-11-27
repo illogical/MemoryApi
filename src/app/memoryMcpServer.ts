@@ -9,6 +9,7 @@ import { LoggingService } from '../services/loggingService';
 dotenv.config();
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
+const DEFAULT_LLM_PROVIDER = 'lmstudio';
 
 // Initialize logging service
 const logger = new LoggingService();
@@ -16,6 +17,8 @@ const logger = new LoggingService();
 // Instantiate underlying memory system (same core used by REST API)
 const memorySystem = new MemoryRAGSystem(
   process.env.QDRANT_URL || 'http://localhost:6333',
+  process.env.LLM_MODEL || 'llama-3.2-3b-instruct',
+  process.env.LLM_PROVIDER || DEFAULT_LLM_PROVIDER,
   process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
 );
 

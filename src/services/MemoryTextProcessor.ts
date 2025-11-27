@@ -1,34 +1,38 @@
-import { LLM } from '@lmstudio/sdk';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
+import { ModelClient } from './modelClients';
 
 class MemoryTextProcessor {
-    private model: LLM;
+    private modelClient: ModelClient;
     private promptTemplateService: PromptTemplateService;
     private loggingService: LoggingService;
 
-    constructor(model: LLM, promptTemplateService: PromptTemplateService, loggingService: LoggingService) {
-        this.model = model;
+    constructor(modelClient: ModelClient, promptTemplateService: PromptTemplateService, loggingService: LoggingService) {
+        this.modelClient = modelClient;
         this.promptTemplateService = promptTemplateService;
         this.loggingService = loggingService;
     }
 
     async summarizeText(text: string): Promise<string> {
         this.loggingService.trace('[MemoryTextProcessor.summarizeText] Called');
-        if (!this.model) throw new Error('[MemoryTextProcessor.summarizeText] Inference model not loaded');
-        const prompt = `Summarize the following memory content for use as a description:\n\n${text}\n\nSummary:`;
+        const prompt = this.promptTemplateService.renderMemorySummary(text);
         this.loggingService.debug(`[MemoryTextProcessor.summarizeText] Prompt: ${prompt}`);
-        const response = await this.timeModelResponse(() => this.model.respond(prompt), 'summarizeText');
+        const response = await this.timeModelResponse(() => this.modelClient.respond([
+            { role: 'system', content: 'You are a concise memory summarizer. Output only the summary.' },
+            { role: 'user', content: prompt }
+        ], { temperature: 0.3, maxTokens: 150 }), 'summarizeText');
         this.loggingService.debug(`[MemoryTextProcessor.summarizeText] Response: ${response.content}`);
         return response.content.trim();
     }
 
     async classifyText(text: string): Promise<string> {
         this.loggingService.trace('[MemoryTextProcessor.classifyText] Called');
-        if (!this.model) throw new Error('[MemoryTextProcessor.classifyText] Inference model not loaded');
         const prompt = this.promptTemplateService.renderClassification(text);
         this.loggingService.debug(`[MemoryTextProcessor.classifyText] Prompt: ${prompt}`);
-        const response = await this.timeModelResponse(() => this.model.respond(prompt), 'classifyText');
+        const response = await this.timeModelResponse(() => this.modelClient.respond([
+            { role: 'system', content: 'You classify content into a single category. Output only the category.' },
+            { role: 'user', content: prompt }
+        ], { temperature: 0.3, maxTokens: 50 }), 'classifyText');
         const raw = response.content.trim();
         this.loggingService.debug(`[MemoryTextProcessor.classifyText] Response: ${raw}`);
         return raw;
@@ -36,10 +40,12 @@ class MemoryTextProcessor {
 
     async tagText(text: string): Promise<string[]> {
         this.loggingService.trace('[MemoryTextProcessor.tagText] Called');
-        if (!this.model) throw new Error('[MemoryTextProcessor.tagText] Inference model not loaded');
         const prompt = this.promptTemplateService.renderTagging(text);
         this.loggingService.debug(`[MemoryTextProcessor.tagText] Prompt: ${prompt}`);
-        const response = await this.timeModelResponse(() => this.model.respond(prompt), 'tagText');
+        const response = await this.timeModelResponse(() => this.modelClient.respond([
+            { role: 'system', content: 'Output only comma-separated tags, nothing else.' },
+            { role: 'user', content: prompt }
+        ], { temperature: 0.3, maxTokens: 100 }), 'tagText');
         const raw = response.content.trim();
         this.loggingService.debug(`[MemoryTextProcessor.tagText] Response: ${raw}`);
         return raw.split(',').map(t => t.trim()).filter(t => t.length > 0);

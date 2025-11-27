@@ -67,10 +67,20 @@ export class PromptTemplateService {
   }
 
   /**
-   * Renders the memory_summary.txt template with provided variables.
+   * Renders the memory_summary.txt template with provided content.
+   */
+  renderMemorySummary(content: string): string {
+    const templatePath = this.resolveTemplatePath('memory_summary.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    template = template.replace(/{{content}}/g, content);
+    return template;
+  }
+
+  /**
+   * Renders the aggregation_summary.txt template with provided variables.
    */
   renderMemorySearchSummary(variables: { memories: string; mode: string; cluster_type: string; cluster_key: string }): string {
-    const templatePath = this.resolveTemplatePath('memory_summary.txt');
+    const templatePath = this.resolveTemplatePath('aggregation_summary.txt');
     let template = fs.readFileSync(templatePath, 'utf-8');
     for (const [key, value] of Object.entries(variables)) {
       const regex = new RegExp(`{{${key}}}`, 'g');

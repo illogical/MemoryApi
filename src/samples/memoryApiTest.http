@@ -44,6 +44,18 @@ Content-Type: application/json
 }
 
 ###
+POST http://localhost:3000/api/memories/search-and-summarize
+Content-Type: application/json
+
+{
+  "query": "What conferences or events has the user attended?",
+  "limit": 3,
+  "scoreThreshold": 0.6,
+  "strategy": "hybrid", 
+  "format": "both"
+}
+
+###
 # Get a memory by ID
 # First create a memory above, copy the returned "id" and use it here
 GET http://localhost:3000/api/memories/854efc86-4440-4f58-980f-37372d02ed4b

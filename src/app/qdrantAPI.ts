@@ -7,10 +7,14 @@ import { Memory } from '../models/memory';
 dotenv.config();
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
+const DEFAULT_LLM_MODEL = 'llama-3.2-3b-instruct';
+const DEFAULT_LLM_PROVIDER = 'lmstudio';
 
 // Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem(
     process.env.QDRANT_URL || 'http://localhost:6333',
+    process.env.LLM_MODEL || DEFAULT_LLM_MODEL,
+    process.env.LLM_PROVIDER || DEFAULT_LLM_PROVIDER,
     process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
 );
 

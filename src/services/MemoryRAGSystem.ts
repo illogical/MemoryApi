@@ -1,6 +1,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
 import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
+import { ModelClient, LMStudioModelClient, OllamaModelClient } from './modelClients';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { env } from 'process';
@@ -11,15 +12,15 @@ import { MemoryTextProcessor } from './MemoryTextProcessor';
 import { MemoryReportService } from './MemoryReportService';
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
-const DEFAULT_MODEL_NAME = 'llama-3.2-3b-instruct';
 
 class MemoryRAGSystem {
     private client: QdrantClient;
     private lmStudio: LMStudioClient;
     private embeddingModel: EmbeddingModel | null = null;
     private embeddingModelName: string;
-    private model: LLM | null = null;
+    private modelClient: ModelClient | null = null; // Abstraction for provider-specific inference
     private modelName: string;
+    private modelProvider: string;
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
@@ -35,8 +36,7 @@ class MemoryRAGSystem {
     private memoryTextProcessor: MemoryTextProcessor | null = null;
 
     private postSearchAggregator: MemoryPostSearchAggregator = new MemoryPostSearchAggregator(
-        () => this.loadInferenceModel(),
-        () => this.model!,
+        () => this.modelClient!,
         this.promptTemplateService,
         this.loggingService,
         {
@@ -45,11 +45,22 @@ class MemoryRAGSystem {
         }
     );
 
-    constructor(qdrantUrl: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL, modelName: string = DEFAULT_MODEL_NAME) {
+    constructor(qdrantUrl: string, modelName: string, modelProvider: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL) {
         this.client = new QdrantClient({ url: qdrantUrl });
         this.lmStudio = new LMStudioClient();
         this.embeddingModelName = embeddingModelName;
         this.modelName = modelName;
+        this.modelProvider = modelProvider;
+        // Initialize model client abstraction
+        if (this.modelProvider === 'lmstudio') {
+            this.modelClient = new LMStudioModelClient();
+            this.modelClient.load(this.modelName);
+        } else if (this.modelProvider === 'ollama') {
+            this.modelClient = new OllamaModelClient();
+            this.modelClient.load(this.modelName);
+        } else {
+            throw new Error(`Unsupported model provider: ${this.modelProvider}`);
+        }
     }
 
     async loadEmbeddingModel(): Promise<void> {
@@ -63,7 +74,6 @@ class MemoryRAGSystem {
             this.loggingService.log(`[loadEmbeddingModel] Loading embedding model: ${this.embeddingModelName}`);
             const loadedEmbeddingModel = await this.lmStudio.embedding.model(this.embeddingModelName);
             this.embeddingModel = loadedEmbeddingModel;
-            this.model = null; // Clear inference model to force reload if needed
             this.loggingService.log('[loadEmbeddingModel] Embedding model loaded successfully');
         } catch (error) {
             this.loggingService.error(`[loadEmbeddingModel] Error loading embedding model: ${error}`);
@@ -73,20 +83,28 @@ class MemoryRAGSystem {
 
     async loadInferenceModel(): Promise<void> {
         this.loggingService.trace('[loadInferenceModel] Called');
-        if (this.model) {
-            this.loggingService.info('[loadInferenceModel] Inference model already loaded, skipping reload');
-            return;
-        }
-
-        try {
-            this.loggingService.log(`[loadInferenceModel] Loading inference model: ${this.modelName}`);
-            const loadedModel = await this.lmStudio.llm.model(this.modelName);
-            this.model = loadedModel;
-            this.embeddingModel = null; // Clear embedding model to force reload if needed
-            this.loggingService.log('[loadInferenceModel] Inference model loaded successfully');
-        } catch (error) {
-            this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
-            throw new Error('Failed to load inference model. Make sure LM Studio is running and the model is loaded.');
+        // If using LM Studio's native LLM, keep existing pathway
+        if (this.modelProvider === 'lmstudio') {
+            try {
+                this.loggingService.log(`[loadInferenceModel] Loading inference model (lmstudio): ${this.modelName}`);
+                // Also load via abstraction for unified respond API
+                await this.modelClient!.load(this.modelName);
+                this.loggingService.log('[loadInferenceModel] Inference model loaded successfully (lmstudio)');
+            } catch (error) {
+                this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
+                throw new Error('Failed to load inference model. Make sure LM Studio is running and the model is loaded.');
+            }
+        } else {
+            // For non-lmstudio providers (e.g., ollama), use modelClients abstraction
+            try {
+                // Avoid setting this.model; MemoryTextProcessor path will be bypassed
+                this.loggingService.log(`[loadInferenceModel] Loading inference model (${this.modelProvider}): ${this.modelName}`);
+                await this.modelClient!.load(this.modelName);
+                this.loggingService.log('[loadInferenceModel] Inference model loaded successfully via abstraction');
+            } catch (error) {
+                this.loggingService.error(`[loadInferenceModel] Error loading inference model via abstraction: ${error}`);
+                throw new Error(`Failed to load inference model for provider ${this.modelProvider}. ${error instanceof Error ? error.message : String(error)}`);
+            }
         }
     }
 
@@ -132,10 +150,10 @@ class MemoryRAGSystem {
 
 
     private getOrCreateTextProcessor(): MemoryTextProcessor {
-        if (!this.model) throw new Error('[MemoryRAGSystem] Inference model not loaded');
+        if (!this.modelClient) throw new Error('[MemoryRAGSystem] Model client not initialized');
         if (!this.memoryTextProcessor) {
             this.memoryTextProcessor = new MemoryTextProcessor(
-                this.model!,
+                this.modelClient,
                 this.promptTemplateService,
                 this.loggingService
             );
@@ -144,6 +162,7 @@ class MemoryRAGSystem {
     }
 
     async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
+        this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         const processor = this.getOrCreateTextProcessor();
         return await processor.summarizeClassifyAndTagTextParallel(text);
     }
@@ -300,7 +319,19 @@ class MemoryRAGSystem {
         this.loggingService.trace(`[searchMemories] Called with query: ${query}, category: ${category}, limit: ${limit}`);
         await this.loadEmbeddingModel();
         const queryEmbedding = await this.generateEmbedding(query);
+        return this.searchMemoriesWithEmbedding(queryEmbedding, category, limit);
+    }
 
+    /**
+     * Search memories using a pre-computed embedding vector.
+     * Use this when you've already loaded the embedding model and generated embeddings.
+     */
+    async searchMemoriesWithEmbedding(
+        queryEmbedding: number[],
+        category?: MemoryCategory,
+        limit: number = 5
+    ): Promise<MemoryWithId[]> {
+        this.loggingService.trace(`[searchMemoriesWithEmbedding] Called with category: ${category}, limit: ${limit}`);
         const filter = category
             ? {
                 must: [
@@ -312,15 +343,15 @@ class MemoryRAGSystem {
             }
             : undefined;
 
-        this.loggingService.debug(`[searchMemories] Searching with filter: ${JSON.stringify(filter)}`);
+        this.loggingService.debug(`[searchMemoriesWithEmbedding] Searching with filter: ${JSON.stringify(filter)}`);
         const response = await this.client.search(this.COLLECTION_NAME, {
             vector: queryEmbedding,
             limit,
             filter,
             with_payload: true
         });
-        this.loggingService.info(`[searchMemories] Search returned ${response.length} results`);
-        this.loggingService.debug(`[searchMemories] Response: ${JSON.stringify(response, null, 2)}`);
+        this.loggingService.info(`[searchMemoriesWithEmbedding] Search returned ${response.length} results`);
+        this.loggingService.debug(`[searchMemoriesWithEmbedding] Response: ${JSON.stringify(response, null, 2)}`);
         return response.map(result => ({
             id: result.id.toString(),
             ...(result.payload as unknown as Memory),
@@ -532,6 +563,58 @@ class MemoryRAGSystem {
                 this.loggingService.error(`[searchAndSummarizeForMcp] Failed to save report: ${err}`);
             }
         }
+
+        return result;
+    }
+
+    /**
+     * Run post-search aggregation on pre-fetched memories without re-running the search.
+     * Use this when you've already performed the search and want to aggregate the results.
+     */
+    async aggregateSearchResults(
+        query: string,
+        memories: MemoryWithId[],
+        options?: {
+            category?: MemoryCategory;
+            limit?: number;
+            scoreThreshold?: number;
+            strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
+            format?: 'narrative' | 'bullets' | 'both';
+        }
+    ): Promise<{
+        query: string;
+        topMemories: MemoryWithId[];
+        aggregateNarrative?: string;
+        aggregateBullets?: string[];
+        clusterSummaries?: Array<{
+            key: string;
+            type: 'category' | 'tag';
+            narrative?: string;
+            bullets?: string[];
+        }>;
+        parameters: any;
+    }> {
+        this.loggingService.trace('[aggregateSearchResults] Called');
+        const limit = options?.limit ?? 10;
+        const scoreThreshold = options?.scoreThreshold ?? 0.7;
+        const strategy = options?.strategy ?? 'linear';
+        const format = options?.format ?? 'bullets';
+        const category = options?.category;
+
+        // Filter by score threshold and sort by score
+        const filtered = memories
+            .filter(m => (typeof m.score === 'number' ? m.score : 0) >= scoreThreshold)
+            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+            .slice(0, limit);
+
+        this.loggingService.debug(`[aggregateSearchResults] Filtered to ${filtered.length} top memories`);
+
+        // Delegate to aggregator for summarization
+        const result = await this.postSearchAggregator.aggregateMemories(
+            query,
+            filtered,
+            { strategy, format, scoreThreshold, limit, category }
+        );
 
         return result;
     }

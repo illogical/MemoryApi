@@ -70,9 +70,9 @@ export abstract class BaseEvaluator {
     protected maxTokens: number;
 
     constructor(
-        modelName: string = (process.env.MODEL_NAME || 'llama-3.2-3b-instruct'),
+        modelName: string = (process.env.LLM_MODEL || 'llama-3.2-3b-instruct'),
         promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
-        provider: ModelProvider = ((process.env.MODEL_PROVIDER as ModelProvider) || 'lmstudio'),
+        provider: ModelProvider = ((process.env.LLM_PROVIDER as ModelProvider) || 'lmstudio'),
         temperature: number = 0.3,
         maxTokens: number = 100
     ) {

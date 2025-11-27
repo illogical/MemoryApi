@@ -1,6 +1,12 @@
 /*
     Purpose: Run semantic search queries from a JSON file against the Memory RAG system,
     summarize results, and generate a combined effectiveness report.
+    
+    This script optimizes model loading by:
+    1. Loading the embedding model once
+    2. Embedding and searching all queries
+    3. Loading the LLM model once
+    4. Running post-search aggregation on all results
 
     Usages:
     npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio
@@ -19,10 +25,11 @@ dotenv.config();
 async function main() {
     const qdrantUrl = process.env.QDRANT_URL || 'http://localhost:6333';
     const embeddingModel = process.env.EMBEDDING_MODEL || 'nomic-embed-text-v1.5';
-    const modelName = process.env.AGGREGATION_MODEL || process.env.MODEL_NAME || 'llama-3.2-3b-instruct';
+    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
+    const provider = process.env.LLM_PROVIDER || 'lmstudio';
 
     // Instantiate RAG system and report service
-    const rag = new MemoryRAGSystem(qdrantUrl, embeddingModel, modelName);
+    const rag = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
     const reportService = new MemoryReportService('reports');
 
     // Ensure collection exists (safe to call)
@@ -47,7 +54,56 @@ async function main() {
 
     console.log(`[RunSemanticQueries] Loaded ${queries.length} queries from ${queriesPath}`);
 
-    // Run each query, collect results for a combined report
+    // ====================================
+    // PHASE 1: Load embedding model and run all searches
+    // ====================================
+    console.log('\n[RunSemanticQueries] Phase 1: Loading embedding model and running searches...');
+    await rag.loadEmbeddingModel();
+    
+    interface SearchResult {
+        query: string;
+        memories: any[];
+        mergedOptions: any;
+    }
+    
+    const searchResults: SearchResult[] = [];
+    
+    for (let i = 0; i < queries.length; i++) {
+        const { query, options } = queries[i];
+        const mergedOptions = {
+            ...(options || {}),
+            ...(strategyArg ? { strategy: strategyArg.split('=')[1] } : {}),
+            ...(formatArg ? { format: formatArg.split('=')[1] } : {}),
+            ...(limitArg ? { limit: Number(limitArg.split('=')[1]) } : {})
+        };
+        
+        console.log(`\n[${i + 1}/${queries.length}] Embedding and searching: ${query}`);
+        try {
+            // Generate embedding for the query
+            const queryEmbedding = await rag.generateEmbedding(query);
+            
+            // Search with pre-computed embedding (no need to reload embedding model)
+            const limit = mergedOptions.limit ?? 10;
+            const memories = await rag.searchMemoriesWithEmbedding(
+                queryEmbedding,
+                mergedOptions.category,
+                limit * 2  // Get more results for filtering
+            );
+            
+            console.log(`[RunSemanticQueries] Found ${memories.length} memories for query: ${query}`);
+            searchResults.push({ query, memories, mergedOptions });
+        } catch (err) {
+            console.error(`[RunSemanticQueries] Error searching query: ${query}`);
+            console.error(err);
+        }
+    }
+
+    // ====================================
+    // PHASE 2: Load LLM model and run all aggregations
+    // ====================================
+    console.log('\n[RunSemanticQueries] Phase 2: Loading LLM model and running aggregations...');
+    await rag.loadInferenceModel();
+    
     const results: Array<{
         query: string;
         topMemories: any[];
@@ -57,22 +113,17 @@ async function main() {
         parameters: any;
     }> = [];
 
-    for (let i = 0; i < queries.length; i++) {
-        const { query, options } = queries[i];
-        const mergedOptions = {
-            ...(options || {}),
-            ...(strategyArg ? { strategy: strategyArg.split('=')[1] } : {}),
-            ...(formatArg ? { format: formatArg.split('=')[1] } : {}),
-            ...(limitArg ? { limit: Number(limitArg.split('=')[1]) } : {})
-        };
-        console.log(`\n[${i + 1}/${queries.length}] Query: ${query}`);
+    for (let i = 0; i < searchResults.length; i++) {
+        const { query, memories, mergedOptions } = searchResults[i];
+        console.log(`\n[${i + 1}/${searchResults.length}] Aggregating results for: ${query}`);
         try {
-            const result = await rag.searchAndSummarizeForMcp(query, mergedOptions, false);
+            // Run aggregation on pre-fetched memories (LLM already loaded)
+            const result = await rag.aggregateSearchResults(query, memories, mergedOptions);
             const topCount = result.topMemories?.length || 0;
             console.log(`[RunSemanticQueries] Top memories: ${topCount}; strategy=${result.parameters?.strategy}; format=${result.parameters?.format}`);
             results.push(result as any);
         } catch (err) {
-            console.error(`[RunSemanticQueries] Error running query: ${query}`);
+            console.error(`[RunSemanticQueries] Error aggregating query: ${query}`);
             console.error(err);
         }
     }

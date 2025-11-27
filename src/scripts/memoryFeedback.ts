@@ -9,11 +9,13 @@ import { MemoryReportService, ReportStats } from '../services/memoryReportServic
 async function main() {
     const qdrantUrl = process.env.QDRANT_URL;
     const embeddingModel = process.env.EMBEDDING_MODEL;
+    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
+    const provider = process.env.LLM_PROVIDER || 'lmstudio';
     if (!qdrantUrl || !embeddingModel) {
         console.error('Missing QDRANT_URL or EMBEDDING_MODEL in environment variables.');
         process.exit(1);
     }
-    const ragSystem = new MemoryRAGSystem(qdrantUrl, embeddingModel);
+    const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
     await ragSystem.loadEmbeddingModel();
 
     // Load feedback queries from JSON file

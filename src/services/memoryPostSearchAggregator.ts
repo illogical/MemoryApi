@@ -2,6 +2,7 @@ import { MemoryCategory } from '../models/memoryCategory';
 import { MemoryWithId } from '../models/memory';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
+import { ModelClient } from './modelClients';
 
 // Cluster summary interfaces for category/tag clusters
 export interface CategoryClusterSummary {
@@ -18,17 +19,13 @@ export interface TagClusterSummary {
     bullets?: string[];
 }
 
-// Minimal LLM interface for prompt response
-type LLM = { respond: (prompt: string) => Promise<{ content: string }> };
-
 /**
  * MemoryPostSearchAggregator
  * Handles post-search aggregation for RAG: summarizing, clustering, and structuring memory search results.
  * This is typically called after semantic search returns top matches.
  */
 export class MemoryPostSearchAggregator {
-    private loadInferenceModel: () => Promise<void>;
-    private getModel: () => LLM;
+    private getModel: () => ModelClient;
     private promptTemplateService: PromptTemplateService;
     private loggingService: LoggingService;
     private MAX_CLUSTERS: number;
@@ -42,13 +39,11 @@ export class MemoryPostSearchAggregator {
      * @param config Aggregation config knobs
      */
     constructor(
-        loadInferenceModel: () => Promise<void>,
-        getModel: () => LLM,
+        getModel: () => ModelClient,
         promptTemplateService: PromptTemplateService,
         loggingService: LoggingService,
         config: { MAX_CLUSTERS: number; MAX_MEMORIES_PER_CLUSTER: number }
     ) {
-        this.loadInferenceModel = loadInferenceModel;
         this.getModel = getModel;
         this.promptTemplateService = promptTemplateService;
         this.loggingService = loggingService;
@@ -99,34 +94,67 @@ export class MemoryPostSearchAggregator {
 
         this.loggingService.debug(`[searchAndSummarizeForMcp] Filtered to ${filtered.length} top memories`);
 
-        // Step 3: Aggregate and summarize according to strategy
+        // Step 3: Delegate to aggregateMemories
+        return await this.aggregateMemories(query, filtered, { strategy, format, scoreThreshold, limit, category });
+    }
+
+    /**
+     * Aggregate and summarize pre-fetched memories without running a search.
+     * Use this when you've already performed the search and filtering.
+     */
+    async aggregateMemories(
+        query: string,
+        memories: MemoryWithId[],
+        options: {
+            strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
+            format?: 'narrative' | 'bullets' | 'both';
+            scoreThreshold?: number;
+            limit?: number;
+            category?: MemoryCategory;
+        }
+    ): Promise<{
+        query: string;
+        topMemories: MemoryWithId[];
+        aggregateNarrative?: string;
+        aggregateBullets?: string[];
+        clusterSummaries?: Array<CategoryClusterSummary | TagClusterSummary>;
+        parameters: any;
+    }> {
+        this.loggingService.trace('[aggregateMemories] Called');
+        const strategy = options.strategy ?? 'linear';
+        const format = options.format ?? 'bullets';
+        const scoreThreshold = options.scoreThreshold ?? 0.7;
+        const limit = options.limit ?? 10;
+        const category = options.category;
+
+        // Aggregate and summarize according to strategy
         let aggregateNarrative: string | undefined;
         let aggregateBullets: string[] | undefined;
         let clusterSummaries: Array<CategoryClusterSummary | TagClusterSummary> | undefined;
 
         if (strategy === 'linear') {
-            this.loggingService.debug('[searchAndSummarizeForMcp] Using linear summarization');
-            const summary = await this.summarizeMemoriesLinear(filtered, { mode: format });
+            this.loggingService.debug('[aggregateMemories] Using linear summarization');
+            const summary = await this.summarizeMemoriesLinear(memories, { mode: format });
             aggregateNarrative = summary.narrative;
             aggregateBullets = summary.bullets;
         } else if (strategy === 'cluster-category') {
-            this.loggingService.debug('[searchAndSummarizeForMcp] Using cluster-by-category summarization');
-            clusterSummaries = await this.summarizeMemoriesByCategory(filtered, { mode: format });
+            this.loggingService.debug('[aggregateMemories] Using cluster-by-category summarization');
+            clusterSummaries = await this.summarizeMemoriesByCategory(memories, { mode: format });
         } else if (strategy === 'cluster-tag') {
-            this.loggingService.debug('[searchAndSummarizeForMcp] Using cluster-by-tag summarization');
-            clusterSummaries = await this.summarizeMemoriesByTag(filtered, { mode: format });
+            this.loggingService.debug('[aggregateMemories] Using cluster-by-tag summarization');
+            clusterSummaries = await this.summarizeMemoriesByTag(memories, { mode: format });
         } else if (strategy === 'hybrid') {
-            this.loggingService.debug('[searchAndSummarizeForMcp] Using hybrid summarization');
-            const summary = await this.summarizeMemoriesLinear(filtered, { mode: format });
+            this.loggingService.debug('[aggregateMemories] Using hybrid summarization');
+            const summary = await this.summarizeMemoriesLinear(memories, { mode: format });
             aggregateNarrative = summary.narrative;
             aggregateBullets = summary.bullets;
-            clusterSummaries = await this.summarizeMemoriesByCategory(filtered, { mode: format });
+            clusterSummaries = await this.summarizeMemoriesByCategory(memories, { mode: format });
         }
 
-        this.loggingService.debug('[searchAndSummarizeForMcp] Aggregation complete');
+        this.loggingService.debug('[aggregateMemories] Aggregation complete');
         return {
             query,
-            topMemories: filtered,
+            topMemories: memories,
             aggregateNarrative,
             aggregateBullets,
             clusterSummaries,
@@ -147,7 +175,7 @@ export class MemoryPostSearchAggregator {
             this.loggingService.debug('[summarizeMemoriesLinear] No memories to summarize');
             return {};
         }
-        await this.loadInferenceModel();
+        //await this.loadInferenceModel();
 
         // Serialize memories for prompt
         const packed = memories.map(m => {
@@ -169,7 +197,10 @@ export class MemoryPostSearchAggregator {
         this.loggingService.debug(`[summarizeMemoriesLinear] Prompt:\n${prompt}`);
 
         // Call LLM for summary
-        const response = await this.getModel().respond(prompt);
+        const response = await this.getModel().respond([
+            { role: 'system', content: 'You are a concise memory summarizer. Output only the summary.' },
+            { role: 'user', content: prompt }
+        ]);
         this.loggingService.debug(`[summarizeMemoriesLinear] LLM response:\n${response.content}`);
 
         if (options.mode === 'bullets') {
@@ -197,7 +228,7 @@ export class MemoryPostSearchAggregator {
             this.loggingService.debug('[summarizeMemoriesByCategory] No memories to cluster');
             return [];
         }
-        await this.loadInferenceModel();
+        //await this.loadInferenceModel();
 
         // Group memories by Category
         const byCategory = new Map<string, MemoryWithId[]>();
@@ -244,7 +275,10 @@ export class MemoryPostSearchAggregator {
             this.loggingService.debug(`[summarizeMemoriesByCategory] Prompt for cluster '${categoryKey}':\n${prompt}`);
 
             // Call LLM for cluster summary
-            const response = await this.getModel().respond(prompt);
+            const response = await this.getModel().respond([
+                { role: 'system', content: 'You classify content into a single category. Output only the category.' },
+                { role: 'user', content: prompt }
+            ]);
             this.loggingService.debug(`[summarizeMemoriesByCategory] LLM response for '${categoryKey}':\n${response.content}`);
 
             const content = response.content.trim();
@@ -292,7 +326,7 @@ export class MemoryPostSearchAggregator {
             this.loggingService.debug('[summarizeMemoriesByTag] No memories to cluster');
             return [];
         }
-        await this.loadInferenceModel();
+        //await this.loadInferenceModel();
 
         // Helper: Group memories by tag, only include tags that appear at least minTagFrequency times
         const minTagFrequency = 2; // configurable if needed
@@ -332,7 +366,10 @@ export class MemoryPostSearchAggregator {
                 cluster_key: tagKey
             });
             this.loggingService.debug(`[summarizeMemoriesByTag] Prompt for tag '${tagKey}':\n${prompt}`);
-            const response = await this.getModel().respond(prompt);
+            const response = await this.getModel().respond([
+                { role: 'system', content: 'Output only comma-separated tags, nothing else.' },
+                { role: 'user', content: prompt }
+            ]);
             this.loggingService.debug(`[summarizeMemoriesByTag] LLM response for tag '${tagKey}':\n${response.content}`);
             if (options.mode === 'bullets') {
                 const bullets = response.content.split(/\n|\r/).map(b => b.trim()).filter(b => b.startsWith('- '));

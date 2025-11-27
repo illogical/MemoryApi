@@ -10,12 +10,14 @@ async function main() {
     // Load config from environment
     const qdrantUrl = process.env.QDRANT_URL;
     const embeddingModel = process.env.EMBEDDING_MODEL;
+    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
+    const provider = process.env.LLM_PROVIDER || 'lmstudio';
     if (!qdrantUrl || !embeddingModel) {
         console.error('Missing QDRANT_URL or EMBEDDING_MODEL in environment variables.');
         process.exit(1);
     }
     // Instantiate your MemoryRAGSystem with config
-    const ragSystem = new MemoryRAGSystem(qdrantUrl, embeddingModel);
+    const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
     try {
         await ragSystem.deleteCollection();
     } catch (error) {

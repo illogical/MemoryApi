@@ -68,9 +68,9 @@ class CategorizationEvaluator extends BaseEvaluator {
     private validCategories: Set<string>;
 
     constructor(
-        modelName: string = (process.env.MODEL_NAME || 'llama-3.2-3b-instruct'),
+        modelName: string = (process.env.LLM_MODEL || 'llama-3.2-3b-instruct'),
         promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
-        provider: ModelProvider = ((process.env.MODEL_PROVIDER as ModelProvider) || 'lmstudio')
+        provider: ModelProvider = ((process.env.LLM_PROVIDER as ModelProvider) || 'lmstudio')
     ) {
         super(modelName, promptBasePath, provider, 0.3, 50);
         this.validCategories = this.loadValidCategories();

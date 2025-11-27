@@ -47,7 +47,7 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
 - `src/services/MemoryRAGSystem.ts`: Core business logic for memory storage, semantic search, categorization, tagging, and summary generation.
 - `src/services/MemoryPostSearchAggregator.ts`: Logic for clustering and summarizing search results for LLM consumption.
 - `src/services/promptTemplateService.ts`: Loads and renders prompt templates for classification and tagging tasks.
-- `src/prompts/classification.txt`, `src/prompts/tagging.txt`, `src/prompts/memory_summary.txt`: Prompt templates for memory processing.
+- `src/prompts/classification.txt`, `src/prompts/tagging.txt`, `src/prompts/aggregation_summary.txt`: Prompt templates for memory processing.
 - `src/index.ts`: Entry point for the Express server.
 - `src/routes/`, `src/controllers/`, `src/models/`: Example structure for modular API development.
 
@@ -76,10 +76,12 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    ```env
    QDRANT_URL=http://localhost:6333
    EMBEDDING_MODEL=nomic-embed-text-v1.5
-   SUMMARIZATION_MODEL=llama-3.2-3b-instruct
+   LLM_PROVIDER=ollama
+   LLM_MODEL=phi4
+   <!-- SUMMARIZATION_MODEL=llama-3.2-3b-instruct
    CLASSIFICATION_MODEL=llama-3.2-3b-instruct
    TAGGING_MODEL=llama-3.2-3b-instruct
-   AGGREGATION_MODEL=llama-3.2-3b-instruct
+   AGGREGATION_MODEL=llama-3.2-3b-instruct -->
    PROMPT_TEMPLATE_BASE_PATH=/path/to/your/prompts/
    ```
 4. **Start LM Studio:**
