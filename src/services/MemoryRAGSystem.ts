@@ -8,6 +8,7 @@ import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './MemoryTextProcessor';
+import { MemoryReportService } from './MemoryReportService';
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
 const DEFAULT_MODEL_NAME = 'llama-3.2-3b-instruct';
@@ -21,6 +22,7 @@ class MemoryRAGSystem {
     private modelName: string;
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
     private loggingService: LoggingService = new LoggingService();
+    private memoryReportService: MemoryReportService = new MemoryReportService('reports');
 
     // Config knobs for summarization
     private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
@@ -513,9 +515,22 @@ class MemoryRAGSystem {
         parameters: any;
     }> {
         // Delegate to aggregator
-        return await this.postSearchAggregator.searchAndSummarizeForMcp(query, options, (opts) =>
+        const result = await this.postSearchAggregator.searchAndSummarizeForMcp(query, options, (opts) =>
             this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
         );
+
+        // Generate and save a Markdown report after each search
+        try {
+            const filePath = await this.memoryReportService.generateAndSavePostSearchAggregationReport(
+                result as any,
+                this.embeddingModelName
+            );
+            this.loggingService.info(`[searchAndSummarizeForMcp] Report saved: ${filePath}`);
+        } catch (err) {
+            this.loggingService.error(`[searchAndSummarizeForMcp] Failed to save report: ${err}`);
+        }
+
+        return result;
     }
 }
 

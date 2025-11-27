@@ -4,7 +4,7 @@ import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import path from 'path';
 import { FeedbackQueryLoader } from '../helpers/feedbackQueryLoader';
-import { MemoryReportService, ReportStats } from '../services/MemoryReportService';
+import { MemoryReportService, ReportStats } from '../services/memoryReportService';
 
 async function main() {
     const qdrantUrl = process.env.QDRANT_URL;

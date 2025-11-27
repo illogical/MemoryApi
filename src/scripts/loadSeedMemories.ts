@@ -3,7 +3,7 @@ config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { Memory } from '../models/memory';
-import { MemoryReportService, ReportStats } from '../services/MemoryReportService';
+import { MemoryReportService, ReportStats } from '../services/memoryReportService';
 
 async function main() {
     const startTime = Date.now();

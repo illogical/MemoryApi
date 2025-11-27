@@ -79,6 +79,8 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    SUMMARIZATION_MODEL=llama-3.2-3b-instruct
    CLASSIFICATION_MODEL=llama-3.2-3b-instruct
    TAGGING_MODEL=llama-3.2-3b-instruct
+   AGGREGATION_MODEL=llama-3.2-3b-instruct
+   PROMPT_TEMPLATE_BASE_PATH=/path/to/your/prompts/
    ```
 4. **Start LM Studio:**
    Ensure LM Studio is running and the embedding model is loaded.

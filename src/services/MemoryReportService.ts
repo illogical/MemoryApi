@@ -149,4 +149,113 @@ export class MemoryReportService {
 
         return md;
     }
+
+    /**
+     * Generates a markdown report for post-search aggregation output.
+     * This captures the query, parameters, top memories, aggregate summaries, and cluster breakdowns.
+     */
+    generatePostSearchAggregationMarkdown(result: {
+        query: string;
+        topMemories: Array<{
+            id: string;
+            Description?: string;
+            Category?: string;
+            Tags?: string[];
+            LastUpdated?: string;
+            score?: number;
+            [key: string]: any;
+        }>;
+        aggregateNarrative?: string;
+        aggregateBullets?: string[];
+        clusterSummaries?: Array<{
+            key: string;
+            type: 'category' | 'tag';
+            narrative?: string;
+            bullets?: string[];
+        }>;
+        parameters: any;
+    }): string {
+        const ts = new Date().toLocaleString();
+        let md = `# Post-Search Aggregation Report\n\n`;
+        md += `**Date:** ${ts}\n`;
+        md += `**Query:** \`${result.query}\`\n`;
+        md += `**Parameters:** ${JSON.stringify(result.parameters)}\n`;
+
+        // Top Memories Table
+        md += `\n## Top Memories\n`;
+        if (!result.topMemories || result.topMemories.length === 0) {
+            md += `> _No top memories after filtering._\n`;
+        } else {
+            md += `| Rank | ID | Description | Category | Tags | Score | LastUpdated |\n`;
+            md += `|------|----|-------------|----------|------|-------|------------|\n`;
+            result.topMemories.forEach((m, idx) => {
+                md += `| ${idx + 1} `;
+                md += `| ${m.id || ''} `;
+                md += `| ${(m.Description || '').replace(/\|/g, '\\|')} `;
+                md += `| ${m.Category || ''} `;
+                md += `| [${(m.Tags || []).join(', ')}] `;
+                md += `| ${typeof m.score !== 'undefined' ? `__${m.score}__` : ''} `;
+                md += `| ${m.LastUpdated || ''} |\n`;
+            });
+        }
+
+        // Aggregate Summaries
+        md += `\n## Aggregate Summary\n`;
+        if (result.aggregateNarrative) {
+            md += `\n### Narrative\n`;
+            md += `${result.aggregateNarrative}\n`;
+        }
+        if (result.aggregateBullets && result.aggregateBullets.length) {
+            md += `\n### Bullets\n`;
+            result.aggregateBullets.forEach(b => {
+                md += `- ${b}\n`;
+            });
+        }
+
+        // Cluster Summaries
+        md += `\n## Cluster Summaries\n`;
+        if (result.clusterSummaries && result.clusterSummaries.length) {
+            result.clusterSummaries.forEach((c) => {
+                md += `\n### ${c.type === 'category' ? 'Category' : 'Tag'}: ${c.key}\n`;
+                if (c.narrative) {
+                    md += `${c.narrative}\n`;
+                }
+                if (c.bullets && c.bullets.length) {
+                    c.bullets.forEach(b => md += `- ${b}\n`);
+                }
+            });
+        } else {
+            md += `> _No cluster summaries produced._\n`;
+        }
+
+        // Footer
+        md += `\n---\n`;
+        md += `This report is generated automatically after each semantic search and post-search aggregation.\n`;
+        return md;
+    }
+
+    /**
+     * Convenience: Generate and save a post-search aggregation report.
+     */
+    async generateAndSavePostSearchAggregationReport(
+        result: {
+            query: string;
+            topMemories: any[];
+            aggregateNarrative?: string;
+            aggregateBullets?: string[];
+            clusterSummaries?: Array<{ key: string; type: 'category' | 'tag'; narrative?: string; bullets?: string[] }>;
+            parameters: any;
+        },
+        embeddingModel: string = 'unknown'
+    ): Promise<string> {
+        const markdown = this.generatePostSearchAggregationMarkdown(result);
+        const stats: ReportStats = {
+            totalProcessed: result.topMemories?.length || 0,
+            successCount: result.topMemories?.length || 0,
+            durationMs: 0,
+            timestamp: new Date(),
+            embeddingModel
+        };
+        return await this.generateAndSaveReport(markdown, stats, 'post_search_aggregation');
+    }
 }
