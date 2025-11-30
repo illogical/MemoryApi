@@ -121,7 +121,7 @@ npm run eval:aggregation
 
 # Or run directly with options
 npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio
-npx tsx src/scripts/evaluateSemanticQueries.ts --queries=src/samples/semanticSearchQueries.json --strategy=hybrid --format=both --limit=12
+npx tsx src/scripts/evaluateSemanticQueries.ts --queries=src/samples/semanticSearchQueries.json --strategy=hybrid --format=both --limit=12 --report-format=html
 ```
 
 ## Backward Compatibility

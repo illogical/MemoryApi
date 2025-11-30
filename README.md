@@ -90,16 +90,16 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
 5. **Load seed memories from sample data:**
    To bulk load the sample seed memories into your system, run the following command (passing the path to the JSON file):
    ```pwsh
-   npx tsx src/scripts/loadSeedMemories.ts src/samples/seedMemories.json
+   npx tsx src/scripts/loadSeedMemories.ts src/samples/seedMemories.json --report-format=html
    ```
-   This will use the `SeedMemoryLoader` to import all memories from the specified JSON file (e.g., `src/samples/seedMemories.json`).
+   This will use the `SeedMemoryLoader` to import all memories from the specified JSON file (e.g., `src/samples/seedMemories.json`). You can specify the report format as `html` or `markdown` (default).
 
 6. **Run feedback queries and get memory statistics:**
    To run feedback queries and get statistics or search results, use:
    ```pwsh
-   npx tsx src/scripts/memoryFeedback.ts src/samples/feedbackQueries.json
+   npx tsx src/scripts/memoryFeedback.ts src/samples/feedbackQueries.json --report-format=html
    ```
-   You can pass a custom path to your feedback queries JSON file as the second argument. If omitted, it defaults to `src/samples/feedbackQueries.json`.
+   You can pass a custom path to your feedback queries JSON file as the second argument. If omitted, it defaults to `src/samples/feedbackQueries.json`. You can also specify the report format as `html` or `markdown` (default).
 
 ## Run the API (development):
    ```pwsh
@@ -181,6 +181,19 @@ npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio
 *Supported Providers:*
 - `lmstudio`
 - `ollama`
+
+## Report Generation
+The system generates detailed reports for various operations (ingestion, feedback, evaluation). By default, reports are generated in Markdown format. You can switch to HTML format by using the `--report-format=html` flag with the supported scripts.
+
+Supported scripts:
+- `src/scripts/loadSeedMemories.ts`
+- `src/scripts/memoryFeedback.ts`
+- `src/scripts/evaluateSemanticQueries.ts`
+
+Example:
+```pwsh
+npx tsx src/scripts/memoryFeedback.ts --report-format=html
+```
 
 ### Extending the Project
 - Add new categories or metadata fields in the `MemoryCategory` enum and `Memory` interface.
