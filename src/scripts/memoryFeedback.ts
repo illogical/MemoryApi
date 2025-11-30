@@ -19,7 +19,8 @@ async function main() {
     await ragSystem.loadEmbeddingModel();
 
     // Load feedback queries from JSON file
-    const feedbackQueriesArg = process.argv[2];
+    // Find the first argument that doesn't start with --
+    const feedbackQueriesArg = process.argv.slice(2).find(arg => !arg.startsWith('--'));
     const feedbackQueriesPath = feedbackQueriesArg
         ? path.resolve(feedbackQueriesArg)
         : path.resolve('src/samples/feedbackQueries.json');
@@ -66,15 +67,18 @@ async function main() {
         timestamp: new Date(),
         embeddingModel: embeddingModel
     };
-    const feedbackMarkdown = reportService.generateFeedbackMarkdown({
+    // Parse report format from args
+    const reportFormatArg = process.argv.find(arg => arg.startsWith('--report-format='));
+    const reportFormat = reportFormatArg ? reportFormatArg.split('=')[1] as 'html' | 'markdown' : 'markdown';
+
+    const reportPath = await reportService.generateFeedbackReport({
         categoryCounts,
         memoriesByCategory,
         semanticSearches,
         tagSearches,
         embeddingModel,
         timestamp: reportStats.timestamp
-    });
-    const reportPath = await reportService.generateAndSaveReport(feedbackMarkdown, reportStats, 'MemoryFeedbackReport');
+    }, reportFormat);
     console.log(`Feedback report generated at: ${reportPath}`);
 }
 

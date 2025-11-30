@@ -27,10 +27,13 @@ async function main() {
 
     // Load seed file path from command-line argument
     const path = await import('path');
-    if (!process.argv[2]) {
+    // Find the first argument that doesn't start with --
+    const seedFileArg = process.argv.slice(2).find(arg => !arg.startsWith('--'));
+
+    if (!seedFileArg) {
         throw new Error('Seed file path must be provided as a command-line argument.');
     }
-    const seedFilePath = path.resolve(process.argv[2]);
+    const seedFilePath = path.resolve(seedFileArg);
 
     // Use SeedMemoryLoader to load and parse the JSON file
     const loader = new SeedMemoryLoader(ragSystem);
@@ -83,7 +86,7 @@ async function main() {
             console.error('Error upserting memory:', err, mem);
         }
     }
-        console.log(`Loaded ${loadedCount} seed memories from ${seedFilePath}`);
+    console.log(`Loaded ${loadedCount} seed memories from ${seedFilePath}`);
 
     // Generate Report
     const reportService = new MemoryReportService();
@@ -94,8 +97,11 @@ async function main() {
         timestamp: new Date(),
         embeddingModel: embeddingModel
     };
-    const markdown = reportService.generateIgenestionMarkdown(validMemories, reportStats);
-    const reportPath = await reportService.generateAndSaveReport(markdown, reportStats, 'SeedMemoryLoadReport');
+    // Parse report format from args
+    const reportFormatArg = process.argv.find(arg => arg.startsWith('--report-format='));
+    const reportFormat = reportFormatArg ? reportFormatArg.split('=')[1] as 'html' | 'markdown' : 'markdown';
+
+    const reportPath = await reportService.generateIngestionReport(validMemories, reportStats, reportFormat);
     console.log(`Report generated at: ${reportPath}`);
 }
 

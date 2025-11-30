@@ -59,15 +59,15 @@ async function main() {
     // ====================================
     console.log('\n[RunSemanticQueries] Phase 1: Loading embedding model and running searches...');
     await rag.loadEmbeddingModel();
-    
+
     interface SearchResult {
         query: string;
         memories: any[];
         mergedOptions: any;
     }
-    
+
     const searchResults: SearchResult[] = [];
-    
+
     for (let i = 0; i < queries.length; i++) {
         const { query, options } = queries[i];
         const mergedOptions = {
@@ -76,12 +76,12 @@ async function main() {
             ...(formatArg ? { format: formatArg.split('=')[1] } : {}),
             ...(limitArg ? { limit: Number(limitArg.split('=')[1]) } : {})
         };
-        
+
         console.log(`\n[${i + 1}/${queries.length}] Embedding and searching: ${query}`);
         try {
             // Generate embedding for the query
             const queryEmbedding = await rag.generateEmbedding(query);
-            
+
             // Search with pre-computed embedding (no need to reload embedding model)
             const limit = mergedOptions.limit ?? 10;
             const memories = await rag.searchMemoriesWithEmbedding(
@@ -89,7 +89,7 @@ async function main() {
                 mergedOptions.category,
                 limit * 2  // Get more results for filtering
             );
-            
+
             console.log(`[RunSemanticQueries] Found ${memories.length} memories for query: ${query}`);
             searchResults.push({ query, memories, mergedOptions });
         } catch (err) {
@@ -103,7 +103,7 @@ async function main() {
     // ====================================
     console.log('\n[RunSemanticQueries] Phase 2: Loading LLM model and running aggregations...');
     await rag.loadInferenceModel();
-    
+
     const results: Array<{
         query: string;
         topMemories: any[];
@@ -128,11 +128,15 @@ async function main() {
         }
     }
 
+    const reportFormatArg = args.find(a => a.startsWith('--report-format='));
+    const reportFormat = reportFormatArg ? reportFormatArg.split('=')[1] as 'html' | 'markdown' : 'markdown';
+
     // Generate single combined report
     try {
         const filePath = await reportService.generateAndSaveCombinedPostSearchAggregationReport(
             results,
-            embeddingModel
+            embeddingModel,
+            reportFormat
         );
         console.log(`[RunSemanticQueries] Combined report saved: ${filePath}`);
     } catch (err) {
