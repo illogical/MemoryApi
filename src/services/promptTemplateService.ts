@@ -28,9 +28,21 @@ export class PromptTemplateService {
     if (this.classificationCache.has(userInput)) {
       return this.classificationCache.get(userInput)!;
     }
-    const templatePath = this.resolveTemplatePath("classification.txt");
-    var template = fs.readFileSync(templatePath, 'utf-8');
-    const output = template.replace(/{{user_input}}/g, userInput);
+    const templatePath = this.resolveTemplatePath("categorization.txt");
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    
+    // Load categories from allCategories.json (relative to prompts directory)
+    const categoriesPath = path.join(this.templateBasePath, '../samples/allCategories.json');
+    const categoriesData = JSON.parse(fs.readFileSync(categoriesPath, 'utf-8'));
+    
+    // Format categories: - Category1\n- Category2\n...
+    const formattedCategories = categoriesData.Categories.map((cat: string) => `- ${cat}`).join('\n');
+    
+    // Replace placeholders in template
+    template = template.replace(/{{categories}}/g, formattedCategories);
+    template = template.replace(/{{user_input}}/g, userInput);
+    
+    const output = template;
     this.classificationCache.set(userInput, output);
     return output;
   }
