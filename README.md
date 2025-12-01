@@ -78,10 +78,6 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    EMBEDDING_MODEL=nomic-embed-text-v1.5
    LLM_PROVIDER=ollama
    LLM_MODEL=phi4
-   <!-- SUMMARIZATION_MODEL=llama-3.2-3b-instruct
-   CLASSIFICATION_MODEL=llama-3.2-3b-instruct
-   TAGGING_MODEL=llama-3.2-3b-instruct
-   AGGREGATION_MODEL=llama-3.2-3b-instruct -->
    PROMPT_TEMPLATE_BASE_PATH=/path/to/your/prompts/
    ```
 4. **Start LM Studio:**
@@ -109,6 +105,22 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    ```pwsh
    docker-compose up --build
    ```
+
+## Memory Review Frontend
+The project includes a web-based frontend for reviewing memories before they are committed to the vector database. This allows you to inspect and modify the automatically generated summaries, categories, and tags.
+
+1.  **Start the API server** (see "Run the API" above).
+2.  **Open your browser** and navigate to:
+    ```
+    http://localhost:3000/
+    ```
+3.  **Use the interface** to:
+    -   View memories currently in the review queue.
+    -   Edit the content, description, category, or tags.
+    -   Add new tags using the auto-complete feature.
+    -   **Save Changes** to update the memory in the queue.
+    -   **Add Memory** to commit the memory to the vector database and remove it from the queue.
+    -   **Delete** to remove the memory from the queue entirely.
 
 ### API Endpoints
 - `POST /api/memories`: Add a new memory. The API will automatically summarize, categorize, and tag the memory content using LM Studio and prompt templates. Required fields: `Description`, `Content`, and `Category`.

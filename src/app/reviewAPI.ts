@@ -1,38 +1,11 @@
 import { Router, Request, Response } from 'express';
-import fs from 'fs/promises';
-import path from 'path';
-import { randomUUID } from 'crypto';
 import { memorySystem } from './qdrantAPI';
+import { ReviewMemoriesService } from '../services/ReviewMemoriesService';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 
 const reviewRouter = Router();
-const DATA_DIR = path.join(process.cwd(), 'data');
-const QUEUE_FILE = path.join(DATA_DIR, 'memoryQueue.json');
-
-interface MemoryQueueItem extends Memory {
-    id: string;
-    addedAt: string;
-}
-
-// Helper to read queue
-async function getQueue(): Promise<MemoryQueueItem[]> {
-    try {
-        const data = await fs.readFile(QUEUE_FILE, 'utf-8');
-        return JSON.parse(data);
-    } catch (error) {
-        if ((error as any).code === 'ENOENT') {
-            return [];
-        }
-        throw error;
-    }
-}
-
-// Helper to save queue
-async function saveQueue(queue: MemoryQueueItem[]) {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(QUEUE_FILE, JSON.stringify(queue, null, 2));
-}
+const reviewService = new ReviewMemoriesService(memorySystem);
 
 // POST /api/review/queue - Add a new memory to the review queue (generates metadata)
 reviewRouter.post('/review/queue', async (req: Request, res: Response) => {
@@ -46,25 +19,7 @@ reviewRouter.post('/review/queue', async (req: Request, res: Response) => {
             });
         }
 
-        // Generate metadata using the existing memory system
-        // We need to load the inference model first as summarizeClassifyAndPrepareMemory expects it
-        await memorySystem.loadInferenceModel();
-        const prepared = await memorySystem.summarizeClassifyAndPrepareMemory(memory);
-        const now = new Date().toISOString();
-
-        const newItem: MemoryQueueItem = {
-            id: randomUUID(),
-            Content: memory.Content,
-            Description: prepared.description,
-            Category: prepared.category,
-            Tags: prepared.tagsList,
-            addedAt: now,
-            LastUpdated: now
-        };
-
-        const queue = await getQueue();
-        queue.push(newItem);
-        await saveQueue(queue);
+        const newItem = await reviewService.addToQueue(memory);
 
         res.status(201).json({ 
             message: 'Memory added to review queue', 
@@ -79,7 +34,7 @@ reviewRouter.post('/review/queue', async (req: Request, res: Response) => {
 // GET /api/review/queue - Get all memories in the review queue
 reviewRouter.get('/review/queue', async (req: Request, res: Response) => {
     try {
-        const queue = await getQueue();
+        const queue = await reviewService.getQueue();
         res.json(queue);
     } catch (error) {
         console.error('Error retrieving review queue:', error);
@@ -91,19 +46,8 @@ reviewRouter.get('/review/queue', async (req: Request, res: Response) => {
 reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const updates: Partial<MemoryQueueItem> = req.body;
+        const updates = req.body;
         
-        // Prevent updating immutable fields if necessary, but for now allow all
-        delete updates.id; // Don't allow ID update
-        delete updates.addedAt; // Don't allow addedAt update
-
-        const queue = await getQueue();
-        const index = queue.findIndex(item => item.id === id);
-
-        if (index === -1) {
-            return res.status(404).json({ error: 'Memory not found in queue' });
-        }
-
         // Validate category if provided
         if (updates.Category && !Object.values(MemoryCategory).includes(updates.Category)) {
             return res.status(400).json({
@@ -112,12 +56,15 @@ reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
             });
         }
 
-        queue[index] = { ...queue[index], ...updates };
-        await saveQueue(queue);
+        const updatedItem = await reviewService.updateQueueItem(id, updates);
+
+        if (!updatedItem) {
+            return res.status(404).json({ error: 'Memory not found in queue' });
+        }
 
         res.json({ 
             message: 'Memory updated in queue', 
-            item: queue[index] 
+            item: updatedItem 
         });
     } catch (error) {
         console.error('Error updating review queue item:', error);
@@ -129,18 +76,58 @@ reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
 reviewRouter.delete('/review/queue/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const queue = await getQueue();
-        const filteredQueue = queue.filter(item => item.id !== id);
+        const success = await reviewService.deleteFromQueue(id);
 
-        if (queue.length === filteredQueue.length) {
+        if (!success) {
             return res.status(404).json({ error: 'Memory not found in queue' });
         }
 
-        await saveQueue(filteredQueue);
         res.json({ message: 'Memory removed from review queue' });
     } catch (error) {
         console.error('Error deleting from review queue:', error);
         res.status(500).json({ error: 'Failed to delete from review queue' });
+    }
+});
+
+// GET /api/review/categories - Get all available categories
+reviewRouter.get('/review/categories', (req: Request, res: Response) => {
+    try {
+        const categories = reviewService.getCategories();
+        res.json(categories);
+    } catch (error) {
+        console.error('Error retrieving categories:', error);
+        res.status(500).json({ error: 'Failed to retrieve categories' });
+    }
+});
+
+// GET /api/review/tags - Get all available tags for auto-complete
+reviewRouter.get('/review/tags', async (req: Request, res: Response) => {
+    try {
+        const tags = await reviewService.getAllTags();
+        res.json(tags);
+    } catch (error) {
+        console.error('Error retrieving tags:', error);
+        res.status(500).json({ error: 'Failed to retrieve tags' });
+    }
+});
+
+// POST /api/review/commit/:id - Commit a memory from the queue to the vector database
+reviewRouter.post('/review/commit/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const memoryId = await reviewService.commitMemory(id);
+
+        if (!memoryId) {
+            return res.status(404).json({ error: 'Memory not found in queue' });
+        }
+
+        res.json({ 
+            message: 'Memory committed to database', 
+            id: memoryId 
+        });
+    } catch (error) {
+        console.error('Error committing memory:', error);
+        res.status(500).json({ error: 'Failed to commit memory' });
     }
 });
 

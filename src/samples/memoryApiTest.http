@@ -89,7 +89,7 @@ POST http://localhost:3000/api/review/queue
 Content-Type: application/json
 
 {
-  "Content": "I prefer to work in the mornings when it is quiet and I can focus."
+  "Content": "I prefer to work in the afternoon when it is quiet and I can focus."
 }
 
 ###
@@ -112,3 +112,13 @@ Content-Type: application/json
 # Delete a memory from the review queue
 # Replace {{queueId}} with an ID from the GET request above
 DELETE http://localhost:3000/api/review/queue/{{queueId}}
+
+###
+# Get available categories
+GET http://localhost:3000/api/review/categories
+Accept: application/json
+
+###
+# Get available tags
+GET http://localhost:3000/api/review/tags
+Accept: application/json
