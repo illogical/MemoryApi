@@ -79,3 +79,36 @@ Content-Type: application/json
   "query": "Do I like to cook?",
   "limit": 2
 }
+
+###
+# Review Queue API Tests
+###
+
+# Add a memory to the review queue (should auto-generate metadata)
+POST http://localhost:3000/api/review/queue
+Content-Type: application/json
+
+{
+  "Content": "I prefer to work in the mornings when it is quiet and I can focus."
+}
+
+###
+# Get the review queue
+GET http://localhost:3000/api/review/queue
+Accept: application/json
+
+###
+# Update a memory in the review queue
+# Replace {{queueId}} with an ID from the GET request above
+PUT http://localhost:3000/api/review/queue/{{queueId}}
+Content-Type: application/json
+
+{
+  "Category": "Preference",
+  "Tags": ["Work", "Productivity", "Morning", "Focus"]
+}
+
+###
+# Delete a memory from the review queue
+# Replace {{queueId}} with an ID from the GET request above
+DELETE http://localhost:3000/api/review/queue/{{queueId}}

@@ -1,6 +1,7 @@
 import express from 'express';
 //import routes from './routes';
 import { memoryRouter, initializeMemorySystem } from './qdrantAPI';
+import { reviewRouter } from './reviewAPI';
 
 const app = express();
 app.use(express.json());
@@ -10,6 +11,7 @@ app.use(express.json());
 
 // Memory API routes from qdrantAPI
 app.use('/api', memoryRouter);
+app.use('/api', reviewRouter);
 
 const PORT = process.env.PORT || 3000;
 

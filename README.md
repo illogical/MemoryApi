@@ -46,8 +46,8 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
 - `src/samples/qdrantAPI.ts`: Main implementation of the Express API endpoints and usage of the `MemoryRAGSystem` class.
 - `src/services/MemoryRAGSystem.ts`: Core business logic for memory storage, semantic search, categorization, tagging, and summary generation.
 - `src/services/MemoryPostSearchAggregator.ts`: Logic for clustering and summarizing search results for LLM consumption.
-- `src/services/promptTemplateService.ts`: Loads and renders prompt templates for classification and tagging tasks.
-- `src/prompts/classification.txt`, `src/prompts/tagging.txt`, `src/prompts/aggregation_summary.txt`: Prompt templates for memory processing.
+- `src/services/promptTemplateService.ts`: Loads and renders prompt templates for categorization and tagging tasks.
+- `src/prompts/categorization.txt`, `src/prompts/tagging.txt`, `src/prompts/aggregation_summary.txt`: Prompt templates for memory processing.
 - `src/index.ts`: Entry point for the Express server.
 - `src/routes/`, `src/controllers/`, `src/models/`: Example structure for modular API development.
 
