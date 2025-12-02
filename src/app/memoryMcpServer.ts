@@ -1,3 +1,4 @@
+import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import dotenv from 'dotenv';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
@@ -140,14 +141,15 @@ server.registerTool(
       };
     }
     try {
+      // Use ReviewMemoriesService to queue memory for review
+      const reviewService = new ReviewMemoriesService(memorySystem);
       const memory = {
         Content: params.Content,
-        //Metadata: params.Metadata || {},
         LastUpdated: new Date().toISOString()
       };
-      const id = await memorySystem.addMemory(memory);
-      logger.info(`MCP Tool [add_memory] completed successfully, created memory with ID: ${id}`);
-      const output = { id, message: 'Memory created successfully' };
+      const queuedItem = await reviewService.addToQueue(memory);
+      logger.info(`MCP Tool [add_memory] completed successfully, queued memory with ID: ${queuedItem.id}`);
+      const output = { id: queuedItem.id, message: 'Memory queued for review' };
       return {
         content: [
           { type: 'text', text: JSON.stringify(output) },
@@ -157,7 +159,7 @@ server.registerTool(
       };
     } catch (error: any) {
       logger.error(`MCP Tool [add_memory] error: ${error?.message || error}`);
-      const output = { error: 'Failed to add memory', details: error?.message };
+      const output = { error: 'Failed to queue memory', details: error?.message };
       return {
         content: [
           { type: 'text', text: JSON.stringify(output) }

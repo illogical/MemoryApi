@@ -3,7 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
-import { MemoryRAGSystem } from './MemoryRAGSystem';
+import { MemoryRAGSystem } from './memoryRAGSystem';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const QUEUE_FILE = path.join(DATA_DIR, 'memoryQueue.json');

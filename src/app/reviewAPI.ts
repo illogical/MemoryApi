@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { memorySystem } from './qdrantAPI';
-import { ReviewMemoriesService } from '../services/ReviewMemoriesService';
+import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 

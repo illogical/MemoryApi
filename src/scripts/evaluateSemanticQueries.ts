@@ -17,7 +17,7 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
-import { MemoryReportService } from '../services/MemoryReportService';
+import { MemoryReportService } from '../services/memoryReportService';
 
 // Load environment variables
 dotenv.config();
