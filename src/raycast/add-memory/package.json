@@ -1,0 +1,53 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "add-memory",
+  "title": "Add Memory",
+  "description": "Adds a memory and generates a summary, adds tags, and categorizes the memory before adding it to a vector database to later query via semantic search.",
+  "icon": "extension-icon.png",
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "add-memory",
+      "title": "Add Memory",
+      "description": "Add memory for tag and categorization review before adding it to the vector database.",
+      "mode": "view",
+      "subtitle": "Add Memory",
+      "arguments": [
+        {
+          "name": "memory",
+          "placeholder": "Enter memory content",
+          "type": "text",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.103.0",
+    "@raycast/utils": "^2.2.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "build": "ray build",
+    "publish": "npx @raycast/api@latest publish",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1"
+  },
+  "author": "",
+  "platforms": [
+    "Windows",
+    "macOS"
+  ],
+  "categories": [
+    "Developer Tools"
+  ]
+}

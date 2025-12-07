@@ -106,6 +106,41 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    docker-compose up --build
    ```
 
+## Raycast Extension - Add Memory
+The project includes a **Raycast extension** that allows you to quickly add memories to the review queue directly from your command bar, without switching to a browser or terminal.
+
+### Features
+-   **Quick Memory Entry:** Add memories instantly from Raycast with a simple command.
+-   **Automatic Metadata Generation:** The API automatically generates a summary, category, and tags for your memory.
+-   **Real-time Feedback:** View the generated metadata (category, description, tags) immediately after submission.
+-   **Keyboard Shortcuts:** Copy JSON response, memory ID, or content with quick keyboard shortcuts.
+-   **Error Handling:** Clear error messages if the API is unavailable or the request fails.
+
+### Installation & Usage
+1.  **Install dependencies** in the Raycast extension directory:
+    ```pwsh
+    cd src/raycast/add-memory
+    npm install
+    ```
+2.  **Start the Memory API server** (the extension connects to `http://localhost:3000`):
+    ```pwsh
+    npm run dev
+    ```
+3.  **Run the Raycast extension** in development mode:
+    ```pwsh
+    npm run dev
+    ```
+4.  **Open Raycast** and search for "Add Memory".
+5.  **Enter your memory** in the argument field and press Enter.
+6.  **Review the results** showing the generated ID, category, description, and tags.
+7.  **Use keyboard shortcuts:**
+    -   `Cmd+R`: Reload/retry the request
+    -   `Cmd+C`: Copy the full JSON response
+    -   `Cmd+Shift+C`: Copy the memory ID
+    -   `Cmd+Shift+M`: Copy the memory content
+
+The memory will be added to the review queue where you can further refine it using the web frontend before committing it to the vector database.
+
 ## Memory Review Frontend
 The project includes a web-based frontend for reviewing memories before they are committed to the vector database. This allows you to inspect and modify the automatically generated summaries, categories, and tags.
 
