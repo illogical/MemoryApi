@@ -25,25 +25,20 @@ export class GraphService {
         await this.driver.close();
     }
 
-    /**
-     * Initializes constraints and indexes for the graph schema.
-     * Call this once during application startup.
-     */
     async initializeSchema(): Promise<void> {
         const session = this.getSession();
         try {
-            // Constraints
+            // Uniqueness Constraints
             await session.run(`CREATE CONSTRAINT memory_id_unique IF NOT EXISTS FOR (m:Memory) REQUIRE m.id IS UNIQUE`);
             await session.run(`CREATE CONSTRAINT tag_name_unique IF NOT EXISTS FOR (t:Tag) REQUIRE t.name IS UNIQUE`);
             await session.run(`CREATE CONSTRAINT category_name_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS UNIQUE`);
 
+            // Index for faster lookups
+            await session.run(`CREATE INDEX memory_last_updated_index IF NOT EXISTS FOR (m:Memory) ON (m.lastUpdated)`);
+
             // Vector Index
-            // Note: This requires Neo4j 5.11+ for vector indexes. Adjust dimensions as needed (e.g., 1536 for OpenAI).
-            // We'll create it if it doesn't exist.
             const vectorIndexExists = await session.run(`SHOW INDEXES WHERE name = 'memory_embedding_index'`);
             if (vectorIndexExists.records.length === 0) {
-                // 384 is a common small model dimension, 1536 for OpenAI. 
-                // We will default to 1536 but this should match your embedding model.
                 await session.run(`
                     CREATE VECTOR INDEX memory_embedding_index IF NOT EXISTS
                     FOR (m:Memory) ON (m.embedding)
@@ -69,11 +64,6 @@ export class GraphService {
         }
     }
 
-    /**
-     * Upserts a memory into the graph, linking it to Tags and Category.
-     * @param memory The memory object.
-     * @param embedding The vector embedding for the memory content.
-     */
     async upsertMemory(memory: MemoryWithId, embedding?: number[]): Promise<void> {
         const session = this.getSession();
         try {
@@ -84,7 +74,7 @@ export class GraphService {
                 lastUpdated: memory.LastUpdated,
                 category: memory.Category ? memory.Category.toString() : 'Uncategorized',
                 tags: memory.Tags || [],
-                embedding: embedding || [] // Ensure embedding is passed if available
+                embedding: embedding || []
             };
 
             // Cypher query to merge nodes and relationships
@@ -97,16 +87,15 @@ export class GraphService {
                     m.description = $description,
                     m.lastUpdated = $lastUpdated
                 
-                // Only set embedding if it's provided and non-empty
                 FOREACH (_ IN CASE WHEN size($embedding) > 0 THEN [1] ELSE [] END |
                     SET m.embedding = $embedding
                 )
 
-                // Handle Category
+                // Category Relationship
                 MERGE (c:Category {name: $category})
                 MERGE (m)-[:IN_CATEGORY]->(c)
 
-                // Handle Tags
+                // Tag Relationships
                 FOREACH (tagName IN $tags |
                     MERGE (t:Tag {name: tagName})
                     MERGE (m)-[:TAGGED_WITH]->(t)
@@ -114,7 +103,6 @@ export class GraphService {
             `;
 
             await session.run(query, params);
-            // console.log(`Upserted memory ${memory.id} to graph.`);
         } catch (error) {
             console.error(`Error upserting memory ${memory.id}:`, error);
             throw error;
@@ -151,26 +139,70 @@ export class GraphService {
     }
 
     /**
-     * Finds related memories based on shared tags and categories.
-     * This is a simple recommendation/traversal query.
+     * Enhanced traversal to find related memories based on shared tags and categories.
+     * Weighs tags higher than category. Returns aggregated score.
      * @param memoryId The ID of the memory to find related items for.
-     * @param limit Max number of related memories.
+     * @param limit Max number of related memories. 
+     * @returns Array of related memories with aggregated scores.
      */
-    async getRelatedMemories(memoryId: string, limit: number = 5): Promise<any[]> {
+    async getRelatedMemories(memoryId: string, limit: number = 5): Promise<Array<{ memory: any, score: number }>> {
         const session = this.getSession('READ');
         try {
             const query = `
                 MATCH (m:Memory {id: $memoryId})
-                MATCH (m)-[:TAGGED_WITH|IN_CATEGORY]-(relatedNode)-[:TAGGED_WITH|IN_CATEGORY]-(other:Memory)
-                WHERE other.id <> $memoryId
-                RETURN other, count(relatedNode) as sharedConnections
-                ORDER BY sharedConnections DESC
+                
+                // Find memories sharing tags
+                OPTIONAL MATCH (m)-[:TAGGED_WITH]->(t:Tag)<-[:TAGGED_WITH]-(otherTag:Memory)
+                WHERE otherTag.id <> $memoryId
+                WITH otherTag, count(t) * 2 AS tagScore // Tags weighted x2
+
+                // Find memories sharing category
+                OPTIONAL MATCH (m)-[:IN_CATEGORY]->(c:Category)<-[:IN_CATEGORY]-(otherCat:Memory)
+                WHERE otherCat.id <> $memoryId
+                WITH collect({node: otherTag, score: tagScore}) as tagNodes, otherCat, 1 AS catScore
+
+                // Combine results
+                UNWIND (
+                    [n IN tagNodes | {node: n.node, score: n.score}] + 
+                    [{node: otherCat, score: 1}]
+                ) AS item
+                
+                WITH item.node AS other, sum(item.score) AS totalScore
+                WHERE other IS NOT NULL
+                RETURN other, totalScore
+                ORDER BY totalScore DESC
                 LIMIT $limit
             `;
+
             const result = await session.run(query, { memoryId, limit });
-            return result.records.map(r => r.get('other').properties);
+            return result.records.map(r => ({
+                ...r.get('other').properties,
+                relevanceScore: r.get('totalScore').toNumber()
+            }));
         } catch (error) {
             console.error('Error in getRelatedMemories:', error);
+            throw error;
+        } finally {
+            await session.close();
+        }
+    }
+
+    /**
+     * Finds memories that have specific tags.
+     */
+    async getMemoriesByTags(tags: string[]): Promise<any[]> {
+        const session = this.getSession('READ');
+        try {
+            const query = `
+                MATCH (m:Memory)-[:TAGGED_WITH]->(t:Tag)
+                WHERE t.name IN $tags
+                RETURN m, count(t) as matchCount
+                ORDER BY matchCount DESC
+            `;
+            const result = await session.run(query, { tags });
+            return result.records.map(r => r.get('m').properties);
+        } catch (error) {
+            console.error('Error in getMemoriesByTags:', error);
             throw error;
         } finally {
             await session.close();
