@@ -12,7 +12,9 @@
     "hot": "nodemon --watch src --ext ts,js,json --exec npx tsx src/app/index.ts",
     "eval:tagging": "npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio",
     "eval:category": "npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio",
-    "eval:aggregation": "npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio"
+    "eval:aggregation": "npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio",
+    "add-memory": "npx tsx src/scripts/addMemory.ts",
+    "search-memories": "npx tsx src/scripts/searchMemories.ts"
   },
   "dependencies": {
     "@lmstudio/sdk": "^1.5.0",
