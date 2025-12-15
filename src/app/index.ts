@@ -20,11 +20,14 @@ const PORT = process.env.PORT || 3000;
 // Initialize memory system before starting server
 initializeMemorySystem()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    console.log('Memory system initialized successfully.');
   })
   .catch(err => {
     console.error('Failed to initialize memory system:', err);
-    process.exit(1);
+    console.log('Server starting despite initialization failure (Degraded Mode).');
+  })
+  .finally(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   });

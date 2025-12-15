@@ -2,13 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueContainer = document.getElementById('queue-container');
     let categories = [];
     let allTags = [];
+    let serverStatus = { vector: false, graph: false };
 
     // Fetch initial data
     Promise.all([
         fetch('/api/review/categories').then(res => res.json()),
         fetch('/api/review/tags').then(res => res.json()),
-        fetch('/api/review/queue').then(res => res.json()),
-        fetchStatus()   // TODO: Don't hold up the initial load, do this in parallel with other calls
+        fetch('/api/review/queue').then(res => res.json())
     ]).then(([cats, tags, queue]) => {
         categories = cats;
         allTags = tags;
@@ -18,16 +18,38 @@ document.addEventListener('DOMContentLoaded', () => {
         queueContainer.innerHTML = '<div class="error">Failed to load data. Please try again later.</div>';
     });
 
+    // Check status independently so UI loads fast
+    fetchStatus();
+
+    // Refresh Button Logic
+    const refreshBtn = document.getElementById('refresh-status-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            refreshBtn.classList.add('btn-loading');
+            refreshBtn.disabled = true;
+            await fetchStatus();
+            refreshBtn.classList.remove('btn-loading');
+            refreshBtn.disabled = false;
+        });
+    }
+
     async function fetchStatus() {
         try {
             const res = await fetch('/api/status');
             const status = await res.json();
+            serverStatus = {
+                vector: status.vector && status.vector.active,
+                graph: status.graph && status.graph.active
+            };
             updateStatusUI('vector-status', status.vector);
             updateStatusUI('graph-status', status.graph);
         } catch (err) {
             console.error('Error fetching status:', err);
+            serverStatus = { vector: false, graph: false };
             updateStatusUI('vector-status', { active: false }, true);
             updateStatusUI('graph-status', { active: false }, true);
+        } finally {
+            updateCommitButtons();
         }
     }
 
@@ -43,9 +65,33 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             indicator.classList.add('active');
             const count = status.count !== undefined ? status.count : '?';
-            const label = elementId.includes('vector') ? 'Records' : 'Relationships';
-            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Active (${count} ${label})`;
+            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Active (${count} ${elementId.includes('vector') ? 'Records' : 'Relationships'})`;
         }
+    }
+
+    // Correct Implementation of updateCommitButtons without cloning
+    function updateCommitButtons() {
+        const buttons = document.querySelectorAll('.btn-commit');
+        const isActive = serverStatus.vector && serverStatus.graph;
+
+        buttons.forEach(btn => {
+            if (!isActive) {
+                btn.classList.add('btn-disabled');
+                btn.title = "Server unavailable. Click to retry.";
+
+                if (!btn.querySelector('.status-icon-btn')) {
+                    const icon = document.createElement('span');
+                    icon.className = 'status-icon-btn';
+                    btn.appendChild(icon);
+                }
+            } else {
+                btn.classList.remove('btn-disabled');
+                btn.classList.remove('btn-loading');
+                btn.title = "";
+                const icon = btn.querySelector('.status-icon-btn');
+                if (icon) icon.remove();
+            }
+        });
     }
 
     function renderQueue(queue) {
@@ -60,6 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = createMemoryCard(item);
             queueContainer.appendChild(card);
         });
+
+        // Initial button state check
+        updateCommitButtons();
     }
 
     function createMemoryCard(item) {
@@ -150,6 +199,17 @@ document.addEventListener('DOMContentLoaded', () => {
         commitBtn.className = 'btn-commit';
         commitBtn.textContent = 'Add Memory';
         commitBtn.onclick = async () => {
+            // Check global server status
+            if (!serverStatus.vector || !serverStatus.graph) {
+                // Retry logic if disabled
+                commitBtn.classList.add('btn-loading');
+                await fetchStatus();
+                // Brief delay for visual feedback, then remove loading
+                setTimeout(() => commitBtn.classList.remove('btn-loading'), 500);
+                return;
+            }
+
+            // Normal commit logic
             // Auto-save before commit to ensure latest state is used
             await saveMemory(item.id, {
                 Content: contentGroup.querySelector('textarea').value,
