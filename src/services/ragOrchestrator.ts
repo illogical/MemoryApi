@@ -104,16 +104,24 @@ export class RAGOrchestrator {
 
     async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number }> {
         const [vectorCount, graphCount] = await Promise.all([
-            this.vectorService.getRecordCount().catch(err => {
-                this.loggingService.error(`[RAGOrchestrator] Failed to get vector count: ${err}`);
-                return -1;
-            }),
-            this.graphService.getRelationshipCount().catch(err => {
-                this.loggingService.error(`[RAGOrchestrator] Failed to get graph relationship count: ${err}`);
-                return -1;
-            })
+            this.getVectorStatus(),
+            this.getGraphStatus()
         ]);
 
         return { vectorCount, graphCount };
+    }
+
+    async getVectorStatus(): Promise<number> {
+        return this.vectorService.getRecordCount().catch(err => {
+            this.loggingService.error(`[RAGOrchestrator] Failed to get vector count: ${err}`);
+            return -1;
+        });
+    }
+
+    async getGraphStatus(): Promise<number> {
+        return this.graphService.getRelationshipCount().catch(err => {
+            this.loggingService.error(`[RAGOrchestrator] Failed to get graph relationship count: ${err}`);
+            return -1;
+        });
     }
 }

@@ -35,23 +35,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchStatus() {
-        try {
-            const res = await fetch('/api/status');
-            const status = await res.json();
-            serverStatus = {
-                vector: status.vector && status.vector.active,
-                graph: status.graph && status.graph.active
-            };
-            updateStatusUI('vector-status', status.vector);
-            updateStatusUI('graph-status', status.graph);
-        } catch (err) {
-            console.error('Error fetching status:', err);
-            serverStatus = { vector: false, graph: false };
-            updateStatusUI('vector-status', { active: false }, true);
-            updateStatusUI('graph-status', { active: false }, true);
-        } finally {
-            updateCommitButtons();
-        }
+        // Create independent promises for each status check
+        const vectorPromise = fetch('/api/status/vector')
+            .then(res => res.json())
+            .then(data => {
+                // Update Vector UI immediately
+                serverStatus.vector = data.active;
+                updateStatusUI('vector-status', data);
+            })
+            .catch(err => {
+                console.error('Error fetching vector status:', err);
+                serverStatus.vector = false;
+                updateStatusUI('vector-status', { active: false }, true);
+            });
+
+        const graphPromise = fetch('/api/status/graph')
+            .then(res => res.json())
+            .then(data => {
+                // Update Graph UI immediately
+                serverStatus.graph = data.active;
+                updateStatusUI('graph-status', data);
+            })
+            .catch(err => {
+                console.error('Error fetching graph status:', err);
+                serverStatus.graph = false;
+                updateStatusUI('graph-status', { active: false }, true);
+            });
+
+        // Wait for both to settle before finishing (to stop spinner)
+        await Promise.allSettled([vectorPromise, graphPromise]);
+
+        // Update global buttons after both checks allow consistent state
+        updateCommitButtons();
     }
 
     function updateStatusUI(elementId, status, error = false) {
@@ -64,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (error || !status.active) {
             indicator.classList.add('error'); // Red dot
-            text.textContent = `Connection Failed`;
+            text.textContent = `Not Active`;
         } else {
             indicator.classList.add('active'); // Green dot
             const count = status.count !== undefined ? status.count : '?';

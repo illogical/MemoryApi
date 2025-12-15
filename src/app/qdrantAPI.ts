@@ -167,6 +167,34 @@ memoryRouter.get('/status', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/status/vector - Get vector database status
+memoryRouter.get('/status/vector', async (req: Request, res: Response) => {
+    try {
+        const count = await memorySystem.getVectorStatus();
+        res.json({
+            active: count >= 0,
+            count: Math.max(0, count)
+        });
+    } catch (error) {
+        console.error('Error getting vector status:', error);
+        res.status(500).json({ error: 'Failed to get vector status' });
+    }
+});
+
+// GET /api/status/graph - Get graph database status
+memoryRouter.get('/status/graph', async (req: Request, res: Response) => {
+    try {
+        const count = await memorySystem.getGraphStatus();
+        res.json({
+            active: count >= 0,
+            count: Math.max(0, count)
+        });
+    } catch (error) {
+        console.error('Error getting graph status:', error);
+        res.status(500).json({ error: 'Failed to get graph status' });
+    }
+});
+
 // GET /api/memories/stats - Get statistics
 
 memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
