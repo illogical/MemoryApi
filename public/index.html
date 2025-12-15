@@ -184,120 +184,121 @@
             font-size: 1.2em;
         }
 
-        .status-bar {
+        /* Dashboard & Status Bar Styles */
+        .dashboard-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background-color: #fff;
-            padding: 10px 20px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            font-size: 0.9em;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .status-indicator.active {
-            background-color: #2ecc71;
-        }
-
-        .status-indicator.error {
-            background-color: #e74c3c;
-        }
-
-        .status-indicator.connecting {
-            background-color: #f1c40f;
-        }
-
-        /* Disabled Button Styles */
-        .btn-disabled {
-            background-color: #cccccc !important;
-            color: #666 !important;
-            cursor: pointer !important;
-            /* Allow clicking to retry */
-            position: relative;
-            padding-right: 35px;
-            /* Space for icon */
-        }
-
-        .status-icon-btn {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 12px;
-            height: 12px;
-            background-color: #e74c3c;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .btn-loading::after {
-            content: "";
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            margin-top: -8px;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #ffffff;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        /* Hide the red dot if loading */
-        .btn-loading .status-icon-btn {
-            display: none;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .btn-refresh {
-            padding: 5px 15px;
-            font-size: 0.9em;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            position: relative;
-            /* For loading spinner */
-        }
-
-        .btn-refresh:hover {
-            background-color: #2980b9;
-        }
-
-        .btn-refresh:disabled {
-            background-color: #bdc3c7;
-            cursor: not-allowed;
+            padding: 15px 25px;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #f1f5f9;
         }
 
         .status-group {
             display: flex;
             gap: 20px;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background-color: #f8fafc;
+            border-radius: 50px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .status-pill:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+
+        .pill-icon {
+            width: 20px;
+            height: 20px;
+            color: #64748b;
+        }
+
+        .pill-content {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .pill-label {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        .pill-value {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 5px;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .status-dot.active {
+            background-color: #22c55e;
+            box-shadow: 0 0 0 2px #dcfce7;
+        }
+
+        .status-dot.error {
+            background-color: #ef4444;
+            box-shadow: 0 0 0 2px #fee2e2;
+        }
+
+        .status-dot.connecting {
+            background-color: #eab308;
+            box-shadow: 0 0 0 2px #fef9c3;
+        }
+
+        /* Refresh Button */
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            color: #64748b;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            background-color: #f1f5f9;
+            color: #3b82f6;
+        }
+
+        .btn-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -305,18 +306,45 @@
 <body>
 
     <div class="container">
-        <div id="status-bar" class="status-bar">
+        <!-- New Dashboard Status Bar -->
+        <div id="status-bar" class="dashboard-bar">
             <div class="status-group">
-                <div class="status-item" id="vector-status">
-                    <span class="status-indicator connecting"></span>
-                    <span>Vector DB: Checking...</span>
+                <!-- Vector DB Pill -->
+                <div class="status-pill" id="vector-status">
+                    <!-- Database Icon -->
+                    <svg class="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                    </svg>
+                    <div class="pill-content">
+                        <span class="pill-label">Vector DB</span>
+                        <span class="pill-value">Checking...</span>
+                    </div>
+                    <span class="status-dot connecting"></span>
                 </div>
-                <div class="status-item" id="graph-status">
-                    <span class="status-indicator connecting"></span>
-                    <span>Graph DB: Checking...</span>
+
+                <!-- Graph DB Pill -->
+                <div class="status-pill" id="graph-status">
+                    <!-- Share/Network Icon -->
+                    <svg class="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    <div class="pill-content">
+                        <span class="pill-label">Graph DB</span>
+                        <span class="pill-value">Checking...</span>
+                    </div>
+                    <span class="status-dot connecting"></span>
                 </div>
             </div>
-            <button id="refresh-status-btn" class="btn-refresh">Refresh Status</button>
+
+            <!-- Refresh Button -->
+            <button id="refresh-status-btn" class="btn-icon" title="Refresh Status">
+                <svg class="refresh-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
         </div>
         <h1>Memory Review Queue</h1>
         <div id="queue-container">

@@ -25,10 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshBtn = document.getElementById('refresh-status-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', async () => {
-            refreshBtn.classList.add('btn-loading');
+            const svg = refreshBtn.querySelector('svg');
+            svg.classList.add('spin');
             refreshBtn.disabled = true;
             await fetchStatus();
-            refreshBtn.classList.remove('btn-loading');
+            svg.classList.remove('spin');
             refreshBtn.disabled = false;
         });
     }
@@ -55,17 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateStatusUI(elementId, status, error = false) {
         const el = document.getElementById(elementId);
-        const indicator = el.querySelector('.status-indicator');
-        const text = el.querySelector('span:last-child');
+        const indicator = el.querySelector('.status-dot');
+        const text = el.querySelector('.pill-value');
 
-        indicator.className = 'status-indicator'; // reset
+        // Reset classes
+        indicator.className = 'status-dot';
+
         if (error || !status.active) {
-            indicator.classList.add('error');
-            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Connection Failed`;
+            indicator.classList.add('error'); // Red dot
+            text.textContent = `Connection Failed`;
         } else {
-            indicator.classList.add('active');
+            indicator.classList.add('active'); // Green dot
             const count = status.count !== undefined ? status.count : '?';
-            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Active (${count} ${elementId.includes('vector') ? 'Records' : 'Relationships'})`;
+            text.textContent = `Active (${count} ${elementId.includes('vector') ? 'Records' : 'Nodes'})`;
         }
     }
 
