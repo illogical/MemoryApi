@@ -1,29 +1,37 @@
-import { QdrantClient } from '@qdrant/js-client-rest';
 import { randomUUID } from 'crypto';
-import { LMStudioClient, LLM, EmbeddingModel } from '@lmstudio/sdk';
+import { EmbeddingModel, LMStudioClient } from '@lmstudio/sdk';
+import { RAGOrchestrator } from './ragOrchestrator';
+import { VectorService } from './vectorService';
 import { ModelClient, LMStudioModelClient, OllamaModelClient } from './modelClients';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
-import { env } from 'process';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './MemoryTextProcessor';
-import { MemoryReportService } from './MemoryReportService';
+import { MemoryReportService } from './memoryReportService';
+import { GraphService } from './graphService';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
+const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
+const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
+const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'password';
 
 class MemoryRAGSystem {
-    private client: QdrantClient;
+    private orchestrator: RAGOrchestrator;
     private lmStudio: LMStudioClient;
     private embeddingModel: EmbeddingModel | null = null;
     private embeddingModelName: string;
     private modelClient: ModelClient | null = null; // Abstraction for provider-specific inference
     private modelName: string;
     private modelProvider: string;
-    private promptTemplateService: PromptTemplateService = new PromptTemplateService(env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
+    private promptTemplateService: PromptTemplateService = new PromptTemplateService(process.env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
+    private graphService: GraphService;
 
     // Config knobs for summarization
     private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
@@ -35,22 +43,20 @@ class MemoryRAGSystem {
 
     private memoryTextProcessor: MemoryTextProcessor | null = null;
 
-    private postSearchAggregator: MemoryPostSearchAggregator = new MemoryPostSearchAggregator(
-        () => this.modelClient!,
-        this.promptTemplateService,
-        this.loggingService,
-        {
-            MAX_CLUSTERS: this.MAX_CLUSTERS,
-            MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER
-        }
-    );
+    private postSearchAggregator: MemoryPostSearchAggregator;
 
     constructor(qdrantUrl: string, modelName: string, modelProvider: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL) {
-        this.client = new QdrantClient({ url: qdrantUrl });
         this.lmStudio = new LMStudioClient();
         this.embeddingModelName = embeddingModelName;
         this.modelName = modelName;
         this.modelProvider = modelProvider;
+
+        // Initialize Services
+        const vectorService = new VectorService(qdrantUrl, this.loggingService);
+        this.graphService = new GraphService(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD);
+
+        this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.loggingService);
+
         // Initialize model client abstraction
         if (this.modelProvider === 'lmstudio') {
             this.modelClient = new LMStudioModelClient();
@@ -61,6 +67,18 @@ class MemoryRAGSystem {
         } else {
             throw new Error(`Unsupported model provider: ${this.modelProvider}`);
         }
+
+        // Re-initialize aggregator with graph service
+        this.postSearchAggregator = new MemoryPostSearchAggregator(
+            () => this.modelClient!,
+            this.promptTemplateService,
+            this.loggingService,
+            {
+                MAX_CLUSTERS: this.MAX_CLUSTERS,
+                MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER
+            }
+            //this.graphService
+        );
     }
 
     async loadEmbeddingModel(): Promise<void> {
@@ -109,43 +127,8 @@ class MemoryRAGSystem {
     }
 
     async initializeCollection(): Promise<void> {
-        this.loggingService.trace('[initializeCollection] Called');
-        try {
-            const collections = await this.client.getCollections();
-            this.loggingService.info(`[initializeCollection] Collections fetched: ${JSON.stringify(collections.collections.map(c => c.name))}`);
-            const exists = collections.collections.some(
-                c => c.name === this.COLLECTION_NAME
-            );
-
-            if (!exists) {
-                this.loggingService.log(`[initializeCollection] Creating collection: ${this.COLLECTION_NAME}`);
-                await this.client.createCollection(this.COLLECTION_NAME, {
-                    vectors: {
-                        size: this.VECTOR_SIZE,
-                        distance: 'Cosine'
-                    }
-                });
-
-                this.loggingService.log('[initializeCollection] Creating payload index for Category');
-                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-                    field_name: 'Category',
-                    field_schema: 'keyword'
-                });
-
-                this.loggingService.log('[initializeCollection] Creating payload index for Tags');
-                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-                    field_name: 'Tags',
-                    field_schema: 'keyword'
-                });
-
-                this.loggingService.log('[initializeCollection] Collection initialized successfully');
-            } else {
-                this.loggingService.log('[initializeCollection] Collection already exists');
-            }
-        } catch (error) {
-            this.loggingService.error(`[initializeCollection] Error initializing collection: ${error}`);
-            throw error;
-        }
+        this.loggingService.trace('[initializeCollection] Delegating to orchestrator');
+        await this.orchestrator.initialize();
     }
 
 
@@ -223,26 +206,9 @@ class MemoryRAGSystem {
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');
-        // Use a valid UUID for the memory ID
         const memoryId = id || randomUUID();
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
-        await this.client.upsert(this.COLLECTION_NAME, {
-            points: [
-                {
-                    id: memoryId,
-                    vector: embedding,
-                    payload: {
-                        Content: memory.Content,
-                        Description: memory.Description,
-                        Tags: memory.Tags,
-                        Category: memory.Category,
-                        LastUpdated: new Date().toISOString()
-                    }
-                }
-            ]
-        });
-        this.loggingService.log(`[upsertMemory] Memory added with ID: ${memoryId}`);
-        return memoryId;
+        return await this.orchestrator.addMemory(memory, embedding, memoryId);
     }
 
     /**
@@ -289,26 +255,8 @@ class MemoryRAGSystem {
         category: MemoryCategory,
         limit: number = 10
     ): Promise<MemoryWithId[]> {
-        this.loggingService.trace(`[getMemoriesByCategory] Called with category: ${category}, limit: ${limit}`);
-        const response = await this.client.scroll(this.COLLECTION_NAME, {
-            filter: {
-                must: [
-                    {
-                        key: 'Category',
-                        match: { value: category }
-                    }
-                ]
-            },
-            limit,
-            with_payload: true,
-            with_vector: false
-        });
-        this.loggingService.info(`[getMemoriesByCategory] Retrieved ${response.points.length} memories`);
-        this.loggingService.debug(`[getMemoriesByCategory] Response: ${JSON.stringify(response.points, null, 2)}`);
-        return response.points.map(point => ({
-            id: point.id.toString(),
-            ...(point.payload as unknown as Memory)
-        }));
+        this.loggingService.trace(`[getMemoriesByCategory] Delegating to orchestrator`);
+        return await this.orchestrator.getMemoriesByCategory(category, limit);
     }
 
     async searchMemories(
@@ -331,171 +279,72 @@ class MemoryRAGSystem {
         category?: MemoryCategory,
         limit: number = 5
     ): Promise<MemoryWithId[]> {
-        this.loggingService.trace(`[searchMemoriesWithEmbedding] Called with category: ${category}, limit: ${limit}`);
-        const filter = category
-            ? {
-                must: [
-                    {
-                        key: 'Category',
-                        match: { value: category }
-                    }
-                ]
-            }
-            : undefined;
-
-        this.loggingService.debug(`[searchMemoriesWithEmbedding] Searching with filter: ${JSON.stringify(filter)}`);
-        const response = await this.client.search(this.COLLECTION_NAME, {
-            vector: queryEmbedding,
-            limit,
-            filter,
-            with_payload: true
-        });
-        this.loggingService.info(`[searchMemoriesWithEmbedding] Search returned ${response.length} results`);
-        this.loggingService.debug(`[searchMemoriesWithEmbedding] Response: ${JSON.stringify(response, null, 2)}`);
-        return response.map(result => ({
-            id: result.id.toString(),
-            ...(result.payload as unknown as Memory),
-            score: result.score as number | undefined
-        }));
+        this.loggingService.trace(`[searchMemoriesWithEmbedding] Delegating to orchestrator`);
+        return await this.orchestrator.searchMemoriesWithEmbedding(queryEmbedding, category, limit);
     }
 
     async searchByTags(
         tags: string[],
         category?: MemoryCategory
     ): Promise<MemoryWithId[]> {
-        this.loggingService.trace(`[searchByTags] Called with tags: ${JSON.stringify(tags)}, category: ${category}`);
-        const mustConditions: any[] = [
-            {
-                key: 'Tags',
-                match: { any: tags }
-            }
-        ];
-
-        if (category) {
-            mustConditions.push({
-                key: 'Category',
-                match: { value: category }
-            });
-        }
-
-        this.loggingService.debug(`[searchByTags] Filter: ${JSON.stringify(mustConditions)}`);
-        const response = await this.client.scroll(this.COLLECTION_NAME, {
-            filter: { must: mustConditions },
-            limit: 100,
-            with_payload: true,
-            with_vector: false
-        });
-        this.loggingService.info(`[searchByTags] Retrieved ${response.points.length} memories`);
-        this.loggingService.debug(`[searchByTags] Response: ${JSON.stringify(response.points, null, 2)}`);
-        return response.points.map(point => ({
-            id: point.id.toString(),
-            ...(point.payload as unknown as Memory)
-        }));
+        this.loggingService.trace(`[searchByTags] Delegating to orchestrator`);
+        return await this.orchestrator.searchByTags(tags, category);
     }
 
     async updateMemory(id: string, updates: Partial<Memory>): Promise<void> {
-        this.loggingService.trace(`[updateMemory] Called for ID: ${id} with updates: ${JSON.stringify(updates)}`);
-        const points = await this.client.retrieve(this.COLLECTION_NAME, {
-            ids: [id],
-            with_payload: true,
-            with_vector: true
-        });
+        this.loggingService.trace(`[updateMemory] Called for ID: ${id}`);
 
-        if (points.length === 0) {
-            this.loggingService.error(`[updateMemory] Memory with ID ${id} not found`);
-            throw new Error(`Memory with ID ${id} not found`);
-        }
-
-        const existingMemory = points[0].payload as unknown as Memory;
-        const updatedMemory = {
-            ...existingMemory,
-            ...updates,
-            LastUpdated: new Date().toISOString()
-        };
-
-        let vector = points[0].vector as number[];
+        let vector: number[] | undefined = undefined;
         if (updates.Content || updates.Description || updates.Tags) {
-            this.loggingService.info('[updateMemory] Content/Description/Tags updated, regenerating embedding');
-            const searchableText = updatedMemory.Content;
-            vector = await this.generateEmbedding(searchableText);
+            // If we need to regenerate embedding, we need the full content.
+            // But updates might be partial.
+            // If Content is updated, we use it. If not, we might need to fetch existing.
+            // VectorService.updateMemory handles retrieval, but here we need to generate embedding BEFORE calling update if content changed.
+            // Let's rely on fetching the memory first to get the content to embed if we don't have it all.
+            // Wait, `MemoryRAGSystem` logic previously fetched it:
+            // const points = await this.client.retrieve(...)
+            // ...
+            // if (updates.Content...) vector = await generateEmbedding...
+
+            // We can do this Logic here or move it to Orchestrator?
+            // Orchestrator keeps it simple (takes embedding).
+            // So we should do the logic here:
+            // 1. Fetch current memory (via orchestrator)
+            // 2. Generate embedding if needed
+            // 3. Call orchestrator.updateMemory
+
+            const current = await this.orchestrator.getMemoryById(id);
+            if (!current) throw new Error(`Memory ${id} not found`);
+
+            const mergedForEmbedding = { ...current, ...updates };
+            if (mergedForEmbedding.Content) {
+                vector = await this.generateEmbedding(mergedForEmbedding.Content);
+            }
         }
 
-        this.loggingService.info('[updateMemory] Upserting updated memory');
-        await this.client.upsert(this.COLLECTION_NAME, {
-            points: [
-                {
-                    id,
-                    vector,
-                    payload: updatedMemory
-                }
-            ]
-        });
-        this.loggingService.log(`[updateMemory] Memory with ID ${id} updated successfully`);
+        await this.orchestrator.updateMemory(id, updates, vector);
     }
 
     async deleteMemory(id: string): Promise<void> {
         this.loggingService.trace(`[deleteMemory] Called for ID: ${id}`);
-        await this.client.delete(this.COLLECTION_NAME, {
-            points: [id]
-        });
-        this.loggingService.log(`[deleteMemory] Memory with ID ${id} deleted`);
+        await this.orchestrator.deleteMemory(id);
     }
 
     /**
      * Retrieve a single memory by its ID. Returns null if not found.
      */
+    /**
+     * Retrieve a single memory by its ID. Returns null if not found.
+     */
     async getMemoryById(id: string): Promise<MemoryWithId | null> {
-        this.loggingService.trace(`[getMemoryById] Called with ID: ${id}`);
-        try {
-            const points = await this.client.retrieve(this.COLLECTION_NAME, {
-                ids: [id],
-                with_payload: true,
-                with_vector: false
-            });
-            if (!points || points.length === 0) {
-                this.loggingService.info(`[getMemoryById] Memory not found for ID: ${id}`);
-                return null;
-            }
-            const point = points[0];
-            const memory = point.payload as unknown as Memory;
-            const result: MemoryWithId = {
-                id: point.id.toString(),
-                ...memory
-            };
-            this.loggingService.debug(`[getMemoryById] Retrieved memory: ${JSON.stringify(result, null, 2)}`);
-            return result;
-        } catch (error) {
-            this.loggingService.error(`[getMemoryById] Error retrieving memory: ${error}`);
-            throw new Error('Failed to retrieve memory by id');
-        }
+        this.loggingService.trace(`[getMemoryById] Delegating to orchestrator`);
+        return await this.orchestrator.getMemoryById(id);
     }
 
     // Get counts of memories per category
     async getCategoryCounts(): Promise<Record<MemoryCategory, number>> {
-        this.loggingService.trace('[getCategoryCounts] Called');
-        const counts = {} as Record<MemoryCategory, number>;
-
-        for (const category of Object.values(MemoryCategory)) {
-            this.loggingService.debug(`[getCategoryCounts] Counting for category: ${category}`);
-            const response = await this.client.scroll(this.COLLECTION_NAME, {
-                filter: {
-                    must: [
-                        {
-                            key: 'Category',
-                            match: { value: category }
-                        }
-                    ]
-                },
-                limit: 1,
-                with_payload: false,
-                with_vector: false
-            });
-            counts[category as MemoryCategory] = response.points.length;
-            this.loggingService.debug(`[getCategoryCounts] Category: ${category}, Count: ${response.points.length}`);
-        }
-
-        this.loggingService.info(`[getCategoryCounts] Counts: ${JSON.stringify(counts)}`);
-        return counts;
+        this.loggingService.trace('[getCategoryCounts] Delegating to orchestrator');
+        return await this.orchestrator.getCategoryCounts();
     }
 
     // Helper to time and log model responses
@@ -508,13 +357,7 @@ class MemoryRAGSystem {
     }
 
     async deleteCollection(): Promise<void> {
-        try {
-            await this.client.deleteCollection(this.COLLECTION_NAME);
-            this.loggingService.log(`Collection '${this.COLLECTION_NAME}' deleted successfully.`);
-        } catch (error) {
-            this.loggingService.error(`Error deleting collection '${this.COLLECTION_NAME}': ${error}`);
-            throw new Error(`Failed to delete collection '${this.COLLECTION_NAME}'.`);
-        }
+        await this.orchestrator.deleteCollection();
     }
 
     /// Post-search Aggregation Interfaces
@@ -551,7 +394,7 @@ class MemoryRAGSystem {
             this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
         );
 
-        if(generateReport) {
+        if (generateReport) {
             // Generate and save a Markdown report after each search
             try {
                 const filePath = await this.memoryReportService.generateAndSavePostSearchAggregationReport(

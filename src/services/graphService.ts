@@ -176,8 +176,8 @@ export class GraphService {
 
             const result = await session.run(query, { memoryId, limit });
             return result.records.map(r => ({
-                ...r.get('other').properties,
-                relevanceScore: r.get('totalScore').toNumber()
+                memory: r.get('other').properties,
+                score: r.get('totalScore').toNumber()
             }));
         } catch (error) {
             console.error('Error in getRelatedMemories:', error);
@@ -203,6 +203,20 @@ export class GraphService {
             return result.records.map(r => r.get('m').properties);
         } catch (error) {
             console.error('Error in getMemoriesByTags:', error);
+            throw error;
+        } finally {
+            await session.close();
+        }
+    }
+    async deleteMemory(id: string): Promise<void> {
+        const session = this.getSession();
+        try {
+            await session.run(`
+                MATCH (m:Memory {id: $id})
+                DETACH DELETE m
+            `, { id });
+        } catch (error) {
+            console.error(`Error deleting memory ${id}:`, error);
             throw error;
         } finally {
             await session.close();

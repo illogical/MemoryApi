@@ -1,4 +1,4 @@
-import { MemoryReportService } from '../services/memoryReportService';
+import { MemoryReportService } from '../../services/memoryReportService';
 
 async function testHtmlReport() {
     const reportService = new MemoryReportService();

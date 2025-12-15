@@ -1,5 +1,5 @@
-import { GraphService } from '../services/graphService';
-import { MemoryCategory } from '../models/memoryCategory';
+import { GraphService } from '../../services/graphService';
+import { MemoryCategory } from '../../models/memoryCategory';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
