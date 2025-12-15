@@ -461,6 +461,10 @@ class MemoryRAGSystem {
 
         return result;
     }
+
+    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number }> {
+        return await this.orchestrator.getDatabaseStatus();
+    }
 }
 
 

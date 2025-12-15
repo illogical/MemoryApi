@@ -146,7 +146,29 @@ memoryRouter.delete('/memories/:id', async (req: Request, res: Response) => {
     }
 });
 
+
+// GET /api/status - Get database status
+memoryRouter.get('/status', async (req: Request, res: Response) => {
+    try {
+        const status = await memorySystem.getDatabaseStatus();
+        res.json({
+            vector: {
+                active: status.vectorCount >= 0,
+                count: Math.max(0, status.vectorCount)
+            },
+            graph: {
+                active: status.graphCount >= 0,
+                count: Math.max(0, status.graphCount)
+            }
+        });
+    } catch (error) {
+        console.error('Error getting status:', error);
+        res.status(500).json({ error: 'Failed to get status' });
+    }
+});
+
 // GET /api/memories/stats - Get statistics
+
 memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     try {
         const counts = await memorySystem.getCategoryCounts();

@@ -249,4 +249,15 @@ export class VectorService {
             throw new Error(`Failed to delete collection '${this.COLLECTION_NAME}'.`);
         }
     }
+
+    async getRecordCount(): Promise<number> {
+        this.loggingService.trace('[VectorService.getRecordCount] Called');
+        try {
+            const collectionInfo = await this.client.getCollection(this.COLLECTION_NAME);
+            return collectionInfo.points_count ?? 0;
+        } catch (error) {
+            this.loggingService.error(`[VectorService.getRecordCount] Error: ${error}`);
+            throw error;
+        }
+    }
 }

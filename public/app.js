@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([
         fetch('/api/review/categories').then(res => res.json()),
         fetch('/api/review/tags').then(res => res.json()),
-        fetch('/api/review/queue').then(res => res.json())
+        fetch('/api/review/queue').then(res => res.json()),
+        fetchStatus()   // TODO: Don't hold up the initial load, do this in parallel with other calls
     ]).then(([cats, tags, queue]) => {
         categories = cats;
         allTags = tags;
@@ -16,6 +17,36 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error loading data:', err);
         queueContainer.innerHTML = '<div class="error">Failed to load data. Please try again later.</div>';
     });
+
+    async function fetchStatus() {
+        try {
+            const res = await fetch('/api/status');
+            const status = await res.json();
+            updateStatusUI('vector-status', status.vector);
+            updateStatusUI('graph-status', status.graph);
+        } catch (err) {
+            console.error('Error fetching status:', err);
+            updateStatusUI('vector-status', { active: false }, true);
+            updateStatusUI('graph-status', { active: false }, true);
+        }
+    }
+
+    function updateStatusUI(elementId, status, error = false) {
+        const el = document.getElementById(elementId);
+        const indicator = el.querySelector('.status-indicator');
+        const text = el.querySelector('span:last-child');
+
+        indicator.className = 'status-indicator'; // reset
+        if (error || !status.active) {
+            indicator.classList.add('error');
+            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Connection Failed`;
+        } else {
+            indicator.classList.add('active');
+            const count = status.count !== undefined ? status.count : '?';
+            const label = elementId.includes('vector') ? 'Records' : 'Relationships';
+            text.textContent = `${elementId.includes('vector') ? 'Vector' : 'Graph'} DB: Active (${count} ${label})`;
+        }
+    }
 
     function renderQueue(queue) {
         queueContainer.innerHTML = '';
@@ -39,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Content
         const contentGroup = createFormGroup('Content', 'textarea', item.Content);
         const descriptionGroup = createFormGroup('Description (Summary)', 'textarea', item.Description);
-        
+
         // Category
         const categoryGroup = document.createElement('div');
         categoryGroup.className = 'form-group';
@@ -63,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tagsLabel.textContent = 'Tags';
         const tagsContainer = document.createElement('div');
         tagsContainer.className = 'tags-container';
-        
+
         // Render existing tags
         let currentTags = [...(item.Tags || [])];
         renderTags(tagsContainer, currentTags);
@@ -75,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tagInput.type = 'text';
         tagInput.placeholder = 'Add tag...';
         tagInputWrapper.appendChild(tagInput);
-        
+
         setupAutocomplete(tagInput, allTags, (newTag) => {
             if (!currentTags.includes(newTag)) {
                 currentTags.push(newTag);
@@ -180,27 +211,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupAutocomplete(input, options, onSelect) {
         let currentFocus;
-        
-        input.addEventListener('input', function(e) {
+
+        input.addEventListener('input', function (e) {
             const val = this.value;
             closeAllLists();
             if (!val) return false;
             currentFocus = -1;
-            
+
             const list = document.createElement('div');
             list.setAttribute('id', this.id + 'autocomplete-list');
             list.setAttribute('class', 'autocomplete-items');
             this.parentNode.appendChild(list);
 
             const matches = options.filter(opt => opt.toLowerCase().includes(val.toLowerCase()));
-            
+
             matches.forEach(match => {
                 const item = document.createElement('div');
                 // Highlight match
                 const regex = new RegExp(`(${val})`, 'gi');
                 item.innerHTML = match.replace(regex, '<strong>$1</strong>');
                 item.innerHTML += `<input type='hidden' value='${match}'>`;
-                item.addEventListener('click', function(e) {
+                item.addEventListener('click', function (e) {
                     onSelect(this.getElementsByTagName('input')[0].value);
                     closeAllLists();
                 });
@@ -208,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        input.addEventListener('keydown', function(e) {
+        input.addEventListener('keydown', function (e) {
             let x = document.getElementById(this.id + 'autocomplete-list');
             if (x) x = x.getElementsByTagName('div');
             if (e.keyCode == 40) { // Down
@@ -231,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentFocus >= x.length) currentFocus = 0;
             if (currentFocus < 0) currentFocus = (x.length - 1);
             x[currentFocus].classList.add('autocomplete-active');
-            x[currentFocus].style.backgroundColor = "#e9e9e9"; 
+            x[currentFocus].style.backgroundColor = "#e9e9e9";
         }
 
         function removeActive(x) {
@@ -284,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Remove card from UI
                 const card = document.querySelector(`.memory-card[data-id="${id}"]`);
                 if (card) card.remove();
-                
+
                 // Check if empty
                 if (document.querySelectorAll('.memory-card').length === 0) {
                     queueContainer.innerHTML = '<div class="empty-queue">No memories in the review queue.</div>';
@@ -307,8 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.ok) {
                 const card = document.querySelector(`.memory-card[data-id="${id}"]`);
                 if (card) card.remove();
-                 // Check if empty
-                 if (document.querySelectorAll('.memory-card').length === 0) {
+                // Check if empty
+                if (document.querySelectorAll('.memory-card').length === 0) {
                     queueContainer.innerHTML = '<div class="empty-queue">No memories in the review queue.</div>';
                 }
             } else {

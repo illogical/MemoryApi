@@ -1,6 +1,5 @@
 import neo4j, { Driver, Session, SessionConfig } from 'neo4j-driver';
 import { MemoryWithId } from '../models/memory';
-import { MemoryCategory } from '../models/memoryCategory';
 
 export class GraphService {
     private driver: Driver;
@@ -217,6 +216,21 @@ export class GraphService {
             `, { id });
         } catch (error) {
             console.error(`Error deleting memory ${id}:`, error);
+            throw error;
+        } finally {
+            await session.close();
+        }
+    }
+
+    async getRelationshipCount(): Promise<number> {
+        const session = this.getSession('READ');
+        try {
+            const result = await session.run('MATCH ()-[r]->() RETURN count(r) as count');
+            if (result.records.length === 0) return 0;
+            const count = result.records[0].get('count');
+            return count.toNumber();
+        } catch (error) {
+            console.error('Error getting relationship count:', error);
             throw error;
         } finally {
             await session.close();

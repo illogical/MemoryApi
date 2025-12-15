@@ -101,4 +101,19 @@ export class RAGOrchestrator {
     async getRelatedMemories(id: string): Promise<any> {
         return this.graphService.getRelatedMemories(id);
     }
+
+    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number }> {
+        const [vectorCount, graphCount] = await Promise.all([
+            this.vectorService.getRecordCount().catch(err => {
+                this.loggingService.error(`[RAGOrchestrator] Failed to get vector count: ${err}`);
+                return -1;
+            }),
+            this.graphService.getRelationshipCount().catch(err => {
+                this.loggingService.error(`[RAGOrchestrator] Failed to get graph relationship count: ${err}`);
+                return -1;
+            })
+        ]);
+
+        return { vectorCount, graphCount };
+    }
 }
