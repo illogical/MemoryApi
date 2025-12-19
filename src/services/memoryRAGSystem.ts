@@ -8,7 +8,7 @@ import { LoggingService } from './loggingService';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
-import { MemoryTextProcessor } from './MemoryTextProcessor';
+import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
 import { GraphService } from './graphService';
 import dotenv from 'dotenv';
