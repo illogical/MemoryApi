@@ -54,7 +54,8 @@ async function main() {
             console.log(`\nFinding related for Memory ${codeMemoryId} (${memories[codeMemoryIndex].content.slice(0, 30)}...):`);
             const related = await graphService.getRelatedMemories(codeMemoryId, 3);
             related.forEach(r => {
-                console.log(` - [Score: ${r.relevanceScore}] ${r.content.substring(0, 50)}... (Cat: ${r.category})`);
+                // r: { memory: any, score: number }
+                console.log(` - [Score: ${r.score}] ${r.memory.content.substring(0, 50)}... (Cat: ${r.memory.category})`);
             });
         }
 

@@ -3,7 +3,7 @@ config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import path from 'path';
-import { FeedbackQueryLoader } from '../helpers/feedbackQueryLoader';
+import { FeedbackQueryLoader } from '../helpers/FeedbackQueryLoader';
 import { MemoryReportService, ReportStats } from '../services/memoryReportService';
 
 async function main() {

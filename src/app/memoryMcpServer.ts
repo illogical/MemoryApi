@@ -31,75 +31,70 @@ const server = new McpServer({
 
 // Register search + summarization tool
 server.registerTool(
-    'search_memories',
-    {
-      title: 'Search Memories',
-      description: 'Semantic memory search with optional summarization/clustering for agent context. Prefer hybrid strategy for best results.',
-      inputSchema: {
-        query: z.string().describe('Semantic search query text.'),
-        category: z.string().describe('Optional memory category filter.').optional(),
-        limit: z.number().describe('Max number of memories to consider.').optional(),
-        scoreThreshold: z.number().describe('Filter memories below this similarity score.').optional(),
-        strategy: z
-          .enum(['linear', 'cluster-category', 'cluster-tag', 'hybrid'])
-          .describe('Aggregation strategy.')
-          .optional(),
-        format: z
-          .enum(['narrative', 'bullets', 'both'])
-          .describe('Summary output format.')
-          .optional()
-      },
-      outputSchema: {
-        query: z.string(),
-        topMemories: z.array(z.any()),
-        aggregateNarrative: z.string().optional(),
-        aggregateBullets: z.array(z.string()).optional(),
-        clusterSummaries: z.array(z.any()).optional(),
-        parameters: z.record(z.string(), z.any())
-      }
-    },
-    async (params: {
-      query: string;
-      category?: string;
-      limit?: number;
-      scoreThreshold?: number;
-      strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
-      format?: 'narrative' | 'bullets' | 'both';
-    }) => {
-      logger.info(`MCP Tool [search_memories] invoked with query: "${params.query}"`);
-      const { query, category, limit, scoreThreshold, strategy, format } = params;
-      let validCategory: MemoryCategory | undefined = undefined;
-      if (category) {
-        if (!Object.values(MemoryCategory).includes(category as MemoryCategory)) {
-          logger.error(`MCP Tool [search_memories] failed: Invalid category "${category}"`);
-          const output = { error: `Invalid category: ${category}` };
-          return {
-            content: [
-              { type: 'text', text: JSON.stringify(output) }
-            ],
-            structuredContent: output,
-            isError: true
-          };
-        }
-        validCategory = category as MemoryCategory;
-      }
-      try {
-        const options = { category: validCategory, limit, scoreThreshold, strategy, format };
-        const result = await memorySystem.searchAndSummarizeForMcp(query, options);
-        logger.info(`MCP Tool [search_memories] completed successfully, returned ${result.topMemories?.length || 0} memories`);
+  'search_memories',
+  {
+    title: 'Search Memories',
+    description: 'Semantic memory search with optional summarization/clustering for agent context. Prefer hybrid strategy for best results.',
+    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
+    inputSchema: z.object({
+      query: z.string().describe('Semantic search query text.'),
+      category: z.string().describe('Optional memory category filter.').optional(),
+      limit: z.number().describe('Max number of memories to consider.').optional(),
+      scoreThreshold: z.number().describe('Filter memories below this similarity score.').optional(),
+      strategy: z
+        .enum(['linear', 'cluster-category', 'cluster-tag', 'hybrid'])
+        .describe('Aggregation strategy.')
+        .optional(),
+      format: z
+        .enum(['narrative', 'bullets', 'both'])
+        .describe('Summary output format.')
+        .optional()
+    }),
+    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
+    outputSchema: z.object({
+      query: z.string(),
+      topMemories: z.array(z.any()),
+      aggregateNarrative: z.string().optional(),
+      aggregateBullets: z.array(z.string()).optional(),
+      clusterSummaries: z.array(z.any()).optional(),
+      parameters: z.record(z.string(), z.any())
+    })
+  },
+  async (args: { [x: string]: any }, extra: any) => {
+    logger.info(`MCP Tool [search_memories] invoked with query: "${args.query}"`);
+    const { query, category, limit, scoreThreshold, strategy, format } = args;
+    let validCategory: MemoryCategory | undefined = undefined;
+    if (category) {
+      if (!Object.values(MemoryCategory).includes(category as MemoryCategory)) {
+        logger.error(`MCP Tool [search_memories] failed: Invalid category "${category}"`);
+        const output = { error: `Invalid category: ${category}` };
         return {
           content: [
-            { type: 'text', text: JSON.stringify(result, null, 2) },
-            { type: 'json', json: result }
+            { type: 'text', text: JSON.stringify(output) }
           ],
-          structuredContent: result
+          structuredContent: output,
+          isError: true
         };
-      } catch (error: any) {
-        logger.error(`MCP Tool [search_memories] error: ${error?.message || error}`);
-        throw error;
       }
+      validCategory = category as MemoryCategory;
     }
-  );
+    try {
+      const options = { category: validCategory, limit, scoreThreshold, strategy, format };
+      const result = await memorySystem.searchAndSummarizeForMcp(query, options);
+      logger.info(`MCP Tool [search_memories] completed successfully, returned ${result.topMemories?.length || 0} memories`);
+      return {
+        content: [
+          { type: 'text', text: JSON.stringify(result, null, 2) },
+          { type: 'json', json: result }
+        ],
+        structuredContent: result
+      };
+    } catch (error: any) {
+      logger.error(`MCP Tool [search_memories] error: ${error?.message || error}`);
+      throw error;
+    }
+  }
+);
 
 // Register add_memory tool (mirrors REST POST /api/memories)
 server.registerTool(
@@ -108,10 +103,12 @@ server.registerTool(
     title: 'Add Memory',
     description:
       'Store a new personal memory with automatic semantic categorization and tagging for future search and retrieval.',
-    inputSchema: z.object({
+    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
+      inputSchema: z.object({
       Content: z.string().describe('Full content of the memory.'),
       //Metadata: z.record(z.string(), z.any()).describe('Additional metadata.').optional()
     }),
+    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
     outputSchema: z.object({
       id: z.string().describe('ID of the created memory.'),
       message: z.string().describe('Status message.'),
@@ -119,14 +116,10 @@ server.registerTool(
       validCategories: z.array(z.string()).optional()
     })
   },
-  async (params: {
-    Description: string;
-    Content: string;
-    //Metadata?: Record<string, any>;
-  }) => {
-    logger.info(`MCP Tool [add_memory] invoked with Description: "${params.Description}""`);
+  async (args: { [x: string]: any }, extra: any) => {
+    logger.info(`MCP Tool [add_memory] invoked with Description: "${args.Description}""`);
     // Validate required fields
-    if (!params.Content) {
+    if (!args.Content) {
       logger.error('MCP Tool [add_memory] failed: Missing required fields');
       const output = {
         error: 'Description, Content, and Category are required',
@@ -144,7 +137,7 @@ server.registerTool(
       // Use ReviewMemoriesService to queue memory for review
       const reviewService = new ReviewMemoriesService(memorySystem);
       const memory = {
-        Content: params.Content,
+        Content: args.Content,
         LastUpdated: new Date().toISOString()
       };
       const queuedItem = await reviewService.addToQueue(memory);
