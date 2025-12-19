@@ -78,7 +78,11 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    EMBEDDING_MODEL=nomic-embed-text-v1.5
    LLM_PROVIDER=ollama
    LLM_MODEL=phi4
+   LLM_HOST=http://localhost:11434
    PROMPT_TEMPLATE_BASE_PATH=/path/to/your/prompts/
+   NEO4J_URI=bolt://localhost:7687
+   NEO4J_USER=neo4j
+   NEO4J_PASSWORD=PW
    ```
 4. **Start LM Studio:**
    Ensure LM Studio is running and the embedding model is loaded.

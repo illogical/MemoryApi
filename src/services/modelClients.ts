@@ -10,12 +10,14 @@ export type ModelProvider = 'lmstudio' | 'ollama';
 export interface ModelClient {
     readonly modelName: string;
     readonly provider: ModelProvider;
+    readonly baseUrl: string;
     load(modelName: string): Promise<void>;
     respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }>;
 }
 
 export interface EmbeddingClient {
     readonly modelName: string;
+    readonly baseUrl: string;
     load(modelName: string): Promise<void>;
     embed(text: string): Promise<number[]>;
 }
@@ -24,13 +26,15 @@ export class LMStudioModelClient implements ModelClient {
     private client: LMStudioClient;
     private model: LLM | null;
     private _modelName: string = '';
+    private _baseUrl: string;
 
     private readonly maxTokensDefault = 1000;
     private readonly temperatureDefault = 0.7;
 
-    constructor() {
+    constructor(baseUrl: string) {
         this.client = new LMStudioClient();
         this.model = null;
+        this._baseUrl = baseUrl;
     }
 
     get modelName(): string {
@@ -41,13 +45,17 @@ export class LMStudioModelClient implements ModelClient {
         return 'lmstudio';
     }
 
+    get baseUrl(): string {
+        return this._baseUrl;
+    }
+
     async load(modelName: string): Promise<void> {
         if (this.model == null || this._modelName !== modelName) {
             this._modelName = modelName;
             this.model = await this.client.llm.load(modelName);
         }
     }
-    async respond(messages: ChatMessage[], options: { temperature: number; maxTokens: number }): Promise<{ content: string }> {
+    async respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }> {
         if (!this.model) {
             throw new Error('Model not loaded');
         }
@@ -61,6 +69,7 @@ export class LMStudioModelClient implements ModelClient {
 
 export class OllamaModelClient implements ModelClient {
     private _modelName: string = '';
+    private _baseUrl: string;
     private readonly maxTokensDefault = 1000;
     private readonly temperatureDefault = 0.7;
 
@@ -70,6 +79,14 @@ export class OllamaModelClient implements ModelClient {
 
     get provider(): ModelProvider {
         return 'ollama';
+    }
+
+    constructor(baseUrl: string) {
+        this._baseUrl = baseUrl;
+    }
+
+    get baseUrl(): string {
+        return this._baseUrl;
     }
 
     async load(modelName: string): Promise<void> {
@@ -86,7 +103,7 @@ export class OllamaModelClient implements ModelClient {
                 num_predict: options?.maxTokens ?? this.maxTokensDefault,
             }
         };
-        const res = await fetch('http://localhost:11434/api/generate', {
+        const res = await fetch(`${this._baseUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -103,9 +120,18 @@ export class OllamaModelClient implements ModelClient {
 
 export class OllamaEmbeddingClient implements EmbeddingClient {
     private _modelName: string = '';
+    private _baseUrl: string;
 
     get modelName(): string {
         return this._modelName;
+    }
+
+    constructor(baseUrl: string) {
+        this._baseUrl = baseUrl;
+    }
+
+    get baseUrl(): string {
+        return this._baseUrl;
     }
 
     async load(modelName: string): Promise<void> {
@@ -117,7 +143,7 @@ export class OllamaEmbeddingClient implements EmbeddingClient {
             model: this._modelName,
             prompt: text
         };
-        const res = await fetch('http://localhost:11434/api/embeddings', {
+        const res = await fetch(`${this._baseUrl}/api/embeddings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),

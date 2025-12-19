@@ -18,6 +18,9 @@ import { LoggingService } from './loggingService';
 import { ModelClient, LMStudioModelClient, OllamaModelClient, ModelProvider } from './modelClients';
 import * as fs from 'fs';
 import * as path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // ==================== Shared Type Definitions ====================
 
@@ -80,7 +83,8 @@ export abstract class BaseEvaluator {
         this.logger = new LoggingService(path.join(process.cwd(), 'logs'), 'debug', 'info');
         this.modelName = modelName;
         this.provider = provider;
-        this.modelClient = provider === 'ollama' ? new OllamaModelClient() : new LMStudioModelClient();
+        const baseUrl = process.env.LLM_HOST || 'http://localhost:11434';
+        this.modelClient = provider === 'ollama' ? new OllamaModelClient(baseUrl) : new LMStudioModelClient(baseUrl);
         this.temperature = temperature;
         this.maxTokens = maxTokens;
     }

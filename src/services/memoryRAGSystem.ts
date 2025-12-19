@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
+const LLM_HOST = process.env.LLM_HOST || 'http://localhost:11434';
 const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
 const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
 const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'password';
@@ -48,14 +49,14 @@ class MemoryRAGSystem {
         this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.loggingService);
 
         // Initialize embedding client (now using Ollama by default as requested)
-        this.embeddingClient = new OllamaEmbeddingClient();
+        this.embeddingClient = new OllamaEmbeddingClient(LLM_HOST);
         this.embeddingClient.load(embeddingModelName);
 
         // Initialize model client abstraction
         if (modelProvider === 'lmstudio') {
-            this.modelClient = new LMStudioModelClient();
+            this.modelClient = new LMStudioModelClient(LLM_HOST);
         } else if (modelProvider === 'ollama') {
-            this.modelClient = new OllamaModelClient();
+            this.modelClient = new OllamaModelClient(LLM_HOST);
         } else {
             throw new Error(`Unsupported model provider: ${modelProvider}`);
         }
