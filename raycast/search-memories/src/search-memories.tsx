@@ -84,7 +84,7 @@ export default function Command(props: { arguments: Arguments }) {
     } else {
       // Build formatted results
       const resultsMarkdown = memories
-        .map((memory, index) => {
+        .map((memory: any, index: number) => {
           const scorePercent = memory.score ? (memory.score * 100).toFixed(1) : "N/A";
           const tags = memory.Tags && memory.Tags.length > 0 ? memory.Tags.join(", ") : "None";
           const category = memory.Category || "Uncategorized";
@@ -140,11 +140,11 @@ export default function Command(props: { arguments: Arguments }) {
             <Detail.Metadata.Separator />
             <Detail.Metadata.Label
               title="Categories Found"
-              text={[...new Set(data.memories.map((m) => m.Category || "Uncategorized"))].join(", ")}
+              text={[...new Set(data.memories.map((m: any) => m.Category || "Uncategorized"))].join(", ")}
             />
             <Detail.Metadata.Label
               title="Unique Tags"
-              text={`${new Set(data.memories.flatMap((m) => m.Tags || [])).size} tags`}
+              text={`${new Set(data.memories.flatMap((m: any) => m.Tags || [])).size} tags`}
             />
           </Detail.Metadata>
         )
