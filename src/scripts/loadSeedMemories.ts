@@ -71,9 +71,6 @@ async function main() {
     );
     const validMemories = preparedMemories.filter(m => m !== null) as Array<Memory & { summary: string; classification: string; tags: string[] }>;
 
-    // Load the embedding model once before generating embeddings for all memories
-    await ragSystem.loadEmbeddingModel();
-
     // Generate embeddings and upsert all memories
     let loadedCount = 0;
     for (const mem of validMemories) {

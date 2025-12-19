@@ -21,7 +21,6 @@ const memorySystem = new MemoryRAGSystem(
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {
     console.log('Initializing MemoryRAGSystem...');
-    await memorySystem.loadEmbeddingModel();
     await memorySystem.initializeCollection();
     console.log('MemoryRAGSystem initialization complete');
 }

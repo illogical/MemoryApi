@@ -128,9 +128,6 @@ export class ReviewMemoriesService {
         }
 
         const item = queue[index];
-
-        // Load embedding model if not loaded (upsertMemory doesn't do it, but generateEmbedding does check)
-        await this.memorySystem.loadEmbeddingModel();
         
         // Generate embedding for the content
         const embedding = await this.memorySystem.generateEmbedding(item.Content);

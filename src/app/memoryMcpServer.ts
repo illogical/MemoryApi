@@ -166,7 +166,6 @@ server.registerTool(
 
 async function initialize() {
   logger.info('Initializing Memory MCP server...');
-  await memorySystem.loadEmbeddingModel();
   await memorySystem.initializeCollection();
   logger.info('Memory MCP server initialization complete');
 }

@@ -5,16 +5,25 @@ export interface ChatMessage {
     content: string;
 }
 
+export type ModelProvider = 'lmstudio' | 'ollama';
+
 export interface ModelClient {
+    readonly modelName: string;
+    readonly provider: ModelProvider;
     load(modelName: string): Promise<void>;
     respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }>;
 }
 
-export type ModelProvider = 'lmstudio' | 'ollama';
+export interface EmbeddingClient {
+    readonly modelName: string;
+    load(modelName: string): Promise<void>;
+    embed(text: string): Promise<number[]>;
+}
 
 export class LMStudioModelClient implements ModelClient {
     private client: LMStudioClient;
     private model: LLM | null;
+    private _modelName: string = '';
 
     private readonly maxTokensDefault = 1000;
     private readonly temperatureDefault = 0.7;
@@ -23,9 +32,18 @@ export class LMStudioModelClient implements ModelClient {
         this.client = new LMStudioClient();
         this.model = null;
     }
+
+    get modelName(): string {
+        return this._modelName;
+    }
+
+    get provider(): ModelProvider {
+        return 'lmstudio';
+    }
+
     async load(modelName: string): Promise<void> {
-        if(this.model == null)
-        {
+        if (this.model == null || this._modelName !== modelName) {
+            this._modelName = modelName;
             this.model = await this.client.llm.load(modelName);
         }
     }
@@ -42,17 +60,25 @@ export class LMStudioModelClient implements ModelClient {
 }
 
 export class OllamaModelClient implements ModelClient {
-    private modelName: string = '';
+    private _modelName: string = '';
     private readonly maxTokensDefault = 1000;
     private readonly temperatureDefault = 0.7;
 
+    get modelName(): string {
+        return this._modelName;
+    }
+
+    get provider(): ModelProvider {
+        return 'ollama';
+    }
+
     async load(modelName: string): Promise<void> {
-        this.modelName = modelName;
+        this._modelName = modelName;
     }
     async respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }> {
         const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
         const body = {
-            model: this.modelName,
+            model: this._modelName,
             prompt,
             stream: false,
             options: {
@@ -71,9 +97,39 @@ export class OllamaModelClient implements ModelClient {
         }
         console.log(`Ollama response received ${res.status}`);
         const content = await res.json().then(d => d.response || d.content || '');
-        // const data = await res.text();
-        // console.log(`Ollama response data: ${data}`);
-        //const content = (data && (data.response || data.content || '')) as string;
         return { content };
+    }
+}
+
+export class OllamaEmbeddingClient implements EmbeddingClient {
+    private _modelName: string = '';
+
+    get modelName(): string {
+        return this._modelName;
+    }
+
+    async load(modelName: string): Promise<void> {
+        this._modelName = modelName;
+    }
+
+    async embed(text: string): Promise<number[]> {
+        const body = {
+            model: this._modelName,
+            prompt: text
+        };
+        const res = await fetch('http://localhost:11434/api/embeddings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Ollama embedding request failed: ${res.status} ${text}`);
+        }
+        const data = await res.json();
+        if (!data.embedding) {
+            throw new Error('Ollama embedding response missing embedding data');
+        }
+        return data.embedding;
     }
 }

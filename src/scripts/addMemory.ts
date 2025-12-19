@@ -51,7 +51,6 @@ async function main() {
     try {
         await ragSystem.initializeCollection();
         await ragSystem.loadInferenceModel();
-        await ragSystem.loadEmbeddingModel();
 
         const memory: Memory = {
             Content: content,

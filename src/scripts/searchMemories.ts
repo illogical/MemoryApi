@@ -51,7 +51,6 @@ async function main() {
 
     try {
         await ragSystem.initializeCollection(); // Ensure collection exists, though strictly not needed for search if it definitely exists
-        await ragSystem.loadEmbeddingModel();
 
         console.log(`Searching for: "${query}" (Limit: ${limit}${category ? `, Category: ${category}` : ''})`);
         const results = await ragSystem.searchMemories(query, category, limit);

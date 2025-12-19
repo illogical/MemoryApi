@@ -58,7 +58,6 @@ async function main() {
     // PHASE 1: Load embedding model and run all searches
     // ====================================
     console.log('\n[RunSemanticQueries] Phase 1: Loading embedding model and running searches...');
-    await rag.loadEmbeddingModel();
 
     interface SearchResult {
         query: string;

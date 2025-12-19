@@ -16,7 +16,6 @@ async function main() {
         process.exit(1);
     }
     const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
-    await ragSystem.loadEmbeddingModel();
 
     // Load feedback queries from JSON file
     // Find the first argument that doesn't start with --

@@ -1,8 +1,7 @@
 import { randomUUID } from 'crypto';
-import { EmbeddingModel, LMStudioClient } from '@lmstudio/sdk';
 import { RAGOrchestrator } from './ragOrchestrator';
 import { VectorService } from './vectorService';
-import { ModelClient, LMStudioModelClient, OllamaModelClient } from './modelClients';
+import { ModelClient, LMStudioModelClient, OllamaModelClient, EmbeddingClient, OllamaEmbeddingClient } from './modelClients';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { MemoryCategory } from '../models/memoryCategory';
@@ -22,12 +21,8 @@ const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'password';
 
 class MemoryRAGSystem {
     private orchestrator: RAGOrchestrator;
-    private lmStudio: LMStudioClient;
-    private embeddingModel: EmbeddingModel | null = null;
-    private embeddingModelName: string;
-    private modelClient: ModelClient | null = null; // Abstraction for provider-specific inference
-    private modelName: string;
-    private modelProvider: string;
+    private embeddingClient: EmbeddingClient;
+    private modelClient: ModelClient; // Abstraction for provider-specific inference
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(process.env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
@@ -46,27 +41,25 @@ class MemoryRAGSystem {
     private postSearchAggregator: MemoryPostSearchAggregator;
 
     constructor(qdrantUrl: string, modelName: string, modelProvider: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL) {
-        this.lmStudio = new LMStudioClient();
-        this.embeddingModelName = embeddingModelName;
-        this.modelName = modelName;
-        this.modelProvider = modelProvider;
-
         // Initialize Services
         const vectorService = new VectorService(qdrantUrl, this.loggingService);
         this.graphService = new GraphService(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD);
 
         this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.loggingService);
 
+        // Initialize embedding client (now using Ollama by default as requested)
+        this.embeddingClient = new OllamaEmbeddingClient();
+        this.embeddingClient.load(embeddingModelName);
+
         // Initialize model client abstraction
-        if (this.modelProvider === 'lmstudio') {
+        if (modelProvider === 'lmstudio') {
             this.modelClient = new LMStudioModelClient();
-            this.modelClient.load(this.modelName);
-        } else if (this.modelProvider === 'ollama') {
+        } else if (modelProvider === 'ollama') {
             this.modelClient = new OllamaModelClient();
-            this.modelClient.load(this.modelName);
         } else {
-            throw new Error(`Unsupported model provider: ${this.modelProvider}`);
+            throw new Error(`Unsupported model provider: ${modelProvider}`);
         }
+        this.modelClient.load(modelName);
 
         // Re-initialize aggregator with graph service
         this.postSearchAggregator = new MemoryPostSearchAggregator(
@@ -81,48 +74,15 @@ class MemoryRAGSystem {
         );
     }
 
-    async loadEmbeddingModel(): Promise<void> {
-        this.loggingService.trace('[loadEmbeddingModel] Called');
-        if (this.embeddingModel) {
-            this.loggingService.info('[loadEmbeddingModel] Embedding model already loaded, skipping reload');
-            return;
-        }
-
-        try {
-            this.loggingService.log(`[loadEmbeddingModel] Loading embedding model: ${this.embeddingModelName}`);
-            const loadedEmbeddingModel = await this.lmStudio.embedding.model(this.embeddingModelName);
-            this.embeddingModel = loadedEmbeddingModel;
-            this.loggingService.log('[loadEmbeddingModel] Embedding model loaded successfully');
-        } catch (error) {
-            this.loggingService.error(`[loadEmbeddingModel] Error loading embedding model: ${error}`);
-            throw new Error('Failed to load embedding model. Make sure LM Studio is running and the model is loaded.');
-        }
-    }
-
     async loadInferenceModel(): Promise<void> {
         this.loggingService.trace('[loadInferenceModel] Called');
-        // If using LM Studio's native LLM, keep existing pathway
-        if (this.modelProvider === 'lmstudio') {
-            try {
-                this.loggingService.log(`[loadInferenceModel] Loading inference model (lmstudio): ${this.modelName}`);
-                // Also load via abstraction for unified respond API
-                await this.modelClient!.load(this.modelName);
-                this.loggingService.log('[loadInferenceModel] Inference model loaded successfully (lmstudio)');
-            } catch (error) {
-                this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
-                throw new Error('Failed to load inference model. Make sure LM Studio is running and the model is loaded.');
-            }
-        } else {
-            // For non-lmstudio providers (e.g., ollama), use modelClients abstraction
-            try {
-                // Avoid setting this.model; MemoryTextProcessor path will be bypassed
-                this.loggingService.log(`[loadInferenceModel] Loading inference model (${this.modelProvider}): ${this.modelName}`);
-                await this.modelClient!.load(this.modelName);
-                this.loggingService.log('[loadInferenceModel] Inference model loaded successfully via abstraction');
-            } catch (error) {
-                this.loggingService.error(`[loadInferenceModel] Error loading inference model via abstraction: ${error}`);
-                throw new Error(`Failed to load inference model for provider ${this.modelProvider}. ${error instanceof Error ? error.message : String(error)}`);
-            }
+        try {
+            this.loggingService.log(`[loadInferenceModel] Loading inference model (${this.modelClient.provider}): ${this.modelClient.modelName}`);
+            await this.modelClient.load(this.modelClient.modelName);
+            this.loggingService.log('[loadInferenceModel] Inference model loaded successfully');
+        } catch (error) {
+            this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
+            throw new Error(`Failed to load inference model. ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -184,16 +144,11 @@ class MemoryRAGSystem {
      */
     async generateEmbedding(text: string): Promise<number[]> {
         this.loggingService.trace('[generateEmbedding] Called');
-        if (!this.embeddingModel) {
-            this.loggingService.error('[generateEmbedding] Embedding model not loaded');
-            throw new Error('Failed to generate embedding');
-        }
-
         try {
-            this.loggingService.debug(`[generateEmbedding] Generating embedding for text: ${text}`);
-            const result = await this.timeModelResponse(() => this.embeddingModel!.embed(text), 'generateEmbedding') as { embedding: number[] };
-            this.loggingService.debug(`[generateEmbedding] Embedding result length: ${result.embedding.length}`);
-            return result.embedding;
+            this.loggingService.debug(`[generateEmbedding] Generating embedding for text using ${this.embeddingClient.modelName}`);
+            const embedding = await this.timeModelResponse(() => this.embeddingClient.embed(text), 'generateEmbedding');
+            this.loggingService.debug(`[generateEmbedding] Embedding result length: ${embedding.length}`);
+            return embedding;
         } catch (error) {
             this.loggingService.error(`[generateEmbedding] Error generating embedding: ${error}`);
             throw new Error('Failed to generate embedding');
@@ -225,8 +180,6 @@ class MemoryRAGSystem {
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
             this.loggingService.debug(`[addMemory] Prepared memory fields: ${JSON.stringify(prepared, null, 2)}`);
             // Step 2: Generate embedding
-            this.loggingService.debug('[addMemory] Loading embedding model...');
-            await this.loadEmbeddingModel();
             this.loggingService.info(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
             try {
                 const embedding = await this.generateEmbedding(memory.Content);
@@ -265,7 +218,6 @@ class MemoryRAGSystem {
         limit: number = 5
     ): Promise<MemoryWithId[]> {
         this.loggingService.trace(`[searchMemories] Called with query: ${query}, category: ${category}, limit: ${limit}`);
-        await this.loadEmbeddingModel();
         const queryEmbedding = await this.generateEmbedding(query);
         return this.searchMemoriesWithEmbedding(queryEmbedding, category, limit);
     }
@@ -399,7 +351,7 @@ class MemoryRAGSystem {
             try {
                 const filePath = await this.memoryReportService.generateAndSavePostSearchAggregationReport(
                     result as any,
-                    this.embeddingModelName
+                    this.embeddingClient.modelName
                 );
                 this.loggingService.info(`[searchAndSummarizeForMcp] Report saved: ${filePath}`);
             } catch (err) {
