@@ -4,7 +4,7 @@ import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import * as z from 'zod/v4';
+import { z } from 'zod';
 import { LoggingService } from '../services/loggingService';
 
 dotenv.config();
@@ -30,37 +30,24 @@ const server = new McpServer({
 });
 
 // Register search + summarization tool
-server.registerTool(
+server.tool(
   'search_memories',
+  'Semantic memory search with optional summarization/clustering for agent context. Prefer hybrid strategy for best results.',
   {
-    title: 'Search Memories',
-    description: 'Semantic memory search with optional summarization/clustering for agent context. Prefer hybrid strategy for best results.',
-    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
-    inputSchema: z.object({
-      query: z.string().describe('Semantic search query text.'),
-      category: z.string().describe('Optional memory category filter.').optional(),
-      limit: z.number().describe('Max number of memories to consider.').optional(),
-      scoreThreshold: z.number().describe('Filter memories below this similarity score.').optional(),
-      strategy: z
-        .enum(['linear', 'cluster-category', 'cluster-tag', 'hybrid'])
-        .describe('Aggregation strategy.')
-        .optional(),
-      format: z
-        .enum(['narrative', 'bullets', 'both'])
-        .describe('Summary output format.')
-        .optional()
-    }),
-    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
-    outputSchema: z.object({
-      query: z.string(),
-      topMemories: z.array(z.any()),
-      aggregateNarrative: z.string().optional(),
-      aggregateBullets: z.array(z.string()).optional(),
-      clusterSummaries: z.array(z.any()).optional(),
-      parameters: z.record(z.string(), z.any())
-    })
-  },
-  async (args: { [x: string]: any }, extra: any) => {
+    query: z.string().describe('Semantic search query text.'),
+    category: z.string().describe('Optional memory category filter.').optional(),
+    limit: z.number().describe('Max number of memories to consider.').optional(),
+    scoreThreshold: z.number().describe('Filter memories below this similarity score.').optional(),
+    strategy: z
+      .enum(['linear', 'cluster-category', 'cluster-tag', 'hybrid'])
+      .describe('Aggregation strategy.')
+      .optional(),
+    format: z
+      .enum(['narrative', 'bullets', 'both'])
+      .describe('Summary output format.')
+      .optional()
+  } as any,
+  async (args: any) => {
     logger.info(`MCP Tool [search_memories] invoked with query: "${args.query}"`);
     const { query, category, limit, scoreThreshold, strategy, format } = args;
     let validCategory: MemoryCategory | undefined = undefined;
@@ -70,7 +57,7 @@ server.registerTool(
         const output = { error: `Invalid category: ${category}` };
         return {
           content: [
-            { type: 'text', text: JSON.stringify(output) }
+            { type: 'text' as const, text: JSON.stringify(output) }
           ],
           structuredContent: output,
           isError: true
@@ -84,8 +71,7 @@ server.registerTool(
       logger.info(`MCP Tool [search_memories] completed successfully, returned ${result.topMemories?.length || 0} memories`);
       return {
         content: [
-          { type: 'text', text: JSON.stringify(result, null, 2) },
-          { type: 'json', json: result }
+          { type: 'text' as const, text: JSON.stringify(result, null, 2) }
         ],
         structuredContent: result
       };
@@ -97,42 +83,14 @@ server.registerTool(
 );
 
 // Register add_memory tool (mirrors REST POST /api/memories)
-server.registerTool(
+server.tool(
   'add_memory',
+  'Store a new personal memory with automatic semantic categorization and tagging for future search and retrieval.',
   {
-    title: 'Add Memory',
-    description:
-      'Store a new personal memory with automatic semantic categorization and tagging for future search and retrieval.',
-    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
-      inputSchema: z.object({
-      Content: z.string().describe('Full content of the memory.'),
-      //Metadata: z.record(z.string(), z.any()).describe('Additional metadata.').optional()
-    }),
-    // @ts-expect-error - MCP SDK type definition incompatibility with Zod
-    outputSchema: z.object({
-      id: z.string().describe('ID of the created memory.'),
-      message: z.string().describe('Status message.'),
-      error: z.string().optional().describe('Error message if failed.'),
-      validCategories: z.array(z.string()).optional()
-    })
-  },
-  async (args: { [x: string]: any }, extra: any) => {
-    logger.info(`MCP Tool [add_memory] invoked with Description: "${args.Description}""`);
-    // Validate required fields
-    if (!args.Content) {
-      logger.error('MCP Tool [add_memory] failed: Missing required fields');
-      const output = {
-        error: 'Description, Content, and Category are required',
-        validCategories: Object.values(MemoryCategory)
-      };
-      return {
-        content: [
-          { type: 'text', text: JSON.stringify(output) }
-        ],
-        structuredContent: output,
-        isError: true
-      };
-    }
+    Content: z.string().describe('Full content of the memory to be stored. Often initiated by "Remember..." ')
+  } as any,
+  async (args: any) => {
+    logger.info(`MCP Tool [add_memory] invoked with Content: "${args.Content}"`);
     try {
       // Use ReviewMemoriesService to queue memory for review
       const reviewService = new ReviewMemoriesService(memorySystem);
@@ -145,8 +103,7 @@ server.registerTool(
       const output = { id: queuedItem.id, message: 'Memory queued for review' };
       return {
         content: [
-          { type: 'text', text: JSON.stringify(output) },
-          { type: 'json', json: output }
+          { type: 'text' as const, text: JSON.stringify(output) }
         ],
         structuredContent: output
       };
@@ -155,7 +112,7 @@ server.registerTool(
       const output = { error: 'Failed to queue memory', details: error?.message };
       return {
         content: [
-          { type: 'text', text: JSON.stringify(output) }
+          { type: 'text' as const, text: JSON.stringify(output) }
         ],
         structuredContent: output,
         isError: true
@@ -164,21 +121,33 @@ server.registerTool(
   }
 );
 
-async function initialize() {
-  logger.info('Initializing Memory MCP server...');
-  await memorySystem.initializeCollection();
-  logger.info('Memory MCP server initialization complete');
+async function main() {
+  try {
+    logger.info('Initializing Memory MCP server...');
+
+    // Initialize transport first
+    const transport = new StdioServerTransport();
+
+    // Connect server to transport - this must happen before any async initialization
+    await server.connect(transport);
+    logger.info('Memory MCP server connected via stdio transport');
+
+    // Initialize memory system after connection (non-blocking background task)
+    memorySystem.initializeCollection()
+      .then(() => {
+        logger.info('Memory collection initialized successfully');
+        logger.info(`Using embedding model: ${process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL}`);
+      })
+      .catch(err => {
+        logger.error(`Warning: Failed to initialize Qdrant collection: ${err.message}`);
+        logger.error(`Make sure Qdrant is running at ${process.env.QDRANT_URL}`);
+      });
+
+    logger.info('Memory MCP server ready');
+  } catch (err) {
+    logger.error(`Failed to start Memory MCP server: ${err}`);
+    process.exit(1);
+  }
 }
 
-initialize()
-  .then(async () => {
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    logger.info(`Memory MCP server connected via stdio transport`);
-    logger.info(`Using embedding model: ${process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL}`);
-  })
-  .catch(err => {
-    logger.error(`Failed to initialize Memory MCP server: ${err}`);
-    //console.error('Failed to initialize Memory MCP server:', err);
-    process.exit(1);
-  });
+main();
