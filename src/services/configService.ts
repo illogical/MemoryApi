@@ -6,7 +6,7 @@ class Config {
     public LLM_HOST: string = 'http://localhost:11434';
     public LLM_MODEL: string = 'phi4';
     public LLM_PROVIDER: string = 'ollama';
-    public EMBEDDING_MODEL: string = 'nomic-embed-text-v1.5';
+    public EMBEDDING_MODEL: string = 'nomic-embed-text:v1.5';
 
     public NEO4J_URI: string = 'bolt://localhost:7687';
     public NEO4J_USER: string = 'neo4j';

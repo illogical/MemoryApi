@@ -1,17 +1,17 @@
 import { Router, Request, Response } from 'express';
-import dotenv from 'dotenv';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory } from '../models/memory';
+import { logger } from '../utils/logger';
 
 // Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem();
 
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {
-    console.log('Initializing MemoryRAGSystem...');
+    logger.info('Initializing MemoryRAGSystem...');
     await memorySystem.initializeCollection();
-    console.log('MemoryRAGSystem initialization complete');
+    logger.info('MemoryRAGSystem initialization complete');
 }
 
 // Exported router instead of standalone app
@@ -42,7 +42,7 @@ memoryRouter.post('/memories', async (req: Request, res: Response) => {
         const id = await memorySystem.addMemory(memory);
         res.status(201).json({ id, message: 'Memory created successfully' });
     } catch (error) {
-        console.error('Error adding memory:', error);
+        logger.error(`Error adding memory: ${error}`);
         res.status(500).json({ error: 'Failed to add memory' });
     }
 });
@@ -63,7 +63,7 @@ memoryRouter.get('/memories/category/:category', async (req: Request, res: Respo
         const memories = await memorySystem.getMemoriesByCategory(category, limit);
         res.json({ category, count: memories.length, memories });
     } catch (error) {
-        console.error('Error retrieving memories:', error);
+        logger.error(`Error retrieving memories: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve memories' });
     }
 });
@@ -85,7 +85,7 @@ memoryRouter.post('/memories/search', async (req: Request, res: Response) => {
 
         res.json({ query, count: memories.length, memories });
     } catch (error) {
-        console.error('Error searching memories:', error);
+        logger.error(`Error searching memories: ${error}`);
         res.status(500).json({ error: 'Failed to search memories' });
     }
 });
@@ -103,7 +103,7 @@ memoryRouter.get('/memories/tags', async (req: Request, res: Response) => {
         const memories = await memorySystem.searchByTags(tags, category);
         res.json({ tags, count: memories.length, memories });
     } catch (error) {
-        console.error('Error searching by tags:', error);
+        logger.error(`Error searching by tags: ${error}`);
         res.status(500).json({ error: 'Failed to search by tags' });
     }
 });
@@ -117,7 +117,7 @@ memoryRouter.put('/memories/:id', async (req: Request, res: Response) => {
         await memorySystem.updateMemory(id, updates);
         res.json({ message: 'Memory updated successfully' });
     } catch (error) {
-        console.error('Error updating memory:', error);
+        logger.error(`Error updating memory: ${error}`);
         res.status(500).json({ error: 'Failed to update memory' });
     }
 });
@@ -129,7 +129,7 @@ memoryRouter.delete('/memories/:id', async (req: Request, res: Response) => {
         await memorySystem.deleteMemory(id);
         res.json({ message: 'Memory deleted successfully' });
     } catch (error) {
-        console.error('Error deleting memory:', error);
+        logger.error(`Error deleting memory: ${error}`);
         res.status(500).json({ error: 'Failed to delete memory' });
     }
 });
@@ -150,7 +150,7 @@ memoryRouter.get('/status', async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        console.error('Error getting status:', error);
+        logger.error(`Error getting status: ${error}`);
         res.status(500).json({ error: 'Failed to get status' });
     }
 });
@@ -164,7 +164,7 @@ memoryRouter.get('/status/vector', async (req: Request, res: Response) => {
             count: Math.max(0, count)
         });
     } catch (error) {
-        console.error('Error getting vector status:', error);
+        logger.error(`Error getting vector status: ${error}`);
         res.status(500).json({ error: 'Failed to get vector status' });
     }
 });
@@ -178,7 +178,7 @@ memoryRouter.get('/status/graph', async (req: Request, res: Response) => {
             count: Math.max(0, count)
         });
     } catch (error) {
-        console.error('Error getting graph status:', error);
+        logger.error(`Error getting graph status: ${error}`);
         res.status(500).json({ error: 'Failed to get graph status' });
     }
 });
@@ -190,7 +190,7 @@ memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
         const counts = await memorySystem.getCategoryCounts();
         res.json({ categoryCounts: counts });
     } catch (error) {
-        console.error('Error getting stats:', error);
+        logger.error(`Error getting stats: ${error}`);
         res.status(500).json({ error: 'Failed to get statistics' });
     }
 });
@@ -205,7 +205,7 @@ memoryRouter.get('/memories/:id', async (req: Request, res: Response) => {
         }
         res.json(memory);
     } catch (error) {
-        console.error('Error retrieving memory by id:', error);
+        logger.error(`Error retrieving memory by id: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve memory by id' });
     }
 });
@@ -227,7 +227,7 @@ memoryRouter.post('/memories/search-and-summarize', async (req: Request, res: Re
         const result = await memorySystem.searchAndSummarizeForMcp(query, options);
         res.json(result);
     } catch (error) {
-        console.error('Error in search-and-summarize:', error);
+        logger.error(`Error in search-and-summarize: ${error}`);
         res.status(500).json({ error: 'Failed to search and summarize memories' });
     }
 });

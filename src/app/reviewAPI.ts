@@ -3,6 +3,7 @@ import { memorySystem } from './qdrantAPI';
 import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+import { logger } from '../utils/logger';
 
 const reviewRouter = Router();
 const reviewService = new ReviewMemoriesService(memorySystem);
@@ -21,12 +22,14 @@ reviewRouter.post('/review/queue', async (req: Request, res: Response) => {
 
         const newItem = await reviewService.addToQueue(memory);
 
-        res.status(201).json({ 
-            message: 'Memory added to review queue', 
-            item: newItem 
+        logger.info(`Memory added to review queue: ${newItem.id}`);
+
+        res.status(201).json({
+            message: 'Memory added to review queue',
+            item: newItem
         });
     } catch (error) {
-        console.error('Error adding to review queue:', error);
+        logger.error(`Error adding to review queue: ${error}`);
         res.status(500).json({ error: 'Failed to add memory to review queue' });
     }
 });
@@ -37,7 +40,7 @@ reviewRouter.get('/review/queue', async (req: Request, res: Response) => {
         const queue = await reviewService.getQueue();
         res.json(queue);
     } catch (error) {
-        console.error('Error retrieving review queue:', error);
+        logger.error(`Error retrieving review queue: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve review queue' });
     }
 });
@@ -47,7 +50,7 @@ reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        
+
         // Validate category if provided
         if (updates.Category && !Object.values(MemoryCategory).includes(updates.Category)) {
             return res.status(400).json({
@@ -62,12 +65,12 @@ reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Memory not found in queue' });
         }
 
-        res.json({ 
-            message: 'Memory updated in queue', 
-            item: updatedItem 
+        res.json({
+            message: 'Memory updated in queue',
+            item: updatedItem
         });
     } catch (error) {
-        console.error('Error updating review queue item:', error);
+        logger.error(`Error updating review queue item: ${error}`);
         res.status(500).json({ error: 'Failed to update review queue item' });
     }
 });
@@ -84,7 +87,7 @@ reviewRouter.delete('/review/queue/:id', async (req: Request, res: Response) => 
 
         res.json({ message: 'Memory removed from review queue' });
     } catch (error) {
-        console.error('Error deleting from review queue:', error);
+        logger.error(`Error deleting from review queue: ${error}`);
         res.status(500).json({ error: 'Failed to delete from review queue' });
     }
 });
@@ -95,7 +98,7 @@ reviewRouter.get('/review/categories', (req: Request, res: Response) => {
         const categories = reviewService.getCategories();
         res.json(categories);
     } catch (error) {
-        console.error('Error retrieving categories:', error);
+        logger.error(`Error retrieving categories: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve categories' });
     }
 });
@@ -106,7 +109,7 @@ reviewRouter.get('/review/tags', async (req: Request, res: Response) => {
         const tags = await reviewService.getAllTags();
         res.json(tags);
     } catch (error) {
-        console.error('Error retrieving tags:', error);
+        logger.error(`Error retrieving tags: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve tags' });
     }
 });
@@ -121,12 +124,12 @@ reviewRouter.post('/review/commit/:id', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Memory not found in queue' });
         }
 
-        res.json({ 
-            message: 'Memory committed to database', 
-            id: memoryId 
+        res.json({
+            message: 'Memory committed to database',
+            id: memoryId
         });
     } catch (error) {
-        console.error('Error committing memory:', error);
+        logger.error(`Error committing memory: ${error}`);
         res.status(500).json({ error: 'Failed to commit memory' });
     }
 });
