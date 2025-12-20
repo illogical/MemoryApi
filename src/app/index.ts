@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 //import routes from './routes';
 import { memoryRouter, initializeMemorySystem } from './qdrantAPI';
+import { config } from '../services/configService';
 import { reviewRouter } from './reviewAPI';
 
 const app = express();
@@ -15,7 +16,7 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 app.use('/api', memoryRouter);
 app.use('/api', reviewRouter);
 
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 
 // Initialize memory system before starting server
 initializeMemorySystem()

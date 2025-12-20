@@ -18,9 +18,7 @@ import { LoggingService } from './loggingService';
 import { ModelClient, LMStudioModelClient, OllamaModelClient, ModelProvider } from './modelClients';
 import * as fs from 'fs';
 import * as path from 'path';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from './configService';
 
 // ==================== Shared Type Definitions ====================
 
@@ -73,9 +71,9 @@ export abstract class BaseEvaluator {
     protected maxTokens: number;
 
     constructor(
-        modelName: string = (process.env.LLM_MODEL || 'llama-3.2-3b-instruct'),
-        promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
-        provider: ModelProvider = ((process.env.LLM_PROVIDER as ModelProvider) || 'lmstudio'),
+        modelName: string = config.LLM_MODEL,
+        promptBasePath: string = config.PROMPT_TEMPLATE_BASE_PATH,
+        provider: ModelProvider = config.LLM_PROVIDER as ModelProvider,
         temperature: number = 0.3,
         maxTokens: number = 100
     ) {
@@ -83,7 +81,7 @@ export abstract class BaseEvaluator {
         this.logger = new LoggingService(path.join(process.cwd(), 'logs'), 'debug', 'info');
         this.modelName = modelName;
         this.provider = provider;
-        const baseUrl = process.env.LLM_HOST || 'http://localhost:11434';
+        const baseUrl = config.LLM_HOST;
         this.modelClient = provider === 'ollama' ? new OllamaModelClient(baseUrl) : new LMStudioModelClient(baseUrl);
         this.temperature = temperature;
         this.maxTokens = maxTokens;
@@ -132,29 +130,29 @@ export abstract class BaseEvaluator {
     protected calculateMultiValueMetrics(groundTruth: string[], predicted: string[]): BaseCaseMetrics {
         const groundTruthSet = new Set(groundTruth);
         const predictedSet = new Set(predicted);
-        
+
         // Calculate true positives (correct predictions)
         const truePositives = predicted.filter(item => groundTruthSet.has(item));
-        
+
         // Calculate precision: TP / Total Predicted
-        const precision = predicted.length > 0 
-            ? truePositives.length / predicted.length 
+        const precision = predicted.length > 0
+            ? truePositives.length / predicted.length
             : 0;
-        
+
         // Calculate recall: TP / Total Ground Truth
-        const recall = groundTruth.length > 0 
-            ? truePositives.length / groundTruth.length 
+        const recall = groundTruth.length > 0
+            ? truePositives.length / groundTruth.length
             : 0;
-        
+
         // Calculate F1 score: harmonic mean of precision and recall
-        const f1Score = (precision + recall) > 0 
-            ? 2 * (precision * recall) / (precision + recall) 
+        const f1Score = (precision + recall) > 0
+            ? 2 * (precision * recall) / (precision + recall)
             : 0;
-        
+
         // Exact match: all ground truth items present, no extra items
-        const exactMatch = truePositives.length === groundTruth.length && 
-                          predicted.length === groundTruth.length;
-        
+        const exactMatch = truePositives.length === groundTruth.length &&
+            predicted.length === groundTruth.length;
+
         return {
             precision,
             recall,
@@ -168,7 +166,7 @@ export abstract class BaseEvaluator {
      */
     calculateAggregateMetrics(cases: any[]): BaseAggregateMetrics {
         const totalCases = cases.length;
-        
+
         if (totalCases === 0) {
             return {
                 averagePrecision: 0,
@@ -178,16 +176,16 @@ export abstract class BaseEvaluator {
                 totalCases: 0
             };
         }
-        
+
         // Average metrics
         const averagePrecision = cases.reduce((sum, c) => sum + c.metrics.precision, 0) / totalCases;
         const averageRecall = cases.reduce((sum, c) => sum + c.metrics.recall, 0) / totalCases;
         const averageF1Score = cases.reduce((sum, c) => sum + c.metrics.f1Score, 0) / totalCases;
-        
+
         // Exact match rate
         const exactMatches = cases.filter(c => c.metrics.exactMatch).length;
         const exactMatchRate = exactMatches / totalCases;
-        
+
         return {
             averagePrecision,
             averageRecall,
@@ -205,7 +203,7 @@ export abstract class BaseEvaluator {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
-        
+
         fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
         this.logger.log(`\nReport saved to: ${outputPath}`);
     }
@@ -215,7 +213,7 @@ export abstract class BaseEvaluator {
      */
     protected generateMarkdownHeader(report: BaseEvaluationReport, title: string): string {
         const { modelName, promptVersion, timestamp, config } = report;
-        
+
         let markdown = `# ${title}\n\n`;
         markdown += `**Date:** ${new Date(timestamp).toLocaleString()}\n\n`;
         markdown += `**Prompt Version:** ${promptVersion}\n`;
@@ -228,7 +226,7 @@ export abstract class BaseEvaluator {
             markdown += `- Average Generation Time: ${config.averageGenTime}s\n`;
         }
         markdown += `\n`;
-        
+
         return markdown;
     }
 
@@ -243,16 +241,16 @@ export abstract class BaseEvaluator {
         markdown += `| **Average Recall** | ${(aggregateMetrics.averageRecall * 100).toFixed(2)}% |\n`;
         markdown += `| **Average F1 Score** | ${(aggregateMetrics.averageF1Score * 100).toFixed(2)}% |\n`;
         markdown += `| **Exact Match Rate** | ${(aggregateMetrics.exactMatchRate * 100).toFixed(2)}% |\n`;
-        
+
         // Add any additional metrics passed in
         if (additionalMetrics) {
             for (const [key, value] of Object.entries(additionalMetrics)) {
                 markdown += `| **${key}** | ${(value * 100).toFixed(2)}% |\n`;
             }
         }
-        
+
         markdown += `| **Total Cases** | ${aggregateMetrics.totalCases} |\n\n`;
-        
+
         return markdown;
     }
 
@@ -274,13 +272,13 @@ export abstract class BaseEvaluator {
         this.logger.log(`Average Recall: ${(aggregateMetrics.averageRecall * 100).toFixed(2)}%`);
         this.logger.log(`Average F1 Score: ${(aggregateMetrics.averageF1Score * 100).toFixed(2)}%`);
         this.logger.log(`Exact Match Rate: ${(aggregateMetrics.exactMatchRate * 100).toFixed(2)}%`);
-        
+
         if (additionalMetrics) {
             for (const [key, value] of Object.entries(additionalMetrics)) {
                 this.logger.log(`${key}: ${(value * 100).toFixed(2)}%`);
             }
         }
-        
+
         this.logger.log(`Average Generation Time: ${(averageGenTime / 1000).toFixed(2)}s`);
     }
 

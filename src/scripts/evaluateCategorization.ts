@@ -19,6 +19,7 @@
 
 import { BaseEvaluator, BaseEvaluationReport } from '../services/baseEvaluator';
 import { ModelProvider } from '../services/modelClients';
+import { config } from '../services/configService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -68,9 +69,9 @@ class CategorizationEvaluator extends BaseEvaluator {
     private validCategories: Set<string>;
 
     constructor(
-        modelName: string = (process.env.LLM_MODEL || 'llama-3.2-3b-instruct'),
-        promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
-        provider: ModelProvider = ((process.env.LLM_PROVIDER as ModelProvider) || 'lmstudio')
+        modelName: string = config.LLM_MODEL,
+        promptBasePath: string = config.PROMPT_TEMPLATE_BASE_PATH,
+        provider: ModelProvider = config.LLM_PROVIDER as ModelProvider
     ) {
         super(modelName, promptBasePath, provider, 0.3, 50);
         this.validCategories = this.loadValidCategories();
@@ -89,7 +90,7 @@ class CategorizationEvaluator extends BaseEvaluator {
             'Prompt',
             'Idea'
         ]);
-        
+
         this.logger.info(`Loaded ${categories.size} valid categories`);
         return categories;
     }
@@ -109,13 +110,13 @@ class CategorizationEvaluator extends BaseEvaluator {
         });
         const responseText = (response.content || '').trim();
         this.logger.debug(`Raw model response: ${responseText}`);
-        
+
         // Clean up the response - remove quotes, extra whitespace, etc.
         let category = responseText
             .replace(/^["']|["']$/g, '')  // Remove surrounding quotes
             .replace(/^Category:\s*/i, '')  // Remove "Category:" prefix if present
             .trim();
-        
+
         return category;
     }
 
@@ -132,10 +133,10 @@ class CategorizationEvaluator extends BaseEvaluator {
     calculateAggregateMetrics(cases: EvaluationCase[]): AggregateMetrics {
         const baseMetrics = super.calculateAggregateMetrics(cases);
         const totalCases = cases.length;
-        
+
         // Calculate accuracy (same as exactMatchRate for single-value classification)
         const accuracy = baseMetrics.exactMatchRate;
-        
+
         // Build confusion matrix
         const confusionMatrix: Record<string, Record<string, number>> = {};
         this.validCategories.forEach(cat => {
@@ -144,23 +145,23 @@ class CategorizationEvaluator extends BaseEvaluator {
                 confusionMatrix[cat][pred] = 0;
             });
         });
-        
+
         // Build category performance stats
         const categoryPerformance: Record<string, { correct: number; total: number; accuracy: number }> = {};
         this.validCategories.forEach(cat => {
             categoryPerformance[cat] = { correct: 0, total: 0, accuracy: 0 };
         });
-        
+
         // Populate matrices
         cases.forEach(evalCase => {
             const gt = evalCase.groundTruthCategory;
             const pred = evalCase.predictedCategory;
-            
+
             // Update confusion matrix
             if (confusionMatrix[gt] && confusionMatrix[gt][pred] !== undefined) {
                 confusionMatrix[gt][pred]++;
             }
-            
+
             // Update category performance
             if (categoryPerformance[gt]) {
                 categoryPerformance[gt].total++;
@@ -169,13 +170,13 @@ class CategorizationEvaluator extends BaseEvaluator {
                 }
             }
         });
-        
+
         // Calculate accuracy for each category
         Object.keys(categoryPerformance).forEach(cat => {
             const perf = categoryPerformance[cat];
             perf.accuracy = perf.total > 0 ? perf.correct / perf.total : 0;
         });
-        
+
         return {
             ...baseMetrics,
             accuracy,
@@ -274,37 +275,37 @@ class CategorizationEvaluator extends BaseEvaluator {
      */
     generateMarkdownReport(report: EvaluationReport): string {
         const { aggregateMetrics, cases } = report;
-        
+
         // Use base class methods for common markdown sections
         let markdown = this.generateMarkdownHeader(report, 'Categorization Evaluation Report');
-        markdown += this.generateAggregateMetricsTable(aggregateMetrics, { 
-            'Accuracy': aggregateMetrics.accuracy 
+        markdown += this.generateAggregateMetricsTable(aggregateMetrics, {
+            'Accuracy': aggregateMetrics.accuracy
         });
-        
+
         // Category performance breakdown
         markdown += `## 📂 Category Performance Analysis\n\n`;
         markdown += `| Category | Total | Correct | Accuracy |\n`;
         markdown += `|----------|-------|---------|----------|\n`;
-        
+
         const sortedCategories = Object.entries(aggregateMetrics.categoryPerformance)
             .filter(([_, stats]) => stats.total > 0)
             .sort((a, b) => b[1].accuracy - a[1].accuracy);
-        
+
         sortedCategories.forEach(([category, stats]) => {
             markdown += `| ${category} | ${stats.total} | ${stats.correct} | ${(stats.accuracy * 100).toFixed(0)}% |\n`;
         });
-        
+
         // Confusion Matrix
         markdown += `\n## 🔀 Confusion Matrix\n\n`;
         markdown += `Rows represent ground truth categories, columns represent predicted categories.\n\n`;
-        
+
         // Build confusion matrix table
         const categoriesWithData = Object.keys(aggregateMetrics.categoryPerformance)
             .filter(cat => aggregateMetrics.categoryPerformance[cat].total > 0);
-        
+
         markdown += `| Ground Truth \\ Predicted | ${categoriesWithData.join(' | ')} |\n`;
         markdown += `|${'-'.repeat(25)}|${categoriesWithData.map(() => '---').join('|')}|\n`;
-        
+
         categoriesWithData.forEach(gtCat => {
             const row = categoriesWithData.map(predCat => {
                 const count = aggregateMetrics.confusionMatrix[gtCat]?.[predCat] || 0;
@@ -312,20 +313,20 @@ class CategorizationEvaluator extends BaseEvaluator {
             });
             markdown += `| **${gtCat}** | ${row.join(' | ')} |\n`;
         });
-        
+
         markdown += `\n## 📝 Detailed Case Results\n\n`;
-        
+
         // Show incorrect cases first
         const incorrectCases = cases.filter(c => !c.metrics.exactMatch);
         const correctCases = cases.filter(c => c.metrics.exactMatch);
-        
+
         if (incorrectCases.length > 0) {
             markdown += `### ❌ Incorrect Classifications (${incorrectCases.length})\n\n`;
             incorrectCases.forEach(evalCase => {
                 markdown += this.formatCaseMarkdown(evalCase);
             });
         }
-        
+
         if (correctCases.length > 0) {
             markdown += `### ✅ Correct Classifications (${correctCases.length})\n\n`;
             markdown += `<details>\n<summary>Click to expand correct classifications</summary>\n\n`;
@@ -341,7 +342,7 @@ class CategorizationEvaluator extends BaseEvaluator {
             markdown += `\n\`\`\`\n${report.prompt}\n\`\`\`\n`;
             markdown += `</details>\n\n`;
         }
-        
+
         return markdown;
     }
 
@@ -376,16 +377,16 @@ async function main() {
         process.exit(1);
     }
     console.log(`[Categorization Evaluation] Using model: ${modelName}`);
-    
+
     const provider = providerArg ? (providerArg.split('=')[1] as ModelProvider) : 'lmstudio';
     if (provider !== 'lmstudio' && provider !== 'ollama') {
         console.error('Error: --provider must be either "lmstudio" or "ollama"');
         process.exit(1);
     }
     console.log(`[Categorization Evaluation] Provider: ${provider}`);
-    
-    const outputPath = outputArg 
-        ? outputArg.split('=')[1] 
+
+    const outputPath = outputArg
+        ? outputArg.split('=')[1]
         : path.join(process.cwd(), 'reports', `categorization_eval_${new Date().toISOString().replace(/:/g, '-')}.json`);
 
     console.log(`[Categorization Evaluation] Output path: ${outputPath}`);
@@ -394,7 +395,7 @@ async function main() {
     console.log(`[Categorization Evaluation] Seed memories path: ${seedPath}`);
 
     // Create evaluator and run evaluation
-    const evaluator = new CategorizationEvaluator(modelName, (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')), provider);
+    const evaluator = new CategorizationEvaluator(modelName, config.PROMPT_TEMPLATE_BASE_PATH, provider);
     console.log('[Categorization Evaluation] Running evaluation...');
     const report = await evaluator.runEvaluation(seedPath);
     console.log('[Categorization Evaluation] Evaluation complete. Saving reports...');

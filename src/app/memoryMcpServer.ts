@@ -1,5 +1,4 @@
 import { ReviewMemoriesService } from '../services/reviewMemoriesService';
-import dotenv from 'dotenv';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -7,21 +6,12 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { LoggingService } from '../services/loggingService';
 
-dotenv.config();
-
-const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
-const DEFAULT_LLM_PROVIDER = 'ollama';
 
 // Initialize logging service
 const logger = new LoggingService();
 
 // Instantiate underlying memory system (same core used by REST API)
-const memorySystem = new MemoryRAGSystem(
-  process.env.QDRANT_URL || 'http://localhost:6333',
-  process.env.LLM_MODEL || 'phi4',
-  process.env.LLM_PROVIDER || DEFAULT_LLM_PROVIDER,
-  process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL
-);
+const memorySystem = new MemoryRAGSystem();
 
 // Create MCP server using modern API
 const server = new McpServer({
@@ -136,11 +126,9 @@ async function main() {
     memorySystem.initializeCollection()
       .then(() => {
         logger.info('Memory collection initialized successfully');
-        logger.info(`Using embedding model: ${process.env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL}`);
       })
       .catch(err => {
         logger.error(`Warning: Failed to initialize Qdrant collection: ${err.message}`);
-        logger.error(`Make sure Qdrant is running at ${process.env.QDRANT_URL}`);
       });
 
     logger.info('Memory MCP server ready');

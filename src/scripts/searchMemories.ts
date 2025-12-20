@@ -1,19 +1,7 @@
-import { config } from 'dotenv';
-config();
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 
 async function main() {
-    const qdrantUrl = process.env.QDRANT_URL;
-    const embeddingModel = process.env.EMBEDDING_MODEL;
-    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
-    const provider = process.env.LLM_PROVIDER || 'lmstudio';
-
-    if (!qdrantUrl || !embeddingModel) {
-        console.error('Missing QDRANT_URL or EMBEDDING_MODEL in environment variables.');
-        process.exit(1);
-    }
-
     const args = process.argv.slice(2);
     if (args.length === 0) {
         console.error('Usage: npm run search-memories -- "Query here" [--category=SpecificCategory] [--limit=5]');
@@ -47,7 +35,7 @@ async function main() {
         }
     }
 
-    const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
+    const ragSystem = new MemoryRAGSystem();
 
     try {
         await ragSystem.initializeCollection(); // Ensure collection exists, though strictly not needed for search if it definitely exists

@@ -15,21 +15,14 @@
 
 import path from 'path';
 import fs from 'fs';
-import dotenv from 'dotenv';
+import { config } from '../services/configService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryReportService } from '../services/memoryReportService';
 
 // Load environment variables
-dotenv.config();
-
 async function main() {
-    const qdrantUrl = process.env.QDRANT_URL || 'http://localhost:6333';
-    const embeddingModel = process.env.EMBEDDING_MODEL || 'nomic-embed-text-v1.5';
-    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
-    const provider = process.env.LLM_PROVIDER || 'lmstudio';
-
     // Instantiate RAG system and report service
-    const rag = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
+    const rag = new MemoryRAGSystem();
     const reportService = new MemoryReportService('reports');
 
     // Ensure collection exists (safe to call)
@@ -134,7 +127,7 @@ async function main() {
     try {
         const filePath = await reportService.generateAndSaveCombinedPostSearchAggregationReport(
             results,
-            embeddingModel,
+            config.EMBEDDING_MODEL,
             reportFormat
         );
         console.log(`[RunSemanticQueries] Combined report saved: ${filePath}`);

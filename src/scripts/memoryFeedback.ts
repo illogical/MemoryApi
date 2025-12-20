@@ -1,5 +1,4 @@
-import { config } from 'dotenv';
-config();
+import { config } from '../services/configService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import path from 'path';
@@ -7,15 +6,7 @@ import { FeedbackQueryLoader } from '../helpers/FeedbackQueryLoader';
 import { MemoryReportService, ReportStats } from '../services/memoryReportService';
 
 async function main() {
-    const qdrantUrl = process.env.QDRANT_URL;
-    const embeddingModel = process.env.EMBEDDING_MODEL;
-    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
-    const provider = process.env.LLM_PROVIDER || 'lmstudio';
-    if (!qdrantUrl || !embeddingModel) {
-        console.error('Missing QDRANT_URL or EMBEDDING_MODEL in environment variables.');
-        process.exit(1);
-    }
-    const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
+    const ragSystem = new MemoryRAGSystem();
 
     // Load feedback queries from JSON file
     // Find the first argument that doesn't start with --
@@ -64,7 +55,7 @@ async function main() {
         successCount: semanticSearches.reduce((acc, s) => acc + s.results.length, 0) + tagSearches.reduce((acc, t) => acc + t.results.length, 0),
         durationMs: Date.now() - startTime,
         timestamp: new Date(),
-        embeddingModel: embeddingModel
+        embeddingModel: config.EMBEDDING_MODEL
     };
     // Parse report format from args
     const reportFormatArg = process.argv.find(arg => arg.startsWith('--report-format='));
@@ -75,7 +66,7 @@ async function main() {
         memoriesByCategory,
         semanticSearches,
         tagSearches,
-        embeddingModel,
+        embeddingModel: config.EMBEDDING_MODEL,
         timestamp: reportStats.timestamp
     }, reportFormat);
     console.log(`Feedback report generated at: ${reportPath}`);

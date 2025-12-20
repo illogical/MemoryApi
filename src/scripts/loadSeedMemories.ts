@@ -1,5 +1,4 @@
-import { config } from 'dotenv';
-config();
+import { config } from '../services/configService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { Memory } from '../models/memory';
@@ -7,17 +6,8 @@ import { MemoryReportService, ReportStats } from '../services/memoryReportServic
 
 async function main() {
     const startTime = Date.now();
-    // Load config from environment
-    const qdrantUrl = process.env.QDRANT_URL;
-    const embeddingModel = process.env.EMBEDDING_MODEL;
-    const modelName = process.env.LLM_MODEL || 'llama-3.2-3b-instruct';
-    const provider = process.env.LLM_PROVIDER || 'lmstudio';
-    if (!qdrantUrl || !embeddingModel) {
-        console.error('Missing QDRANT_URL or EMBEDDING_MODEL in environment variables.');
-        process.exit(1);
-    }
-    // Instantiate your MemoryRAGSystem with config
-    const ragSystem = new MemoryRAGSystem(qdrantUrl, modelName, provider, embeddingModel);
+    // Instantiate your MemoryRAGSystem
+    const ragSystem = new MemoryRAGSystem();
     try {
         await ragSystem.deleteCollection();
     } catch (error) {
@@ -92,7 +82,7 @@ async function main() {
         successCount: loadedCount,
         durationMs: Date.now() - startTime,
         timestamp: new Date(),
-        embeddingModel: embeddingModel
+        embeddingModel: config.EMBEDDING_MODEL
     };
     // Parse report format from args
     const reportFormatArg = process.argv.find(arg => arg.startsWith('--report-format='));

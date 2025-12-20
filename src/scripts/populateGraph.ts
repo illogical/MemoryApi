@@ -1,18 +1,12 @@
 import { GraphService } from '../services/graphService';
 import { MemoryCategory } from '../models/memoryCategory';
-import dotenv from 'dotenv';
+import { config } from '../services/configService';
 import fs from 'fs';
 import path from 'path';
 
-dotenv.config();
-
-const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
-const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'password';
-
 async function main() {
-    console.log(`Connecting to Neo4j at ${NEO4J_URI}...`);
-    const graphService = new GraphService(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD);
+    console.log(`Connecting to Neo4j at ${config.NEO4J_URI}...`);
+    const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
 
     try {
         // 1. Initialize Schema

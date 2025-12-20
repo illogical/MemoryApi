@@ -21,6 +21,7 @@
 
 import { BaseEvaluator, SeedMemory, BaseEvaluationReport } from '../services/baseEvaluator';
 import { ModelProvider } from '../services/modelClients';
+import { config } from '../services/configService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -73,9 +74,9 @@ class TaggingEvaluator extends BaseEvaluator {
     private validTags: Set<string>;
 
     constructor(
-        modelName: string = (process.env.LLM_MODEL || 'llama-3.2-3b-instruct'),
-        promptBasePath: string = (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')),
-        provider: ModelProvider = ((process.env.LLM_PROVIDER as ModelProvider) || 'lmstudio')
+        modelName: string = config.LLM_MODEL,
+        promptBasePath: string = config.PROMPT_TEMPLATE_BASE_PATH,
+        provider: ModelProvider = config.LLM_PROVIDER as ModelProvider
     ) {
         super(modelName, promptBasePath, provider, 0.3, 100);
         this.validTags = this.loadValidTags(promptBasePath);
@@ -88,11 +89,11 @@ class TaggingEvaluator extends BaseEvaluator {
         const tagsPath = path.join(promptBasePath, '../samples/allTags.json');
         const tagsData = JSON.parse(fs.readFileSync(tagsPath, 'utf-8'));
         const tags = new Set<string>();
-        
+
         tagsData.TagGroups.forEach((group: any) => {
             group.Tags.forEach((tag: string) => tags.add(tag));
         });
-        
+
         this.logger.info(`Loaded ${tags.size} valid tags from allTags.json`);
         return tags;
     }
@@ -126,40 +127,40 @@ class TaggingEvaluator extends BaseEvaluator {
     calculateCaseMetrics(groundTruth: string[], predicted: string[]): CaseMetrics {
         const groundTruthSet = new Set(groundTruth);
         const predictedSet = new Set(predicted);
-        
+
         // Calculate true positives (correct predictions)
         const truePositives = predicted.filter(tag => groundTruthSet.has(tag));
-        
+
         // Calculate false positives (incorrect predictions - valid but not in ground truth)
-        const falsePositives = predicted.filter(tag => 
+        const falsePositives = predicted.filter(tag =>
             !groundTruthSet.has(tag) && this.validTags.has(tag)
         );
-        
+
         // Calculate false negatives (missed tags)
         const falseNegatives = groundTruth.filter(tag => !predictedSet.has(tag));
-        
+
         // Calculate hallucinations (predicted tags not in valid tag list)
         const hallucinatedTags = predicted.filter(tag => !this.validTags.has(tag));
-        
+
         // Calculate precision: TP / (TP + FP + Hallucinations)
-        const precision = predicted.length > 0 
-            ? truePositives.length / predicted.length 
+        const precision = predicted.length > 0
+            ? truePositives.length / predicted.length
             : 0;
-        
+
         // Calculate recall: TP / (TP + FN)
-        const recall = groundTruth.length > 0 
-            ? truePositives.length / groundTruth.length 
+        const recall = groundTruth.length > 0
+            ? truePositives.length / groundTruth.length
             : 0;
-        
+
         // Calculate F1 score: harmonic mean of precision and recall
-        const f1Score = (precision + recall) > 0 
-            ? 2 * (precision * recall) / (precision + recall) 
+        const f1Score = (precision + recall) > 0
+            ? 2 * (precision * recall) / (precision + recall)
             : 0;
-        
+
         // Exact match: all ground truth tags present, no extra tags
-        const exactMatch = truePositives.length === groundTruth.length && 
-                          predicted.length === groundTruth.length;
-        
+        const exactMatch = truePositives.length === groundTruth.length &&
+            predicted.length === groundTruth.length;
+
         return {
             precision,
             recall,
@@ -177,47 +178,47 @@ class TaggingEvaluator extends BaseEvaluator {
      */
     calculateAggregateMetrics(cases: EvaluationCase[]): AggregateMetrics {
         const totalCases = cases.length;
-        
+
         // Average metrics
         const averagePrecision = cases.reduce((sum, c) => sum + c.metrics.precision, 0) / totalCases;
         const averageRecall = cases.reduce((sum, c) => sum + c.metrics.recall, 0) / totalCases;
         const averageF1Score = cases.reduce((sum, c) => sum + c.metrics.f1Score, 0) / totalCases;
-        
+
         // Exact match rate
         const exactMatches = cases.filter(c => c.metrics.exactMatch).length;
         const exactMatchRate = exactMatches / totalCases;
-        
+
         // Hallucination rate
         const casesWithHallucinations = cases.filter(c => c.metrics.hallucinatedTags.length > 0).length;
         const hallucinationRate = casesWithHallucinations / totalCases;
-        
+
         // Tag-level frequency analysis
         const tagFrequency: Record<string, { predicted: number; correct: number; missed: number }> = {};
-        
+
         this.validTags.forEach(tag => {
             tagFrequency[tag] = { predicted: 0, correct: 0, missed: 0 };
         });
-        
+
         cases.forEach(evalCase => {
             evalCase.predictedTags.forEach(tag => {
                 if (tagFrequency[tag]) {
                     tagFrequency[tag].predicted++;
                 }
             });
-            
+
             evalCase.metrics.truePositives.forEach(tag => {
                 if (tagFrequency[tag]) {
                     tagFrequency[tag].correct++;
                 }
             });
-            
+
             evalCase.metrics.falseNegatives.forEach(tag => {
                 if (tagFrequency[tag]) {
                     tagFrequency[tag].missed++;
                 }
             });
         });
-        
+
         return {
             averagePrecision,
             averageRecall,
@@ -325,40 +326,40 @@ class TaggingEvaluator extends BaseEvaluator {
      */
     generateMarkdownReport(report: EvaluationReport): string {
         const { aggregateMetrics, cases } = report;
-        
+
         // Use base class methods for common markdown sections
         let markdown = this.generateMarkdownHeader(report, 'Tagging Evaluation Report');
-        markdown += this.generateAggregateMetricsTable(aggregateMetrics, { 
-            'Hallucination Rate': aggregateMetrics.hallucinationRate 
+        markdown += this.generateAggregateMetricsTable(aggregateMetrics, {
+            'Hallucination Rate': aggregateMetrics.hallucinationRate
         });
-        
+
         // Tag performance breakdown
         markdown += `## 🏷️ Tag Performance Analysis\n\n`;
         markdown += `| Tag | Predicted | Correct | Missed | Precision |\n`;
         markdown += `|-----|-----------|---------|--------|----------|\n`;
-        
+
         const sortedTags = Object.entries(aggregateMetrics.tagFrequency)
             .filter(([_, stats]) => stats.predicted > 0 || stats.correct > 0 || stats.missed > 0)
             .sort((a, b) => b[1].predicted - a[1].predicted);
-        
+
         sortedTags.forEach(([tag, stats]) => {
             const precision = stats.predicted > 0 ? (stats.correct / stats.predicted * 100).toFixed(0) : 'N/A';
             markdown += `| ${tag} | ${stats.predicted} | ${stats.correct} | ${stats.missed} | ${precision}% |\n`;
         });
-        
+
         markdown += `\n## 📝 Detailed Case Results\n\n`;
-        
+
         // Show cases with issues first
         const problemCases = cases.filter(c => !c.metrics.exactMatch || c.metrics.hallucinatedTags.length > 0);
         const perfectCases = cases.filter(c => c.metrics.exactMatch && c.metrics.hallucinatedTags.length === 0);
-        
+
         if (problemCases.length > 0) {
             markdown += `### ⚠️ Cases with Issues (${problemCases.length})\n\n`;
             problemCases.forEach(evalCase => {
                 markdown += this.formatCaseMarkdown(evalCase);
             });
         }
-        
+
         if (perfectCases.length > 0) {
             markdown += `### ✅ Perfect Matches (${perfectCases.length})\n\n`;
             markdown += `<details>\n<summary>Click to expand perfect matches</summary>\n\n`;
@@ -374,7 +375,7 @@ class TaggingEvaluator extends BaseEvaluator {
             markdown += `\n\`\`\`\n${report.prompt}\n\`\`\`\n`;
             markdown += `</details>\n\n`;
         }
-        
+
         return markdown;
     }
 
@@ -429,8 +430,8 @@ async function main() {
         process.exit(1);
     }
     console.log(`[Tagging Evaluation] Provider: ${provider}`);
-    const outputPath = outputArg 
-        ? outputArg.split('=')[1] 
+    const outputPath = outputArg
+        ? outputArg.split('=')[1]
         : path.join(process.cwd(), 'reports', `tagging_eval_${new Date().toISOString().replace(/:/g, '-')}.json`);
 
     console.log(`[Tagging Evaluation] Output path: ${outputPath}`);
@@ -439,7 +440,7 @@ async function main() {
     console.log(`[Tagging Evaluation] Seed memories path: ${seedPath}`);
 
     // Create evaluator and run evaluation
-    const evaluator = new TaggingEvaluator(modelName, (process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), '/src/prompts')), provider);
+    const evaluator = new TaggingEvaluator(modelName, config.PROMPT_TEMPLATE_BASE_PATH, provider);
     console.log('[Tagging Evaluation] Running evaluation...');
     const report = await evaluator.runEvaluation(seedPath);
     console.log('[Tagging Evaluation] Evaluation complete. Saving reports...');

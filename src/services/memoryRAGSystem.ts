@@ -10,21 +10,13 @@ import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
 import { GraphService } from './graphService';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text-v1.5';
-const LLM_HOST = process.env.LLM_HOST || 'http://localhost:11434';
-const NEO4J_URI = process.env.NEO4J_URI || 'bolt://localhost:7687';
-const NEO4J_USER = process.env.NEO4J_USER || 'neo4j';
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || 'password';
+import { config } from './configService';
 
 class MemoryRAGSystem {
     private orchestrator: RAGOrchestrator;
     private embeddingClient: EmbeddingClient;
     private modelClient: ModelClient; // Abstraction for provider-specific inference
-    private promptTemplateService: PromptTemplateService = new PromptTemplateService(process.env.PROMPT_TEMPLATE_BASE_PATH || '~/prompts');
+    private promptTemplateService: PromptTemplateService = new PromptTemplateService(config.PROMPT_TEMPLATE_BASE_PATH);
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
     private graphService: GraphService;
@@ -41,18 +33,21 @@ class MemoryRAGSystem {
 
     private postSearchAggregator: MemoryPostSearchAggregator;
 
-    constructor(qdrantUrl: string, modelName: string, modelProvider: string, embeddingModelName: string = DEFAULT_EMBEDDING_MODEL) {
+    constructor() {
         // Initialize Services
-        const vectorService = new VectorService(qdrantUrl, this.loggingService);
-        this.graphService = new GraphService(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD);
+        const vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
+        this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
 
         this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.loggingService);
 
         // Initialize embedding client (now using Ollama by default as requested)
-        this.embeddingClient = new OllamaEmbeddingClient(LLM_HOST);
-        this.embeddingClient.load(embeddingModelName);
+        this.embeddingClient = new OllamaEmbeddingClient(config.LLM_HOST);
+        this.embeddingClient.load(config.EMBEDDING_MODEL);
 
         // Initialize model client abstraction
+        const modelProvider = config.LLM_PROVIDER;
+        const LLM_HOST = config.LLM_HOST;
+
         if (modelProvider === 'lmstudio') {
             this.modelClient = new LMStudioModelClient(LLM_HOST);
         } else if (modelProvider === 'ollama') {
@@ -60,7 +55,7 @@ class MemoryRAGSystem {
         } else {
             throw new Error(`Unsupported model provider: ${modelProvider}`);
         }
-        this.modelClient.load(modelName);
+        this.modelClient.load(config.LLM_MODEL);
 
         // Re-initialize aggregator with graph service
         this.postSearchAggregator = new MemoryPostSearchAggregator(
