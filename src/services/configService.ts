@@ -1,24 +1,42 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config();
-
 class Config {
-    public readonly QDRANT_URL: string = process.env.QDRANT_URL || 'http://localhost:6333';
-    public readonly LLM_HOST: string = process.env.LLM_HOST || 'http://localhost:11434';
-    public readonly LLM_MODEL: string = process.env.LLM_MODEL || 'phi4';
-    public readonly LLM_PROVIDER: string = process.env.LLM_PROVIDER || 'ollama';
-    public readonly EMBEDDING_MODEL: string = process.env.EMBEDDING_MODEL || 'nomic-embed-text-v1.5';
+    public QDRANT_URL: string = 'http://localhost:6333';
+    public LLM_HOST: string = 'http://localhost:11434';
+    public LLM_MODEL: string = 'phi4';
+    public LLM_PROVIDER: string = 'ollama';
+    public EMBEDDING_MODEL: string = 'nomic-embed-text-v1.5';
 
-    public readonly NEO4J_URI: string = process.env.NEO4J_URI || 'bolt://localhost:7687';
-    public readonly NEO4J_USER: string = process.env.NEO4J_USER || 'neo4j';
-    public readonly NEO4J_PASSWORD: string = process.env.NEO4J_PASSWORD || 'password';
+    public NEO4J_URI: string = 'bolt://localhost:7687';
+    public NEO4J_USER: string = 'neo4j';
+    public NEO4J_PASSWORD: string = 'password';
 
-    public readonly PROMPT_TEMPLATE_BASE_PATH: string = process.env.PROMPT_TEMPLATE_BASE_PATH || path.join(process.cwd(), 'prompts');
-    public readonly PORT: number = parseInt(process.env.PORT || '3000', 10);
+    public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'prompts');
+    public PORT: number = 3000;
 
     constructor() {
-        // Validation could go here if needed
+        dotenv.config();
+
+        const configProps = Object.keys(this);
+        const missing: string[] = [];
+
+        for (const key of configProps) {
+            const envValue = process.env[key];
+            if (envValue) {
+                if (key === 'PORT') {
+                    this.PORT = parseInt(envValue, 10);
+                } else {
+                    (this as any)[key] = envValue;
+                }
+            } else {
+                missing.push(key);
+            }
+        }
+
+        if (missing.length > 0) {
+            console.warn(`[Config] WARNING: The following env variables were not provided. Using defaults: ${missing.join(', ')}`);
+        }
     }
 }
 
