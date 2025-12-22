@@ -147,6 +147,32 @@ export class SqlService {
         );
     }
 
+    public async addMemoryReview(content: string, description: string, tags: string[], category: string): Promise<number> {
+        const timestamp = new Date().toISOString();
+        const tagsString = JSON.stringify(tags);
+
+        try {
+            return await this.runInsert(
+                `INSERT INTO MemoryReview (Content, Description, Tags, Category, Created, LastUpdated, MemoryId) VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+                [content, description, tagsString, category, timestamp, timestamp]
+            );
+        } catch (error) {
+            console.error('Error adding memory review:', error);
+            throw error;
+        }
+    }
+
+    public async updateMemoryReviewLink(reviewId: number, memoryId: number): Promise<void> {
+        await this.run(
+            `UPDATE MemoryReview SET MemoryId = ? WHERE ID = ?`,
+            [memoryId, reviewId]
+        );
+    }
+
+    public async getMemoryReview(id: number): Promise<any> {
+        return this.get(`SELECT * FROM MemoryReview WHERE ID = ?`, [id]);
+    }
+
     public async getMemory(id: number): Promise<any> {
         return this.get(`SELECT * FROM Memories JOIN MemoryDatabaseRelations ON Memories.ID = MemoryDatabaseRelations.MemoryId WHERE Memories.ID = ?`, [id]);
     }

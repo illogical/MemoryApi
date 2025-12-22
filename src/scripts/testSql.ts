@@ -59,6 +59,36 @@ async function testSqlService() {
         await sqlService.recordSuggestedTag(memoryId, tagId1);
         console.log("Link created.");
 
+        // 6. Test Memory Review
+        console.log("Testing memory review...");
+        const reviewId = await sqlService.addMemoryReview(
+            "Review Content",
+            "Review Description",
+            ["review", "tag"],
+            "ReviewCategory"
+        );
+        console.log(`Review added with ID: ${reviewId}`);
+
+        const review = await sqlService.getMemoryReview(reviewId);
+        console.log("Retrieved review:", review);
+
+        if (!review || review.MemoryId !== null) {
+            console.error("Review creation failed or MemoryId not null");
+        }
+
+        console.log("Linking review to memory...");
+        // Link to the memory we created earlier (ID 1 usually)
+        await sqlService.updateMemoryReviewLink(reviewId, memoryId);
+
+        const updatedReview = await sqlService.getMemoryReview(reviewId);
+        console.log("Updated review:", updatedReview);
+
+        if (updatedReview.MemoryId !== memoryId) {
+            console.error("Review linking failed");
+        } else {
+            console.log("Review linked successfully.");
+        }
+
         console.log("SqlService verified successfully.");
 
     } catch (error) {
