@@ -118,6 +118,35 @@ export class RAGOrchestrator {
         return this.graphService.getRelatedMemories(id);
     }
 
+    /**
+     * Performs parallel vector and graph search to retrieve both semantic and relationship-based results.
+     * Useful for RAG systems that want to present diverse perspectives from both modalities.
+     * 
+     * @param queryEmbedding Vector embedding for semantic similarity search
+     * @param category Optional category filter
+     * @param limit Maximum results from each modality
+     * @returns { vectorResults, graphResults } both arrays of MemoryWithId
+     */
+    async searchVectorAndGraphParallel(
+        queryEmbedding: number[],
+        category?: MemoryCategory,
+        limit: number = 5
+    ): Promise<{ vectorResults: MemoryWithId[], graphResults: any[] }> {
+        this.loggingService.trace('[searchVectorAndGraphParallel] Called');
+
+        // Execute both searches in parallel for efficiency
+        const [vectorResults, graphResults] = await Promise.all([
+            this.vectorService.searchMemoriesWithEmbedding(queryEmbedding, category, limit),
+            this.graphService.getMemoriesByKeywordAndSimilarity(queryEmbedding, limit)
+                .catch(err => {
+                    this.loggingService.error(`[searchVectorAndGraphParallel] Graph search failed: ${err}`);
+                    return []; // Fallback to empty if graph search unavailable
+                })
+        ]);
+
+        return { vectorResults, graphResults };
+    }
+
     async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number, sqlCount: number }> {
         const [vectorCount, graphCount, sqlCount] = await Promise.all([
             this.getVectorStatus(),

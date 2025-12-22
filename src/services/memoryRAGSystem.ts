@@ -323,8 +323,15 @@ class MemoryRAGSystem {
     /// Post-search Aggregation Interfaces
 
     /**
-     * MCP-friendly search and summarization method.
-     * Returns top memories and aggregate summary (narrative and/or bullets), optionally with cluster summaries.
+     * MCP-friendly search and summarization method with dual vector+graph search.
+     * Performs both semantic (vector) and relationship-based (graph) searches in parallel,
+     * merges results intelligently, and returns aggregate summaries.
+     * 
+     * This dual-search approach provides richer context to calling LLMs by combining:
+     * - Vector results: memories semantically similar to the query
+     * - Graph results: memories connected through relationships (tags, categories)
+     * 
+     * Returns top merged memories and structured summaries (narrative, bullets, clusters).
      */
     async searchAndSummarizeForMcp(
         query: string,
@@ -348,10 +355,35 @@ class MemoryRAGSystem {
             bullets?: string[];
         }>;
         parameters: any;
+        vectorResultCount?: number;
+        graphResultCount?: number;
     }> {
-        // Delegate to aggregator
-        const result = await this.postSearchAggregator.searchAndSummarizeForMcp(query, options, (opts) =>
-            this.searchMemories(query, opts?.category, (opts?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2)
+        this.loggingService.trace('[searchAndSummarizeForMcp] Called with dual search');
+        
+        // Generate query embedding once
+        const queryEmbedding = await this.generateEmbedding(query);
+        
+        // Perform vector and graph search in parallel
+        const searchLimit = (options?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2;
+        const { vectorResults, graphResults } = await this.orchestrator.searchVectorAndGraphParallel(
+            queryEmbedding,
+            options?.category,
+            searchLimit
+        );
+
+        // Convert graph results to GraphResult interface for the aggregator
+        const graphResultsForAggregator = graphResults.map(g => ({
+            memory: g as MemoryWithId,
+            score: (g as any).score || 0,
+            relationshipPath: (g as any).relationshipPath
+        }));
+
+        // Delegate to aggregator with both vector and graph results
+        const result = await this.postSearchAggregator.searchAndSummarizeForMcp(
+            query,
+            options,
+            async () => vectorResults,  // Vector search already done above
+            graphResultsForAggregator    // Pass graph results for merging
         );
 
         if (generateReport) {

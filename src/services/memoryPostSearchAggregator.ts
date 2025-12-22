@@ -21,6 +21,30 @@ export interface TagClusterSummary {
 }
 
 /**
+ * Graph result structure from Neo4j graph traversal.
+ * Represents memories found via relationship-based search (shared tags, categories, semantic links).
+ * Graph results complement vector results by finding memories through entity relationships
+ * rather than semantic similarity, offering different and valuable discovery angles.
+ */
+export interface GraphResult {
+    memory: MemoryWithId;
+    score: number; // Relationship strength score (e.g., count of shared tags x2, shared category x1)
+    relationshipPath?: string; // Optional: describes how the memory is related (e.g., "shared_tags:memory,project")
+}
+
+/**
+ * Merged result combining both vector and graph search results.
+ * Used internally to track source and enable deduplication across search modalities.
+ */
+interface MergedResult {
+    memory: MemoryWithId;
+    vectorScore?: number; // Semantic similarity score (0-1 range typically)
+    graphScore?: number; // Graph relationship score (relationship count weighted)
+    mergedScore: number; // Combined score after deduplication and normalization
+    sources: ('vector' | 'graph')[]; // Which search modalities found this memory
+}
+
+/**
  * MemoryPostSearchAggregator
  * Handles post-search aggregation for RAG: summarizing, clustering, and structuring memory search results.
  * This is typically called after semantic search returns top matches.
@@ -57,9 +81,149 @@ export class MemoryPostSearchAggregator {
     }
 
     /**
-     * Main entrypoint for post-search aggregation.
-     * Accepts a query, aggregation options, and a searchMemories function.
-     * Returns top memories and structured summaries (narrative, bullets, clusters).
+     * Merges vector and graph search results using intelligent deduplication and score normalization.
+     * 
+     * ALGORITHM:
+     * ──────────
+     * 1. Build a map of all unique memories (keyed by ID) from both vector and graph results
+     * 2. For each unique memory, combine scores from both modalities:
+     *    - Keep both vectorScore and graphScore for audit/analysis
+     *    - Normalize graphScore to 0-1 range by dividing by maxGraphScore (typically ~10 for tag relationships)
+     *    - Calculate mergedScore = (vectorScore × 0.5) + (normalizedGraphScore × 0.5)
+     *    - This 50-50 weighting assumes equal importance; adjust for your domain
+     * 3. Sort by mergedScore descending, apply scoreThreshold, return top limit results
+     * 
+     * BENEFITS FOR RAG/MCP:
+     * ────────────────────
+     * - Eliminates redundancy: same memory won't appear twice
+     * - Multi-perspective relevance: memories ranked by both semantic AND relationship signals
+     * - Better LLM context: gives the model diverse angles on relevant information
+     * - Improved grounding: reduces hallucination by providing cross-validated relevant information
+     * 
+     * @param vectorResults Semantic search results with scores (0-1 range)
+     * @param graphResults Graph relationship results with scores (typically 1-20 range)
+     * @param limit Max results after merging
+     * @param scoreThreshold Minimum merged score to include (applied after normalization)
+     */
+    private mergeVectorAndGraphResults(
+        vectorResults: MemoryWithId[],
+        graphResults: GraphResult[],
+        limit: number,
+        scoreThreshold: number
+    ): MemoryWithId[] {
+        this.loggingService.trace('[mergeVectorAndGraphResults] Starting merge');
+
+        // Create a map to track unique memories and aggregate their scores
+        const memoryMap = new Map<string, MergedResult>();
+
+        // Step 1: Add vector results
+        for (const vectorMem of vectorResults) {
+            const vectorScore = typeof vectorMem.score === 'number' ? vectorMem.score : 0;
+            memoryMap.set(vectorMem.id, {
+                memory: vectorMem,
+                vectorScore,
+                graphScore: undefined,
+                mergedScore: vectorScore, // Initially just vector score
+                sources: ['vector']
+            });
+        }
+
+        // Step 2: Add graph results and merge scores where memories overlap
+        // Find the maximum graph score to normalize later
+        const maxGraphScore = graphResults.length > 0
+            ? Math.max(...graphResults.map(g => g.score))
+            : 1; // Avoid division by zero
+
+        for (const graphResult of graphResults) {
+            const graphScore = graphResult.score;
+            const memId = graphResult.memory.id;
+
+            if (memoryMap.has(memId)) {
+                // Merge with existing vector result
+                const existing = memoryMap.get(memId)!;
+                existing.graphScore = graphScore;
+                existing.sources.push('graph');
+
+                // Recalculate mergedScore with both modalities
+                // Normalize vector score (already 0-1) and graph score (normalize to 0-1)
+                const normalizedGraphScore = graphScore / Math.max(maxGraphScore, 1);
+                existing.mergedScore = (existing.vectorScore! * 0.5) + (normalizedGraphScore * 0.5);
+
+                this.loggingService.debug(
+                    `[mergeVectorAndGraphResults] Merged memory ${memId}: ` +
+                    `vector=${existing.vectorScore!.toFixed(3)} + graph=${graphScore} ` +
+                    `=> merged=${existing.mergedScore.toFixed(3)}`
+                );
+            } else {
+                // New memory found only in graph results
+                // Normalize graph score to 0-1 range for consistency with vector scores
+                const normalizedGraphScore = graphScore / Math.max(maxGraphScore, 1);
+                memoryMap.set(memId, {
+                    memory: graphResult.memory,
+                    vectorScore: undefined,
+                    graphScore,
+                    mergedScore: normalizedGraphScore, // Graph-only score, normalized
+                    sources: ['graph']
+                });
+
+                this.loggingService.debug(
+                    `[mergeVectorAndGraphResults] New from graph ${memId}: ` +
+                    `graph=${graphScore} => merged=${normalizedGraphScore.toFixed(3)}`
+                );
+            }
+        }
+
+        // Step 3: Filter by threshold and sort by mergedScore descending
+        const merged = Array.from(memoryMap.values())
+            .filter(m => m.mergedScore >= scoreThreshold)
+            .sort((a, b) => b.mergedScore - a.mergedScore)
+            .slice(0, limit)
+            .map(m => {
+                // Return the memory with updated score (using merged score)
+                return {
+                    ...m.memory,
+                    score: m.mergedScore // Replace with merged score for downstream consumption
+                };
+            });
+
+        this.loggingService.debug(
+            `[mergeVectorAndGraphResults] Merged ${vectorResults.length} vector + ` +
+            `${graphResults.length} graph results => ${merged.length} deduplicated (threshold=${scoreThreshold}, limit=${limit})`
+        );
+
+        return merged;
+    }
+
+    /**
+     * Main entrypoint for post-search aggregation with support for both vector and graph results.
+     * 
+     * MERGING STRATEGY FOR MCP CONTEXT:
+     * For high-quality LLM context in MCP tool calls, we combine vector and graph results to:
+     * 
+     * 1. SEMANTIC RELEVANCE (Vector Search):
+     *    - Vector embeddings capture semantic meaning and conceptual similarity
+     *    - Best for finding memories about related topics (e.g., "project management" finds "team coordination")
+     *    - Scores represent similarity in semantic space (typically 0-1 range)
+     * 
+     * 2. RELATIONSHIP RELEVANCE (Graph Search):
+     *    - Graph queries find memories connected via structured relationships (shared tags, categories)
+     *    - Best for finding memories about specific entities the user is currently working with
+     *    - Scores represent relationship strength (count of shared connections, weighted)
+     * 
+     * 3. DEDUPLICATION & RANKING:
+     *    - When same memory appears in both results, we merge scores to avoid redundancy
+     *    - Vector score (0-1) is normalized by dividing by max expected graph score (e.g., 10)
+     *    - Combined score = (vectorScore × 0.5) + (normalizedGraphScore × 0.5)
+     *    - This 50-50 weighting assumes equal importance; adjust based on your use case
+     *    - Final ranking: deduplicated memories sorted by merged score (highest first)
+     * 
+     * 4. PRESENTATION TO LLM:
+     *    - Top-N merged memories provide diverse perspectives (semantic + entity-based)
+     *    - LLM can make better decisions with both relevance angles
+     *    - Improves RAG quality: less hallucination, more grounded responses
+     * 
+     * Accepts a query, aggregation options, a vector search function, and optional graph results.
+     * Returns top merged memories and structured summaries (narrative, bullets, clusters).
      */
     async searchAndSummarizeForMcp(
         query: string,
@@ -70,7 +234,8 @@ export class MemoryPostSearchAggregator {
             strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
             format?: 'narrative' | 'bullets' | 'both';
         } = {},
-        searchMemories: (opts: typeof options) => Promise<MemoryWithId[]>
+        searchMemories: (opts: typeof options) => Promise<MemoryWithId[]>,
+        graphResults: GraphResult[] = [] // Optional graph search results to merge with vector results
     ): Promise<{
         query: string;
         topMemories: MemoryWithId[];
@@ -78,9 +243,10 @@ export class MemoryPostSearchAggregator {
         aggregateBullets?: string[];
         clusterSummaries?: Array<CategoryClusterSummary | TagClusterSummary>;
         parameters: any;
+        vectorResultCount?: number;
+        graphResultCount?: number;
     }> {
         this.loggingService.trace('[searchAndSummarizeForMcp] Called');
-        // Step 1: Run semantic search
         const startTime = Date.now();
         const limit = options.limit ?? 10;
         const scoreThreshold = options.scoreThreshold ?? 0.7;
@@ -89,35 +255,30 @@ export class MemoryPostSearchAggregator {
         const category = options.category;
         this.loggingService.debug(`[searchAndSummarizeForMcp] Options: ${JSON.stringify(options)}`);
 
-        const memories = await searchMemories(options);
-        this.loggingService.debug(`[searchAndSummarizeForMcp] Retrieved ${memories.length} memories from semantic search`);
+        const vectorResults = await searchMemories(options);
+        this.loggingService.debug(`[searchAndSummarizeForMcp] Retrieved ${vectorResults.length} memories from vector search`);
+        this.loggingService.debug(`[searchAndSummarizeForMcp] Retrieved ${graphResults.length} memories from graph search`);
 
-        // Step 2: Filter by score threshold and sort by score
-        const filtered = memories
-            .filter(m => (typeof m.score === 'number' ? m.score : 0) >= scoreThreshold)
-            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-            .slice(0, limit);
-
-        this.loggingService.debug(`[searchAndSummarizeForMcp] Filtered to ${filtered.length} top memories`);
+        // Step 2: Merge vector and graph results using deduplication and score normalization
+        const merged = this.mergeVectorAndGraphResults(vectorResults, graphResults, limit, scoreThreshold);
+        this.loggingService.debug(`[searchAndSummarizeForMcp] Merged to ${merged.length} deduplicated memories with combined scores`);
 
         // Step 3: Delegate to aggregateMemories
-        const aggregationResult = await this.aggregateMemories(query, filtered, { strategy, format, scoreThreshold, limit, category });
+        const aggregationResult = await this.aggregateMemories(query, merged, { strategy, format, scoreThreshold, limit, category });
 
         const endTime = Date.now();
         const duration = endTime - startTime;
 
-        // Log to search history
+        // Log to search history with both vector and graph results
         try {
             const summaryText = aggregationResult.aggregateNarrative || (aggregationResult.aggregateBullets ? aggregationResult.aggregateBullets.join('\n') : '');
-            // Currently we only have vector results mainly. 
-            // The filtered list contains what we found.
 
             const modelName = this.getModel().modelName || 'unknown';
 
             await this.sqlService.addSearchHistory(
                 query,
-                filtered.map(m => ({ id: m.id, score: m.score })), // Save minimal vector result info
-                [], // Graph results placeholder
+                vectorResults.map(m => ({ id: m.id, score: m.score })), // Vector result info
+                graphResults.map(g => ({ id: g.memory.id, score: g.score, relationshipPath: g.relationshipPath })), // Graph result info
                 aggregationResult.mergePrompt || '',
                 summaryText,
                 limit,
@@ -125,14 +286,18 @@ export class MemoryPostSearchAggregator {
                 strategy,
                 format,
                 modelName,
-                filtered.length,
+                merged.length,
                 duration
             );
         } catch (err) {
             this.loggingService.error(`[searchAndSummarizeForMcp] Failed to log search history: ${err}`);
         }
 
-        return aggregationResult;
+        return {
+            ...aggregationResult,
+            vectorResultCount: vectorResults.length,
+            graphResultCount: graphResults.length
+        };
     }
 
     /**

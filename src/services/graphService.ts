@@ -236,4 +236,19 @@ export class GraphService {
             await session.close();
         }
     }
+
+    /**
+     * Alias for vectorSearch with a different name for MCP compatibility.
+     * Performs vector similarity search on the graph embedding index.
+     * @param queryVector The embedding vector of the search query.
+     * @param limit Number of results to return.
+     * @returns Array of MemoryWithId objects with scores from graph vector index.
+     */
+    async getMemoriesByKeywordAndSimilarity(queryVector: number[], limit: number = 10): Promise<MemoryWithId[]> {
+        const results = await this.vectorSearch(queryVector, limit);
+        return results.map(r => ({
+            ...r.memory,
+            score: r.score
+        } as MemoryWithId));
+    }
 }
