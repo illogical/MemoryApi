@@ -22,6 +22,7 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 ## Architecture
 - **Express.js API:** Handles HTTP requests and routes for memory operations.
 - **Qdrant Vector Database:** Stores memory embeddings and metadata, enabling fast similarity search and filtering.
+- **SQLite Database:** Stores revisions, audit logs, and history for long-term persistence and relational integrity.
 - **Neo4j Graph Database (optional):** Persists relationships for graph-driven queries and status reporting; API degrades gracefully if unavailable.
 - **LLM + Embeddings Providers (LM Studio or Ollama):** Generates embeddings, summaries, categories, and tags for memories; provider and model are configurable via `.env`.
 - **TypeScript Models & Services:** Strongly-typed interfaces for memory objects, modular services for prompt templates and business logic.
