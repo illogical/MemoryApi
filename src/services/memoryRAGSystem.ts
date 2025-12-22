@@ -68,8 +68,8 @@ class MemoryRAGSystem {
             {
                 MAX_CLUSTERS: this.MAX_CLUSTERS,
                 MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER
-            }
-            //this.graphService
+            },
+            this.sqlService
         );
     }
 

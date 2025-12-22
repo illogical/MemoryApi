@@ -3,6 +3,7 @@ import { MemoryWithId } from '../models/memory';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { ModelClient } from './modelClients';
+import { SqlService } from './sqlService';
 
 // Cluster summary interfaces for category/tag clusters
 export interface CategoryClusterSummary {
@@ -28,6 +29,7 @@ export class MemoryPostSearchAggregator {
     private getModel: () => ModelClient;
     private promptTemplateService: PromptTemplateService;
     private loggingService: LoggingService;
+    private sqlService: SqlService;
     private MAX_CLUSTERS: number;
     private MAX_MEMORIES_PER_CLUSTER: number;
 
@@ -37,18 +39,21 @@ export class MemoryPostSearchAggregator {
      * @param promptTemplateService Service for rendering prompt templates
      * @param loggingService Logging utility
      * @param config Aggregation config knobs
+     * @param sqlService SqlService for logging search history
      */
     constructor(
         getModel: () => ModelClient,
         promptTemplateService: PromptTemplateService,
         loggingService: LoggingService,
-        config: { MAX_CLUSTERS: number; MAX_MEMORIES_PER_CLUSTER: number }
+        config: { MAX_CLUSTERS: number; MAX_MEMORIES_PER_CLUSTER: number },
+        sqlService: SqlService
     ) {
         this.getModel = getModel;
         this.promptTemplateService = promptTemplateService;
         this.loggingService = loggingService;
         this.MAX_CLUSTERS = config.MAX_CLUSTERS;
         this.MAX_MEMORIES_PER_CLUSTER = config.MAX_MEMORIES_PER_CLUSTER;
+        this.sqlService = sqlService;
     }
 
     /**
@@ -76,6 +81,7 @@ export class MemoryPostSearchAggregator {
     }> {
         this.loggingService.trace('[searchAndSummarizeForMcp] Called');
         // Step 1: Run semantic search
+        const startTime = Date.now();
         const limit = options.limit ?? 10;
         const scoreThreshold = options.scoreThreshold ?? 0.7;
         const strategy = options.strategy ?? 'linear';
@@ -95,7 +101,38 @@ export class MemoryPostSearchAggregator {
         this.loggingService.debug(`[searchAndSummarizeForMcp] Filtered to ${filtered.length} top memories`);
 
         // Step 3: Delegate to aggregateMemories
-        return await this.aggregateMemories(query, filtered, { strategy, format, scoreThreshold, limit, category });
+        const aggregationResult = await this.aggregateMemories(query, filtered, { strategy, format, scoreThreshold, limit, category });
+
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+
+        // Log to search history
+        try {
+            const summaryText = aggregationResult.aggregateNarrative || (aggregationResult.aggregateBullets ? aggregationResult.aggregateBullets.join('\n') : '');
+            // Currently we only have vector results mainly. 
+            // The filtered list contains what we found.
+
+            const modelName = this.getModel().modelName || 'unknown';
+
+            await this.sqlService.addSearchHistory(
+                query,
+                filtered.map(m => ({ id: m.id, score: m.score })), // Save minimal vector result info
+                [], // Graph results placeholder
+                aggregationResult.mergePrompt || '',
+                summaryText,
+                limit,
+                scoreThreshold,
+                strategy,
+                format,
+                modelName,
+                filtered.length,
+                duration
+            );
+        } catch (err) {
+            this.loggingService.error(`[searchAndSummarizeForMcp] Failed to log search history: ${err}`);
+        }
+
+        return aggregationResult;
     }
 
     /**
@@ -119,6 +156,7 @@ export class MemoryPostSearchAggregator {
         aggregateBullets?: string[];
         clusterSummaries?: Array<CategoryClusterSummary | TagClusterSummary>;
         parameters: any;
+        mergePrompt?: string;
     }> {
         this.loggingService.trace('[aggregateMemories] Called');
         const strategy = options.strategy ?? 'linear';
@@ -131,15 +169,19 @@ export class MemoryPostSearchAggregator {
         let aggregateNarrative: string | undefined;
         let aggregateBullets: string[] | undefined;
         let clusterSummaries: Array<CategoryClusterSummary | TagClusterSummary> | undefined;
+        let mergePrompt: string | undefined;
 
         if (strategy === 'linear') {
             this.loggingService.debug('[aggregateMemories] Using linear summarization');
             const summary = await this.summarizeMemoriesLinear(memories, { mode: format });
             aggregateNarrative = summary.narrative;
             aggregateBullets = summary.bullets;
+            mergePrompt = summary.prompt;
         } else if (strategy === 'cluster-category') {
             this.loggingService.debug('[aggregateMemories] Using cluster-by-category summarization');
             clusterSummaries = await this.summarizeMemoriesByCategory(memories, { mode: format });
+            // For now, we don't strictly capture all prompts from clusters for the single MergePrompt field
+            // We could join them or just leave it empty.
         } else if (strategy === 'cluster-tag') {
             this.loggingService.debug('[aggregateMemories] Using cluster-by-tag summarization');
             clusterSummaries = await this.summarizeMemoriesByTag(memories, { mode: format });
@@ -148,6 +190,7 @@ export class MemoryPostSearchAggregator {
             const summary = await this.summarizeMemoriesLinear(memories, { mode: format });
             aggregateNarrative = summary.narrative;
             aggregateBullets = summary.bullets;
+            mergePrompt = summary.prompt;
             clusterSummaries = await this.summarizeMemoriesByCategory(memories, { mode: format });
         }
 
@@ -158,7 +201,8 @@ export class MemoryPostSearchAggregator {
             aggregateNarrative,
             aggregateBullets,
             clusterSummaries,
-            parameters: { scoreThreshold, limit, strategy, format, category }
+            parameters: { scoreThreshold, limit, strategy, format, category },
+            mergePrompt
         };
     }
 
@@ -169,7 +213,7 @@ export class MemoryPostSearchAggregator {
     async summarizeMemoriesLinear(
         memories: MemoryWithId[],
         options: { mode: 'narrative' | 'bullets' | 'both' }
-    ): Promise<{ narrative?: string; bullets?: string[] }> {
+    ): Promise<{ narrative?: string; bullets?: string[]; prompt?: string }> {
         this.loggingService.trace('[summarizeMemoriesLinear] Called');
         if (!memories.length) {
             this.loggingService.debug('[summarizeMemoriesLinear] No memories to summarize');
@@ -207,11 +251,11 @@ export class MemoryPostSearchAggregator {
             // Parse bullet points from LLM output
             const bullets = response.content.split(/\n|\r/).map(b => b.trim()).filter(b => b.startsWith('- '));
             this.loggingService.debug(`[summarizeMemoriesLinear] Parsed bullets: ${JSON.stringify(bullets)}`);
-            return { bullets };
+            return { bullets, prompt };
         } else {
             // Return narrative paragraph
             this.loggingService.debug(`[summarizeMemoriesLinear] Parsed narrative`);
-            return { narrative: response.content.trim() };
+            return { narrative: response.content.trim(), prompt };
         }
     }
 

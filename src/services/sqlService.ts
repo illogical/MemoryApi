@@ -137,17 +137,6 @@ export class SqlService {
         params.push(id);
 
         try {
-            // Create history snapshot BEFORE updating (wait, user said "When a new memory is added... Store the same information as a new record in the MemoryHistory table as a snapshot before the user makes any changes... If a memory is updated, store a snapshot of the memory to the MemoryHistory table and update the record in the Memories table")
-            // Actually, the user requirement: "When a new memory is added... At the same time, store the same information as a new record in the MemoryHistory table" -> DONE in addMemory.
-            // "If a memory is updated, store a snapshot of the memory to the MemoryHistory table and update the record..." -> The snapshot should technically be the *new* state or the *old* state?
-            // "store a snapshot of the memory to the MemoryHistory table and update the record in the Memories table (leaving the status as “New” until the user clicks the Add Memory button)."
-            // Typically "history" tracks what it WAS, or it tracks all versions. 
-            // If I store a snapshot *when* it is updated, usually I'd store the result of the update.
-            // Let's assume we store the new state into history as per "store the same information as a new record... before the user makes any changes" (initial add).
-            // For updates: "If a memory is updated, store a snapshot of the memory to the MemoryHistory table". This implies storing the new state? Or the state being replaced?
-            // Given "store... as a snapshot before the user makes any changes" (initial), duplicate data suggests we are logging versions.
-            // If I update, I should probably log the new version.
-
             await this.addMemoryHistory(id, content, description, tags, category);
             await this.run(sql, params);
         } catch (error) {
@@ -163,8 +152,6 @@ export class SqlService {
 
     public async softDeleteMemory(id: number): Promise<void> {
         const timestamp = new Date().toISOString();
-        // We do NOT add a history record for deletion based on current requirements, but we could. 
-        // User only said "MemoryHistory then can refer to deleted memories", implying we just mark Deleted=1.
         await this.run(`UPDATE Memories SET Deleted = 1, LastUpdated = ? WHERE ID = ?`, [timestamp, id]);
     }
 
@@ -223,6 +210,42 @@ export class SqlService {
     public async getMemoryCount(): Promise<number> {
         const row = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM Memories WHERE Deleted = 0');
         return row ? row.count : 0;
+    }
+
+    public async addSearchHistory(
+        searchText: string,
+        vectorResults: any,
+        graphResults: any,
+        mergePrompt: string,
+        mergeSummary: string,
+        paramLimit: number,
+        scoreThreshold: number,
+        strategy: string,
+        format: string,
+        model: string,
+        resultCount: number,
+        durationMilliseconds: number
+    ): Promise<void> {
+        const timestamp = new Date().toISOString();
+        const vectorResultsStr = JSON.stringify(vectorResults);
+        const graphResultsStr = JSON.stringify(graphResults);
+
+        try {
+            await this.run(
+                `INSERT INTO SearchHistory (
+                    SearchText, Created, VectorResults, GraphResults, MergePrompt, MergeSummary,
+                    ParamLimit, ScoreThreshold, Strategy, Format, Model, ResultCount, DurationMilliseconds
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    searchText, timestamp, vectorResultsStr, graphResultsStr, mergePrompt, mergeSummary,
+                    paramLimit, scoreThreshold, strategy, format, model, resultCount, durationMilliseconds
+                ]
+            );
+        } catch (error) {
+            console.error('Error adding search history:', error);
+            // We do not throw here to avoid failing the search request just because logging failed? 
+            // Or should we throw? Typically logging failure shouldn't crash the app, but let's log it.
+        }
     }
 
     public close() {

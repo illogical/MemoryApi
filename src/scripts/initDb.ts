@@ -81,6 +81,7 @@ async function initializeDatabase() {
       );
     `);
 
+
     // Create MemoryHistory Table
     console.log('Creating MemoryHistory table...');
     await runRun(`
@@ -94,6 +95,27 @@ async function initializeDatabase() {
         MemoryId INTEGER,
         FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE SET NULL
       );
+    `);
+
+    // Create SearchHistory Table
+    console.log('Creating SearchHistory table...');
+    await runRun(`
+        CREATE TABLE IF NOT EXISTS SearchHistory (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            SearchText TEXT,
+            Created TEXT,
+            VectorResults TEXT,
+            GraphResults TEXT,
+            MergePrompt TEXT,
+            MergeSummary TEXT,
+            ParamLimit INTEGER,
+            ScoreThreshold REAL,
+            Strategy TEXT,
+            Format TEXT,
+            Model TEXT,
+            ResultCount INTEGER,
+            DurationMilliseconds INTEGER
+        );
     `);
 
     // Create Indexes
