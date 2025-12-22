@@ -1,4 +1,5 @@
 import { MemoryCategory } from "./memoryCategory";
+import { MemoryStatus } from "./memoryStatus";
 
 export interface Memory {
     Content: string;
@@ -6,6 +7,7 @@ export interface Memory {
     Category?: MemoryCategory;
     Description?: string;
     Tags?: string[];
+    Status?: MemoryStatus
 }
 
 export interface MemoryWithId extends Memory {

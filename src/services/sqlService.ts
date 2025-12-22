@@ -80,7 +80,7 @@ export class SqlService {
         });
     }
 
-    public async addMemory(content: string, description: string, tags: string[], category: string, status: string = 'New'): Promise<number> {
+    public async addMemory(content: string, description: string, tags: string[], category: string, status: string = 'New', model?: string, durationMilliseconds?: number): Promise<number> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
@@ -96,8 +96,8 @@ export class SqlService {
                 [memoryId]
             );
 
-            // Add history record for the new memory
-            await this.addMemoryHistory(memoryId, content, description, tags, category);
+            // Add history record for the new memory with model and duration info
+            await this.addMemoryHistory(memoryId, content, description, tags, category, model, durationMilliseconds);
 
             return memoryId;
         } catch (error) {
@@ -106,14 +106,14 @@ export class SqlService {
         }
     }
 
-    public async addMemoryHistory(memoryId: number, content: string, description: string, tags: string[], category: string): Promise<void> {
+    public async addMemoryHistory(memoryId: number, content: string, description: string, tags: string[], category: string, model?: string, durationMilliseconds?: number): Promise<void> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
         try {
             await this.run(
-                `INSERT INTO MemoryHistory (Content, Description, Tags, Category, Created, MemoryId) VALUES (?, ?, ?, ?, ?, ?)`,
-                [content, description, tagsString, category, timestamp, memoryId]
+                `INSERT INTO MemoryHistory (Content, Description, Tags, Category, Created, MemoryId, Model, DurationMilliseconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [content, description, tagsString, category, timestamp, memoryId, model, durationMilliseconds]
             );
         } catch (error) {
             console.error('Error adding memory history:', error);

@@ -93,6 +93,8 @@ async function initializeDatabase() {
         Category TEXT,
         Created TEXT NOT NULL,
         MemoryId INTEGER,
+        Model TEXT,
+        DurationMilliseconds INTEGER,
         FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE SET NULL
       );
     `);

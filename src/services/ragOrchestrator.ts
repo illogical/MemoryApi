@@ -32,14 +32,26 @@ export class RAGOrchestrator {
         this.loggingService.log('[RAGOrchestrator] Services initialized.');
     }
 
-    async addMemory(memory: Memory, embedding: number[], id: string): Promise<string> {
+    async addMemory(memory: Memory, embedding: number[], id: string, model?: string, durationMilliseconds?: number): Promise<string> {
         this.loggingService.trace(`[RAGOrchestrator.addMemory] Adding memory ${id} to both stores`);
 
-        // Parallel execution for dual-write
+        // Parallel execution for dual-write to vector and graph stores
         await Promise.all([
             this.vectorService.upsertMemory(memory, embedding, id),
             this.graphService.upsertMemory({ id, ...memory }, embedding)
         ]);
+
+        // Add to SQL for relational tracking and history
+        // Note: SqlService.addMemory returns a numeric ID, but we use the UUID from vector/graph stores
+        await this.sqlService.addMemory(
+            memory.Content,
+            memory.Description || '',
+            memory.Tags || [],
+            memory.Category || 'Uncategorized',
+            memory.Status,
+            model,
+            durationMilliseconds
+        );
 
         return id;
     }
