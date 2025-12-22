@@ -80,14 +80,14 @@ export class SqlService {
         });
     }
 
-    public async addMemory(content: string, description: string, tags: string[], category: string): Promise<number> {
+    public async addMemory(content: string, description: string, tags: string[], category: string, status: string = 'New'): Promise<number> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
         try {
             const memoryId = await this.runInsert(
-                `INSERT INTO Memories (Content, Description, Tags, Category, Created, LastUpdated) VALUES (?, ?, ?, ?, ?, ?)`,
-                [content, description, tagsString, category, timestamp, timestamp]
+                `INSERT INTO Memories (Content, Description, Tags, Category, Created, LastUpdated, Status, Deleted) VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+                [content, description, tagsString, category, timestamp, timestamp, status]
             );
 
             // Always create a new record in MemoryDatabaseRelations with null GraphId and VectorId
@@ -96,11 +96,80 @@ export class SqlService {
                 [memoryId]
             );
 
+            // Add history record for the new memory
+            await this.addMemoryHistory(memoryId, content, description, tags, category);
+
             return memoryId;
         } catch (error) {
             console.error('Error adding memory:', error);
             throw error;
         }
+    }
+
+    public async addMemoryHistory(memoryId: number, content: string, description: string, tags: string[], category: string): Promise<void> {
+        const timestamp = new Date().toISOString();
+        const tagsString = JSON.stringify(tags);
+
+        try {
+            await this.run(
+                `INSERT INTO MemoryHistory (Content, Description, Tags, Category, Created, MemoryId) VALUES (?, ?, ?, ?, ?, ?)`,
+                [content, description, tagsString, category, timestamp, memoryId]
+            );
+        } catch (error) {
+            console.error('Error adding memory history:', error);
+            throw error;
+        }
+    }
+
+    public async updateMemory(id: number, content: string, description: string, tags: string[], category: string, status?: string): Promise<void> {
+        const timestamp = new Date().toISOString();
+        const tagsString = JSON.stringify(tags);
+
+        let sql = `UPDATE Memories SET Content = ?, Description = ?, Tags = ?, Category = ?, LastUpdated = ?`;
+        const params: any[] = [content, description, tagsString, category, timestamp];
+
+        if (status) {
+            sql += `, Status = ?`;
+            params.push(status);
+        }
+
+        sql += ` WHERE ID = ?`;
+        params.push(id);
+
+        try {
+            // Create history snapshot BEFORE updating (wait, user said "When a new memory is added... Store the same information as a new record in the MemoryHistory table as a snapshot before the user makes any changes... If a memory is updated, store a snapshot of the memory to the MemoryHistory table and update the record in the Memories table")
+            // Actually, the user requirement: "When a new memory is added... At the same time, store the same information as a new record in the MemoryHistory table" -> DONE in addMemory.
+            // "If a memory is updated, store a snapshot of the memory to the MemoryHistory table and update the record..." -> The snapshot should technically be the *new* state or the *old* state?
+            // "store a snapshot of the memory to the MemoryHistory table and update the record in the Memories table (leaving the status as “New” until the user clicks the Add Memory button)."
+            // Typically "history" tracks what it WAS, or it tracks all versions. 
+            // If I store a snapshot *when* it is updated, usually I'd store the result of the update.
+            // Let's assume we store the new state into history as per "store the same information as a new record... before the user makes any changes" (initial add).
+            // For updates: "If a memory is updated, store a snapshot of the memory to the MemoryHistory table". This implies storing the new state? Or the state being replaced?
+            // Given "store... as a snapshot before the user makes any changes" (initial), duplicate data suggests we are logging versions.
+            // If I update, I should probably log the new version.
+
+            await this.addMemoryHistory(id, content, description, tags, category);
+            await this.run(sql, params);
+        } catch (error) {
+            console.error('Error updating memory:', error);
+            throw error;
+        }
+    }
+
+    public async updateMemoryStatus(id: number, status: string): Promise<void> {
+        const timestamp = new Date().toISOString();
+        await this.run(`UPDATE Memories SET Status = ?, LastUpdated = ? WHERE ID = ?`, [status, timestamp, id]);
+    }
+
+    public async softDeleteMemory(id: number): Promise<void> {
+        const timestamp = new Date().toISOString();
+        // We do NOT add a history record for deletion based on current requirements, but we could. 
+        // User only said "MemoryHistory then can refer to deleted memories", implying we just mark Deleted=1.
+        await this.run(`UPDATE Memories SET Deleted = 1, LastUpdated = ? WHERE ID = ?`, [timestamp, id]);
+    }
+
+    public async getMemoriesByStatus(status: string): Promise<any[]> {
+        return this.all(`SELECT * FROM Memories WHERE Status = ? AND Deleted = 0`, [status]);
     }
 
     public async updateMemoryRelations(memoryId: number, graphId?: string, vectorId?: string): Promise<void> {
@@ -147,38 +216,12 @@ export class SqlService {
         );
     }
 
-    public async addMemoryReview(content: string, description: string, tags: string[], category: string): Promise<number> {
-        const timestamp = new Date().toISOString();
-        const tagsString = JSON.stringify(tags);
-
-        try {
-            return await this.runInsert(
-                `INSERT INTO MemoryReview (Content, Description, Tags, Category, Created, LastUpdated, MemoryId) VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-                [content, description, tagsString, category, timestamp, timestamp]
-            );
-        } catch (error) {
-            console.error('Error adding memory review:', error);
-            throw error;
-        }
-    }
-
-    public async updateMemoryReviewLink(reviewId: number, memoryId: number): Promise<void> {
-        await this.run(
-            `UPDATE MemoryReview SET MemoryId = ? WHERE ID = ?`,
-            [memoryId, reviewId]
-        );
-    }
-
-    public async getMemoryReview(id: number): Promise<any> {
-        return this.get(`SELECT * FROM MemoryReview WHERE ID = ?`, [id]);
-    }
-
     public async getMemory(id: number): Promise<any> {
-        return this.get(`SELECT * FROM Memories JOIN MemoryDatabaseRelations ON Memories.ID = MemoryDatabaseRelations.MemoryId WHERE Memories.ID = ?`, [id]);
+        return this.get(`SELECT * FROM Memories JOIN MemoryDatabaseRelations ON Memories.ID = MemoryDatabaseRelations.MemoryId WHERE Memories.ID = ? AND Memories.Deleted = 0`, [id]);
     }
 
     public async getMemoryCount(): Promise<number> {
-        const row = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM Memories');
+        const row = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM Memories WHERE Deleted = 0');
         return row ? row.count : 0;
     }
 

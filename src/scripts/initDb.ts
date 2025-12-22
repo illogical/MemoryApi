@@ -41,7 +41,9 @@ async function initializeDatabase() {
         Tags TEXT,
         Category TEXT,
         Created TEXT NOT NULL,
-        LastUpdated TEXT NOT NULL
+        LastUpdated TEXT NOT NULL,
+        Status TEXT NOT NULL DEFAULT 'New',
+        Deleted BOOLEAN DEFAULT 0
       );
     `);
 
@@ -79,17 +81,16 @@ async function initializeDatabase() {
       );
     `);
 
-    // Create MemoryReview Table
-    console.log('Creating MemoryReview table...');
+    // Create MemoryHistory Table
+    console.log('Creating MemoryHistory table...');
     await runRun(`
-      CREATE TABLE IF NOT EXISTS MemoryReview (
+      CREATE TABLE IF NOT EXISTS MemoryHistory (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         Content TEXT NOT NULL,
         Description TEXT,
         Tags TEXT,
         Category TEXT,
         Created TEXT NOT NULL,
-        LastUpdated TEXT NOT NULL,
         MemoryId INTEGER,
         FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE SET NULL
       );

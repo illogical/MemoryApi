@@ -428,6 +428,10 @@ class MemoryRAGSystem {
     async getSqlStatus(): Promise<number> {
         return await this.orchestrator.getSqlStatus();
     }
+
+    public getSqlService(): SqlService {
+        return this.sqlService;
+    }
 }
 
 

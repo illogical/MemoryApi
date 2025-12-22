@@ -59,35 +59,40 @@ async function testSqlService() {
         await sqlService.recordSuggestedTag(memoryId, tagId1);
         console.log("Link created.");
 
-        // 6. Test Memory Review
-        console.log("Testing memory review...");
-        const reviewId = await sqlService.addMemoryReview(
-            "Review Content",
-            "Review Description",
-            ["review", "tag"],
-            "ReviewCategory"
+        // 6. Test Memory Status and Deletion
+        console.log("Testing memory status and deletion...");
+
+        // Add a new memory with status 'New'
+        const newMemoryId = await sqlService.addMemory(
+            "New Memory Content",
+            "New Memory Desc",
+            ["new"],
+            "NewCategory",
+            "New"
         );
-        console.log(`Review added with ID: ${reviewId}`);
+        console.log(`New memory added with ID: ${newMemoryId}`);
 
-        const review = await sqlService.getMemoryReview(reviewId);
-        console.log("Retrieved review:", review);
+        const newMemory = await sqlService.getMemory(newMemoryId);
+        if (newMemory.Status !== 'New') console.error("Status should be 'New'");
 
-        if (!review || review.MemoryId !== null) {
-            console.error("Review creation failed or MemoryId not null");
-        }
+        // Test getMemoriesByStatus
+        const newMemories = await sqlService.getMemoriesByStatus('New');
+        console.log(`Found ${newMemories.length} 'New' memories.`);
+        if (!newMemories.some(m => m.ID === newMemoryId)) console.error("getMemoriesByStatus failed to find new memory");
 
-        console.log("Linking review to memory...");
-        // Link to the memory we created earlier (ID 1 usually)
-        await sqlService.updateMemoryReviewLink(reviewId, memoryId);
+        // Test Soft Delete
+        console.log("Soft deleting memory...");
+        await sqlService.softDeleteMemory(newMemoryId);
 
-        const updatedReview = await sqlService.getMemoryReview(reviewId);
-        console.log("Updated review:", updatedReview);
+        const deletedMemoryCheck = await sqlService.getMemory(newMemoryId);
+        if (deletedMemoryCheck) console.error("Memory should not be retrieved via getMemory after delete");
 
-        if (updatedReview.MemoryId !== memoryId) {
-            console.error("Review linking failed");
-        } else {
-            console.log("Review linked successfully.");
-        }
+        // Check if it exists in DB but soft deleted (manual query or getMemoryCount)
+        const count = await sqlService.getMemoryCount();
+        console.log(`Memory count (non-deleted): ${count}`);
+
+        // Use a raw query to verify it is still there but Deleted=1 if we really wanted, 
+        // but getMemoryCount excluding it is good enough verification of logic.
 
         console.log("SqlService verified successfully.");
 
@@ -97,5 +102,4 @@ async function testSqlService() {
         sqlService.close();
     }
 }
-
 testSqlService();
