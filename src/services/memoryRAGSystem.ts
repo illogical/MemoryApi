@@ -10,6 +10,7 @@ import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
 import { GraphService } from './graphService';
+import { SqlService } from './sqlService';
 import { config } from './configService';
 
 class MemoryRAGSystem {
@@ -20,6 +21,7 @@ class MemoryRAGSystem {
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
     private graphService: GraphService;
+    private sqlService: SqlService;
 
     // Config knobs for summarization
     private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
@@ -37,8 +39,9 @@ class MemoryRAGSystem {
         // Initialize Services
         const vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
         this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+        this.sqlService = new SqlService();
 
-        this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.loggingService);
+        this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.sqlService, this.loggingService);
 
         // Initialize embedding client (now using Ollama by default as requested)
         this.embeddingClient = new OllamaEmbeddingClient(config.LLM_HOST);
@@ -410,7 +413,7 @@ class MemoryRAGSystem {
         return result;
     }
 
-    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number }> {
+    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number, sqlCount: number }> {
         return await this.orchestrator.getDatabaseStatus();
     }
 
@@ -420,6 +423,10 @@ class MemoryRAGSystem {
 
     async getGraphStatus(): Promise<number> {
         return await this.orchestrator.getGraphStatus();
+    }
+
+    async getSqlStatus(): Promise<number> {
+        return await this.orchestrator.getSqlStatus();
     }
 }
 

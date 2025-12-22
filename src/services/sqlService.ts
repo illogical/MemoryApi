@@ -177,6 +177,11 @@ export class SqlService {
         return this.get(`SELECT * FROM Memories JOIN MemoryDatabaseRelations ON Memories.ID = MemoryDatabaseRelations.MemoryId WHERE Memories.ID = ?`, [id]);
     }
 
+    public async getMemoryCount(): Promise<number> {
+        const row = await this.get<{ count: number }>('SELECT COUNT(*) as count FROM Memories');
+        return row ? row.count : 0;
+    }
+
     public close() {
         this.db.close((err) => {
             if (err) {

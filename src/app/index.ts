@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 //import routes from './routes';
-import { memoryRouter, initializeMemorySystem } from './qdrantAPI';
+import { memoryRouter, initializeMemorySystem } from './memoryAPI';
 import { config } from '../services/configService';
 import { reviewRouter } from './reviewAPI';
 

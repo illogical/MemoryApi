@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueContainer = document.getElementById('queue-container');
     let categories = [];
     let allTags = [];
-    let serverStatus = { vector: false, graph: false };
+    let serverStatus = { vector: false, graph: false, sql: false };
 
     // Fetch initial data
     Promise.all([
@@ -62,8 +62,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('graph-status', { active: false }, true);
             });
 
-        // Wait for both to settle before finishing (to stop spinner)
-        await Promise.allSettled([vectorPromise, graphPromise]);
+        const sqlPromise = fetch('/api/status/sql')
+            .then(res => res.json())
+            .then(data => {
+                // Update SQL UI immediately
+                serverStatus.sql = data.active;
+                updateStatusUI('sql-status', data);
+            })
+            .catch(err => {
+                console.error('Error fetching SQL status:', err);
+                serverStatus.sql = false;
+                updateStatusUI('sql-status', { active: false }, true);
+            });
+
+        // Wait for all to settle before finishing (to stop spinner)
+        await Promise.allSettled([vectorPromise, graphPromise, sqlPromise]);
 
         // Update global buttons after both checks allow consistent state
         updateCommitButtons();
@@ -83,14 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             indicator.classList.add('active'); // Green dot
             const count = status.count !== undefined ? status.count : '?';
-            text.textContent = `Active (${count} ${elementId.includes('vector') ? 'Records' : 'Nodes'})`;
+            let unit = 'Records';
+            if (elementId.includes('graph')) unit = 'Nodes';
+            if (elementId.includes('sql')) unit = 'History';
+            text.textContent = `Active (${count} ${unit})`;
         }
     }
 
     // Correct Implementation of updateCommitButtons without cloning
     function updateCommitButtons() {
         const buttons = document.querySelectorAll('.btn-commit');
-        const isActive = serverStatus.vector && serverStatus.graph;
+        const isActive = serverStatus.vector && serverStatus.graph && serverStatus.sql;
 
         buttons.forEach(btn => {
             if (!isActive) {

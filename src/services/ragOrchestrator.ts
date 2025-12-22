@@ -1,5 +1,6 @@
 import { VectorService } from './vectorService';
 import { GraphService } from './graphService';
+import { SqlService } from './sqlService';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 import { LoggingService } from './loggingService';
@@ -7,15 +8,18 @@ import { LoggingService } from './loggingService';
 export class RAGOrchestrator {
     private vectorService: VectorService;
     private graphService: GraphService;
+    private sqlService: SqlService;
     private loggingService: LoggingService;
 
     constructor(
         vectorService: VectorService,
         graphService: GraphService,
+        sqlService: SqlService,
         loggingService: LoggingService
     ) {
         this.vectorService = vectorService;
         this.graphService = graphService;
+        this.sqlService = sqlService;
         this.loggingService = loggingService;
     }
 
@@ -102,13 +106,14 @@ export class RAGOrchestrator {
         return this.graphService.getRelatedMemories(id);
     }
 
-    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number }> {
-        const [vectorCount, graphCount] = await Promise.all([
+    async getDatabaseStatus(): Promise<{ vectorCount: number, graphCount: number, sqlCount: number }> {
+        const [vectorCount, graphCount, sqlCount] = await Promise.all([
             this.getVectorStatus(),
-            this.getGraphStatus()
+            this.getGraphStatus(),
+            this.getSqlStatus()
         ]);
 
-        return { vectorCount, graphCount };
+        return { vectorCount, graphCount, sqlCount };
     }
 
     async getVectorStatus(): Promise<number> {
@@ -121,6 +126,13 @@ export class RAGOrchestrator {
     async getGraphStatus(): Promise<number> {
         return this.graphService.getRelationshipCount().catch(err => {
             this.loggingService.error(`[RAGOrchestrator] Failed to get graph relationship count: ${err}`);
+            return -1;
+        });
+    }
+
+    async getSqlStatus(): Promise<number> {
+        return this.sqlService.getMemoryCount().catch(err => {
+            this.loggingService.error(`[RAGOrchestrator] Failed to get sql memory count: ${err}`);
             return -1;
         });
     }

@@ -147,6 +147,10 @@ memoryRouter.get('/status', async (req: Request, res: Response) => {
             graph: {
                 active: status.graphCount >= 0,
                 count: Math.max(0, status.graphCount)
+            },
+            sql: {
+                active: status.sqlCount >= 0,
+                count: Math.max(0, status.sqlCount)
             }
         });
     } catch (error) {
@@ -183,8 +187,21 @@ memoryRouter.get('/status/graph', async (req: Request, res: Response) => {
     }
 });
 
-// GET /api/memories/stats - Get statistics
+// GET /api/status/sql - Get SQL database status
+memoryRouter.get('/status/sql', async (req: Request, res: Response) => {
+    try {
+        const count = await memorySystem.getSqlStatus();
+        res.json({
+            active: count >= 0,
+            count: Math.max(0, count)
+        });
+    } catch (error) {
+        logger.error(`Error getting SQL status: ${error}`);
+        res.status(500).json({ error: 'Failed to get SQL status' });
+    }
+});
 
+// GET /api/memories/stats - Get statistics
 memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     try {
         const counts = await memorySystem.getCategoryCounts();

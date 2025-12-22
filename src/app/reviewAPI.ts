@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { memorySystem } from './qdrantAPI';
+import { memorySystem } from './memoryAPI';
 import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
