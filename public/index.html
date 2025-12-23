@@ -105,6 +105,68 @@
             min-height: 80px;
         }
 
+        /* Suggested Tags Section */
+        .suggested-tags-container {
+            background: var(--surface-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+        }
+
+        .section-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .tags-pill-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag-pill {
+            background: var(--input-bg);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .tag-pill:hover {
+            border-color: var(--text-muted);
+            background: #3d4b5f;
+        }
+
+        .tag-pill .tag-count {
+            background: var(--bg-color);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+
         /* Tags */
         .tags-container {
             display: flex;
@@ -415,6 +477,19 @@
                 </svg>
             </button>
         </div>
+
+        <!-- Suggested Tags Section (Hidden by default) -->
+        <div id="suggested-tags-section" class="suggested-tags-container" style="display: none;">
+            <div class="section-header">
+                <svg class="section-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <span class="section-title">Trending Suggested Tags</span>
+            </div>
+            <div id="suggested-tags-list" class="tags-pill-list"></div>
+        </div>
+
         <h1>Memory Review Queue</h1>
         <div id="queue-container">
             <div class="loading">Loading queue...</div>

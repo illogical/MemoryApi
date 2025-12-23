@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     Promise.all([
         fetch('/api/review/categories').then(res => res.json()),
         fetch('/api/review/tags').then(res => res.json()),
-        fetch('/api/review/queue').then(res => res.json())
+        fetch('/api/review/queue').then(res => res.json()),
+        fetchSuggestedTags()
     ]).then(([cats, tags, queue]) => {
         categories = cats;
         allTags = tags;
@@ -17,6 +18,45 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Error loading data:', err);
         queueContainer.innerHTML = '<div class="error">Failed to load data. Please try again later.</div>';
     });
+
+    async function fetchSuggestedTags(threshold = 5) {
+        try {
+            const res = await fetch(`/api/memories/suggested-tags?threshold=${threshold}`);
+            if (!res.ok) return;
+            const tags = await res.json();
+            renderSuggestedTags(tags);
+        } catch (err) {
+            console.error('Error fetching suggested tags:', err);
+        }
+    }
+
+    function renderSuggestedTags(tags) {
+        const section = document.getElementById('suggested-tags-section');
+        const list = document.getElementById('suggested-tags-list');
+        
+        if (!tags || tags.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        list.innerHTML = '';
+
+        tags.forEach(tag => {
+            const pill = document.createElement('div');
+            pill.className = 'tag-pill';
+            pill.innerHTML = `
+                <span>${tag.TagText}</span>
+                <span class="tag-count">${tag.Count}</span>
+            `;
+            pill.title = `Suggested ${tag.Count} times`;
+            
+            // Optional: Click to add to allTags or filter? 
+            // For now just display as requested.
+            
+            list.appendChild(pill);
+        });
+    }
 
     // Check status independently so UI loads fast
     fetchStatus();

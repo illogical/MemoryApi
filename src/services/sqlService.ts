@@ -203,6 +203,10 @@ export class SqlService {
         );
     }
 
+    public async getSuggestedTags(threshold: number = 5): Promise<any[]> {
+        return this.all(`SELECT * FROM TagSuggestions WHERE Count >= ? ORDER BY Count DESC`, [threshold]);
+    }
+
     public async getMemory(id: number): Promise<any> {
         return this.get(`SELECT * FROM Memories JOIN MemoryDatabaseRelations ON Memories.ID = MemoryDatabaseRelations.MemoryId WHERE Memories.ID = ? AND Memories.Deleted = 0`, [id]);
     }

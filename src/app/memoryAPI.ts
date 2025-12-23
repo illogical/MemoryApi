@@ -212,6 +212,18 @@ memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/memories/suggested-tags - Get suggested tags from SQL
+memoryRouter.get('/memories/suggested-tags', async (req: Request, res: Response) => {
+    try {
+        const threshold = parseInt(req.query.threshold as string) || 5;
+        const tags = await memorySystem.getSqlService().getSuggestedTags(threshold);
+        res.json(tags);
+    } catch (error) {
+        logger.error(`Error getting suggested tags: ${error}`);
+        res.status(500).json({ error: 'Failed to get suggested tags' });
+    }
+});
+
 // GET /api/memories/:id - Retrieve a memory by ID
 memoryRouter.get('/memories/:id', async (req: Request, res: Response) => {
     try {
