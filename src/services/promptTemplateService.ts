@@ -13,6 +13,9 @@ export class PromptTemplateService {
   // Cache for tagging prompts: key is content, value is rendered output
   private taggingCache: Map<string, string> = new Map();
 
+  // Cache for tag suggestion prompts: key is content, value is rendered output
+  private tagSuggestionCache: Map<string, string> = new Map();
+
   constructor(templateBasePath: string) {
     // templateBasePath should be the directory containing prompt template files
     this.templateBasePath = templateBasePath;
@@ -98,6 +101,27 @@ export class PromptTemplateService {
       const regex = new RegExp(`{{${key}}}`, 'g');
       template = template.replace(regex, value);
     }
+    return template;
+  }
+
+  /**
+   * Renders the tag_suggestion.md template with provided content.
+   * Injects memory content into the prompt for tag generation.
+   */
+  renderTagSuggestion(content: string): string {
+    // Returns a rendered tag suggestion prompt, using cache for repeated content
+    if (this.tagSuggestionCache.has(content)) {
+      return this.tagSuggestionCache.get(content)!;
+    }
+    const templatePath = this.resolveTemplatePath('tag_suggestion.md');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+
+    // Replace the {content} placeholder with the provided content
+    template = template.replace(/{content}/g, content);
+
+    // Store rendered output in cache
+    this.tagSuggestionCache.set(content, template);
+
     return template;
   }
 }

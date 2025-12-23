@@ -97,13 +97,14 @@ class MemoryRAGSystem {
             this.memoryTextProcessor = new MemoryTextProcessor(
                 this.modelClient,
                 this.promptTemplateService,
-                this.loggingService
+                this.loggingService,
+                this.sqlService
             );
         }
         return this.memoryTextProcessor;
     }
 
-    async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; }> {
+    async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; suggestedTags: string[]; }> {
         this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         const processor = this.getOrCreateTextProcessor();
         return await processor.summarizeClassifyAndTagTextParallel(text);
@@ -116,11 +117,12 @@ class MemoryRAGSystem {
         summary: string;
         classification: string;
         tags: string[];
+        suggestedTags: string[];
         description: string;
         category: MemoryCategory;
         tagsList: string[];
     }> {
-        const { summary, classification, tags } = await this.summarizeClassifyAndTagTextParallel(memory.Content);
+        const { summary, classification, tags, suggestedTags } = await this.summarizeClassifyAndTagTextParallel(memory.Content);
 
         // Prepare description, category, tagsList
         let description = memory.Description;
@@ -135,7 +137,7 @@ class MemoryRAGSystem {
         if (!tagsList || tagsList.length === 0) {
             tagsList = tags;
         }
-        return { summary, classification, tags, description, category, tagsList };
+        return { summary, classification, tags, suggestedTags, description, category, tagsList };
     }
 
     /**

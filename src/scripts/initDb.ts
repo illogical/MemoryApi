@@ -64,6 +64,7 @@ async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS TagSuggestions (
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         TagText TEXT NOT NULL UNIQUE,
+        Count INTEGER NOT NULL DEFAULT 0,
         LastUpdated TEXT NOT NULL,
         Created TEXT NOT NULL
       );

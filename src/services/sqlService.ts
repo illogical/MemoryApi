@@ -186,13 +186,13 @@ export class SqlService {
 
         const existing = await this.get<{ ID: number }>(`SELECT ID FROM TagSuggestions WHERE TagText = ?`, [lowerTag]);
         if (existing) {
-            await this.run(`UPDATE TagSuggestions SET LastUpdated = ? WHERE ID = ?`, [timestamp, existing.ID]);
+            await this.run(`UPDATE TagSuggestions SET Count = Count + 1, LastUpdated = ? WHERE ID = ?`, [timestamp, existing.ID]);
             return existing.ID;
         }
 
         return await this.runInsert(
-            `INSERT INTO TagSuggestions (TagText, Created, LastUpdated) VALUES (?, ?, ?)`,
-            [lowerTag, timestamp, timestamp]
+            `INSERT INTO TagSuggestions (TagText, Created, LastUpdated, Count) VALUES (?, ?, ?, ?)`,
+            [lowerTag, timestamp, timestamp, 1]
         );
     }
 
