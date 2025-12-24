@@ -224,6 +224,18 @@ memoryRouter.get('/memories/suggested-tags', async (req: Request, res: Response)
     }
 });
 
+// DELETE /api/memories/suggested-tags/:id - Dismiss a suggested tag
+memoryRouter.delete('/memories/suggested-tags/:id', async (req: Request, res: Response) => {
+    try {
+        const id = parseInt(req.params.id);
+        await memorySystem.getSqlService().dismissTagSuggestion(id);
+        res.json({ message: 'Tag suggestion dismissed' });
+    } catch (error) {
+        logger.error(`Error dismissing suggested tag: ${error}`);
+        res.status(500).json({ error: 'Failed to dismiss suggested tag' });
+    }
+});
+
 // GET /api/memories/:id - Retrieve a memory by ID
 memoryRouter.get('/memories/:id', async (req: Request, res: Response) => {
     try {

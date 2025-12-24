@@ -116,8 +116,19 @@ export class PromptTemplateService {
     const templatePath = this.resolveTemplatePath('tag_suggestion.md');
     let template = fs.readFileSync(templatePath, 'utf-8');
 
+        // Load tags from allTags.json (relative to prompts directory)
+    const tagsPath = path.join(this.templateBasePath, '../samples/allTags.json');
+    const tagsData = JSON.parse(fs.readFileSync(tagsPath, 'utf-8'));
+
+    // Format tags: tag1, tag2, ...
+    const formattedTags = tagsData.TagGroups.map((group: any) => {
+      const tags = group.Tags.join(', ');
+      return `${tags}`;
+    }).join('\n');
+
     // Replace the {content} placeholder with the provided content
     template = template.replace(/{content}/g, content);
+    template = template.replace(/{{tags}}/g, formattedTags);
 
     // Store rendered output in cache
     this.tagSuggestionCache.set(content, template);
@@ -125,8 +136,3 @@ export class PromptTemplateService {
     return template;
   }
 }
-
-// Usage example:
-// import path from 'path';
-// const service = new PromptTemplateService(path.join(__dirname, '../prompts'));
-// const prompt = service.renderClassification('Your input here');

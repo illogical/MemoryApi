@@ -65,6 +65,7 @@ async function initializeDatabase() {
         ID INTEGER PRIMARY KEY AUTOINCREMENT,
         TagText TEXT NOT NULL UNIQUE,
         Count INTEGER NOT NULL DEFAULT 0,
+        Active BOOLEAN NOT NULL DEFAULT 1,
         LastUpdated TEXT NOT NULL,
         Created TEXT NOT NULL
       );

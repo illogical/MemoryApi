@@ -48,14 +48,35 @@ document.addEventListener('DOMContentLoaded', () => {
             pill.innerHTML = `
                 <span>${tag.TagText}</span>
                 <span class="tag-count">${tag.Count}</span>
+                <span class="dismiss-tag" title="Dismiss suggestion">×</span>
             `;
             pill.title = `Suggested ${tag.Count} times`;
             
-            // Optional: Click to add to allTags or filter? 
-            // For now just display as requested.
+            const dismissBtn = pill.querySelector('.dismiss-tag');
+            dismissBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if (await dismissSuggestedTag(tag.ID)) {
+                    pill.remove();
+                    if (list.children.length === 0) {
+                        section.style.display = 'none';
+                    }
+                }
+            };
             
             list.appendChild(pill);
         });
+    }
+
+    async function dismissSuggestedTag(id) {
+        try {
+            const res = await fetch(`/api/memories/suggested-tags/${id}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.error('Error dismissing tag:', err);
+            return false;
+        }
     }
 
     // Check status independently so UI loads fast

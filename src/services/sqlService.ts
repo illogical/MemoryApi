@@ -204,7 +204,12 @@ export class SqlService {
     }
 
     public async getSuggestedTags(threshold: number = 5): Promise<any[]> {
-        return this.all(`SELECT * FROM TagSuggestions WHERE Count >= ? ORDER BY Count DESC`, [threshold]);
+        return this.all(`SELECT * FROM TagSuggestions WHERE Count >= ? AND Active = 1 ORDER BY Count DESC`, [threshold]);
+    }
+
+    public async dismissTagSuggestion(id: number): Promise<void> {
+        const timestamp = new Date().toISOString();
+        await this.run(`UPDATE TagSuggestions SET Active = 0, LastUpdated = ? WHERE ID = ?`, [timestamp, id]);
     }
 
     public async getMemory(id: number): Promise<any> {

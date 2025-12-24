@@ -27,7 +27,7 @@ Your goal is to generate **concise, single-word, all-lowercase tags** that best 
 3. **Avoid existing tags**
    - Do **not** suggest any tag that is already present in this existing tag set (treat matching as case-insensitive):
 
-     - "Work", "Project", "Learning", "Inspiration", "Resource", "Workflow", "Checklist", "Draft", "Plan", "Summary", "Prompt", "Appointment", "Favorite", "To Do", "Review", "Read Later", "Watch Later", "Follow Up", "Research", "Update", "Test", "Improve", "Reminder", "Action Required", "Notes", "Comparison", "Avoid", "Data Science", "Machine Learning", "Generative AI", "Design", "UX", "Productivity", "Travel", "Career", "Health", "Food", "Shopping", "Video Games", "Movies", "TV Shows", "Books", "Snippet", "Config", "Command", "API", "Automation", "Prompt Engineering", "Template", "Deployment", "Debugging", "Testing", "Optimization", "Integration", "Programming"
+     - {tags}
 
    - If a tag you would normally choose appears in this list, pick a **more specific or adjacent** alternative instead.  
      - Example: instead of "Travel" use `itinerary`, `packing`, `flights`, `hotels`, or a relevant place category (but not an exact name).  
