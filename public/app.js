@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueContainer = document.getElementById('queue-container');
     let categories = [];
     let allTags = [];
-    let serverStatus = { vector: false, graph: false, sql: false };
+    let serverStatus = { vector: false, graph: false, sql: false, model: false };
 
     // Fetch initial data
     Promise.all([
@@ -82,6 +82,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check status independently so UI loads fast
     fetchStatus();
 
+    async function fetchWithTimeout(resource, options = {}) {
+        const { timeout = 8000 } = options;
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        return response;
+    }
+
     // Refresh Button Logic
     const refreshBtn = document.getElementById('refresh-status-btn');
     if (refreshBtn) {
@@ -96,8 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchStatus() {
+        const timeout = 5000; // 5 second timeout for status checks
+
         // Create independent promises for each status check
-        const vectorPromise = fetch('/api/status/vector')
+        const vectorPromise = fetchWithTimeout('/api/status/vector', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update Vector UI immediately
@@ -110,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('vector-status', { active: false }, true);
             });
 
-        const graphPromise = fetch('/api/status/graph')
+        const graphPromise = fetchWithTimeout('/api/status/graph', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update Graph UI immediately
@@ -123,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('graph-status', { active: false }, true);
             });
 
-        const sqlPromise = fetch('/api/status/sql')
+        const sqlPromise = fetchWithTimeout('/api/status/sql', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update SQL UI immediately
@@ -136,8 +150,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('sql-status', { active: false }, true);
             });
 
+        const modelPromise = fetchWithTimeout('/api/status/model-provider', { timeout })
+            .then(res => res.json())
+            .then(data => {
+                // Update Model UI immediately
+                serverStatus.model = data.active;
+                updateStatusUI('model-status', data);
+            })
+            .catch(err => {
+                console.error('Error fetching model status:', err);
+                serverStatus.model = false;
+                updateStatusUI('model-status', { active: false }, true);
+            });
+
         // Wait for all to settle before finishing (to stop spinner)
-        await Promise.allSettled([vectorPromise, graphPromise, sqlPromise]);
+        await Promise.allSettled([vectorPromise, graphPromise, sqlPromise, modelPromise]);
 
         // Update global buttons after both checks allow consistent state
         updateCommitButtons();
@@ -156,18 +183,27 @@ document.addEventListener('DOMContentLoaded', () => {
             text.textContent = `Not Active`;
         } else {
             indicator.classList.add('active'); // Green dot
-            const count = status.count !== undefined ? status.count : '?';
-            let unit = 'Records';
-            if (elementId.includes('graph')) unit = 'Nodes';
-            if (elementId.includes('sql')) unit = 'History';
-            text.textContent = `Active (${count} ${unit})`;
+            
+            if (elementId === 'model-status') {
+                // Special formatting for model provider
+                const provider = status.provider || 'LLM';
+                const model = status.model || 'Unknown';
+                text.textContent = `${provider}: ${model}`;
+                text.title = `Host: ${status.host}\nAvailable: ${status.availableModels?.join(', ') || 'None'}`;
+            } else {
+                const count = status.count !== undefined ? status.count : '?';
+                let unit = 'Records';
+                if (elementId.includes('graph')) unit = 'Nodes';
+                if (elementId.includes('sql')) unit = 'History';
+                text.textContent = `${count} ${unit}`;
+            }
         }
     }
 
     // Correct Implementation of updateCommitButtons without cloning
     function updateCommitButtons() {
         const buttons = document.querySelectorAll('.btn-commit');
-        const isActive = serverStatus.vector && serverStatus.graph && serverStatus.sql;
+        const isActive = serverStatus.vector && serverStatus.graph && serverStatus.sql && serverStatus.model;
 
         buttons.forEach(btn => {
             if (!isActive) {

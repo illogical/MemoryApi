@@ -201,6 +201,17 @@ memoryRouter.get('/status/sql', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/status/model-provider - Get model provider status
+memoryRouter.get('/status/model-provider', async (req: Request, res: Response) => {
+    try {
+        const status = await memorySystem.getModelProviderStatus();
+        res.json(status);
+    } catch (error) {
+        logger.error(`Error getting model provider status: ${error}`);
+        res.status(500).json({ error: 'Failed to get model provider status' });
+    }
+});
+
 // GET /api/memories/stats - Get statistics
 memoryRouter.get('/memories/stats', async (req: Request, res: Response) => {
     try {

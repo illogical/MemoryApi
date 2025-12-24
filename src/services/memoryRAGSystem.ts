@@ -472,6 +472,34 @@ class MemoryRAGSystem {
         return await this.orchestrator.getSqlStatus();
     }
 
+    async getModelProviderStatus(): Promise<{
+        active: boolean;
+        provider: string;
+        host: string;
+        model: string;
+        availableModels: string[];
+    }> {
+        try {
+            const models = await this.modelClient.listModels();
+            return {
+                active: true,
+                provider: this.modelClient.provider,
+                host: this.modelClient.baseUrl,
+                model: this.modelClient.modelName,
+                availableModels: models
+            };
+        } catch (error) {
+            this.loggingService.error(`[getModelProviderStatus] Error: ${error}`);
+            return {
+                active: false,
+                provider: this.modelClient.provider,
+                host: this.modelClient.baseUrl,
+                model: this.modelClient.modelName,
+                availableModels: []
+            };
+        }
+    }
+
     public getSqlService(): SqlService {
         return this.sqlService;
     }

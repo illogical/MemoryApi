@@ -13,6 +13,7 @@ export interface ModelClient {
     readonly baseUrl: string;
     load(modelName: string): Promise<void>;
     respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }>;
+    listModels(): Promise<string[]>;
 }
 
 export interface EmbeddingClient {
@@ -65,6 +66,24 @@ export class LMStudioModelClient implements ModelClient {
         });
         return { content: response.content };
     }
+
+    async listModels(): Promise<string[]> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        try {
+            const res = await fetch(`${this._baseUrl}/v1/models`, {
+                signal: controller.signal
+            });
+            if (!res.ok) {
+                throw new Error(`LM Studio request failed: ${res.status}`);
+            }
+            const data = await res.json();
+            return data.data.map((m: any) => m.id);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
 }
 
 export class OllamaModelClient implements ModelClient {
@@ -115,6 +134,24 @@ export class OllamaModelClient implements ModelClient {
         console.log(`Ollama response received ${res.status}`);
         const content = await res.json().then(d => d.response || d.content || '');
         return { content };
+    }
+
+    async listModels(): Promise<string[]> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        try {
+            const res = await fetch(`${this._baseUrl}/api/tags`, {
+                signal: controller.signal
+            });
+            if (!res.ok) {
+                throw new Error(`Ollama request failed: ${res.status}`);
+            }
+            const data = await res.json();
+            return data.models.map((m: any) => m.name);
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
 }
 

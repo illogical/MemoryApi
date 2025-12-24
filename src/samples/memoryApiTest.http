@@ -80,9 +80,11 @@ Content-Type: application/json
   "limit": 2
 }
 
+#####################################################################################################
 ###
 # Review Queue API Tests
 ###
+#####################################################################################################
 
 # Add a memory to the review queue (should auto-generate metadata)
 POST http://localhost:3000/api/review/queue
