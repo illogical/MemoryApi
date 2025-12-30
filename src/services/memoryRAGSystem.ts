@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { RAGOrchestrator } from './ragOrchestrator';
 import { VectorService } from './vectorService';
-import { ModelClient, LMStudioModelClient, OllamaModelClient, EmbeddingClient, OllamaEmbeddingClient } from './modelClients';
+import { ModelClient, EmbeddingClient, ModelClientFactory } from './modelClients';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { MemoryCategory } from '../models/memoryCategory';
@@ -28,9 +28,6 @@ class MemoryRAGSystem {
     private readonly MAX_CLUSTERS = 5;
     private readonly MAX_MEMORIES_PER_CLUSTER = 5;
 
-    private readonly COLLECTION_NAME = 'memories';
-    private readonly VECTOR_SIZE = 768;
-
     private memoryTextProcessor: MemoryTextProcessor | null = null;
 
     private postSearchAggregator: MemoryPostSearchAggregator;
@@ -43,21 +40,12 @@ class MemoryRAGSystem {
 
         this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.sqlService, this.loggingService);
 
-        // Initialize embedding client (now using Ollama by default as requested)
-        this.embeddingClient = new OllamaEmbeddingClient(config.LLM_HOST);
+        // Initialize embedding client
+        this.embeddingClient = ModelClientFactory.createEmbeddingClient(config.LLM_PROVIDER, config.LLM_HOST);
         this.embeddingClient.load(config.EMBEDDING_MODEL);
 
         // Initialize model client abstraction
-        const modelProvider = config.LLM_PROVIDER;
-        const LLM_HOST = config.LLM_HOST;
-
-        if (modelProvider === 'lmstudio') {
-            this.modelClient = new LMStudioModelClient(LLM_HOST);
-        } else if (modelProvider === 'ollama') {
-            this.modelClient = new OllamaModelClient(LLM_HOST);
-        } else {
-            throw new Error(`Unsupported model provider: ${modelProvider}`);
-        }
+        this.modelClient = ModelClientFactory.createModelClient(config.LLM_PROVIDER, config.LLM_HOST);
         this.modelClient.load(config.LLM_MODEL);
 
         // Re-initialize aggregator with graph service
@@ -178,17 +166,17 @@ class MemoryRAGSystem {
             this.loggingService.debug('[addMemory] Loading inference model...');
             await this.loadInferenceModel();
             this.loggingService.info('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
-            
+
             // Capture timing for summarize/classify/tag operations
             const startTime = Date.now();
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
             const durationMilliseconds = Date.now() - startTime;
-            
+
             this.loggingService.debug(`[addMemory] Prepared memory fields in ${durationMilliseconds}ms: ${JSON.stringify(prepared, null, 2)}`);
-            
+
             // Get model name for tracking
             const modelName = this.modelClient?.modelName || 'unknown';
-            
+
             // Step 2: Generate embedding
             this.loggingService.info(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
             try {
@@ -361,10 +349,10 @@ class MemoryRAGSystem {
         graphResultCount?: number;
     }> {
         this.loggingService.trace('[searchAndSummarizeForMcp] Called with dual search');
-        
+
         // Generate query embedding once
         const queryEmbedding = await this.generateEmbedding(query);
-        
+
         // Perform vector and graph search in parallel
         const searchLimit = (options?.limit ?? this.MAX_MEMORIES_FOR_SUMMARY) * 2;
         const { vectorResults, graphResults } = await this.orchestrator.searchVectorAndGraphParallel(

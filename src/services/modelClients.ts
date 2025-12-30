@@ -5,7 +5,7 @@ export interface ChatMessage {
     content: string;
 }
 
-export type ModelProvider = 'lmstudio' | 'ollama';
+export type ModelProvider = 'lmstudio' | 'ollama' | 'lmapi';
 
 export interface ModelClient {
     readonly modelName: string;
@@ -155,6 +155,7 @@ export class OllamaModelClient implements ModelClient {
     }
 }
 
+
 export class OllamaEmbeddingClient implements EmbeddingClient {
     private _modelName: string = '';
     private _baseUrl: string;
@@ -196,3 +197,135 @@ export class OllamaEmbeddingClient implements EmbeddingClient {
         return data.embedding;
     }
 }
+
+export class LMApiClient implements ModelClient {
+    private _modelName: string = '';
+    private _baseUrl: string;
+    private readonly maxTokensDefault = 16000;
+    private readonly temperatureDefault = 0.3;
+
+    get modelName(): string {
+        return this._modelName;
+    }
+
+    get provider(): ModelProvider {
+        return 'lmapi';
+    }
+
+    constructor(baseUrl: string) {
+        this._baseUrl = baseUrl;
+    }
+
+    get baseUrl(): string {
+        return this._baseUrl;
+    }
+
+    async load(modelName: string): Promise<void> {
+        this._modelName = modelName;
+    }
+
+    async respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }> {
+        // Convert messages to a single prompt string, similar to Ollama style, as LMApi expects 'prompt'
+        const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+
+        const body = {
+            model: this._modelName,
+            prompt, // Send prompt instead of messages
+            stream: false,
+            options: {
+                temperature: options?.temperature ?? this.temperatureDefault,
+                num_predict: options?.maxTokens ?? this.maxTokensDefault,
+            }
+        };
+
+        const res = await fetch(`${this._baseUrl}/api/generate/any`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`LMApi request failed: ${res.status} ${text}`);
+        }
+        const data = await res.json();
+        // Handle response format - support both 'content' and 'response' fields
+        return { content: data.content || data.response || '' };
+    }
+
+    async listModels(): Promise<string[]> {
+        // Assuming a similar endpoint or purely placeholder if unknown
+        // User didn't specify list endpoint, so we'll try a common pattern or return empty/current model
+        // For now, let's assume /api/models or similar doesn't exist or isn't specified. 
+        // We'll implemented a safe fallback or try to fetch if we can guess.
+        // Given "The generation endpoint will be /api/generate/any", maybe there isn't a list endpoint.
+        // I'll return the current model as a single item list to support the interface.
+        return [this._modelName];
+    }
+}
+
+export class LMApiEmbeddingClient implements EmbeddingClient {
+    private _modelName: string = '';
+    private _baseUrl: string;
+
+    get modelName(): string {
+        return this._modelName;
+    }
+
+    constructor(baseUrl: string) {
+        this._baseUrl = baseUrl;
+    }
+
+    get baseUrl(): string {
+        return this._baseUrl;
+    }
+
+    async load(modelName: string): Promise<void> {
+        this._modelName = modelName;
+    }
+
+    async embed(text: string): Promise<number[]> {
+        const body = {
+            model: this._modelName,
+            prompt: text // Using 'prompt' to match generation endpoint pattern
+        };
+        const res = await fetch(`${this._baseUrl}/api/embed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`LMApi embedding request failed: ${res.status} ${text}`);
+        }
+        const data = await res.json();
+        const embedding = data.embedding || data.response;
+        if (!embedding) {
+            throw new Error('LMApi embedding response missing embedding/response data');
+        }
+        return embedding;
+    }
+}
+
+export class ModelClientFactory {
+    static createModelClient(provider: string, baseUrl: string): ModelClient {
+        switch (provider) {
+            case 'lmstudio':
+                return new LMStudioModelClient(baseUrl);
+            case 'ollama':
+                return new OllamaModelClient(baseUrl);
+            case 'lmapi':
+                return new LMApiClient(baseUrl);
+            default:
+                throw new Error(`Unsupported model provider: ${provider}`);
+        }
+    }
+
+    static createEmbeddingClient(provider: string, baseUrl: string): EmbeddingClient {
+        if (provider === 'lmapi') {
+            return new LMApiEmbeddingClient(baseUrl);
+        }
+        // Default to Ollama for embeddings if not explicitly lmapi (as per previous logic)
+        return new OllamaEmbeddingClient(baseUrl);
+    }
+}
+

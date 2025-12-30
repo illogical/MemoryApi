@@ -4,7 +4,7 @@ import path from 'path';
 class Config {
     public QDRANT_URL: string = 'http://localhost:6333';
     public LLM_HOST: string = 'http://localhost:11434';
-    public LLM_MODEL: string = 'phi4';
+    public LLM_MODEL: string = 'granite-3.3';
     public LLM_PROVIDER: string = 'ollama';
     public EMBEDDING_MODEL: string = 'nomic-embed-text:v1.5';
 
