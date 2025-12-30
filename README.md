@@ -24,7 +24,7 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 - **Qdrant Vector Database:** Stores memory embeddings and metadata, enabling fast similarity search and filtering.
 - **SQLite Database:** Stores revisions, audit logs, and history for long-term persistence and relational integrity.
 - **Neo4j Graph Database (optional):** Persists relationships for graph-driven queries and status reporting; API degrades gracefully if unavailable.
-- **LLM + Embeddings Providers (LM Studio or Ollama):** Generates embeddings, summaries, categories, and tags for memories; provider and model are configurable via `.env`.
+- **LLM + Embeddings Providers (LM Studio, Ollama, or LMApi):** Generates embeddings, summaries, categories, and tags for memories; provider and model are configurable via `.env`. LMApi provides advanced pooling and routing for multiple Ollama instances.
 - **TypeScript Models & Services:** Strongly-typed interfaces for memory objects, modular services for prompt templates and business logic.
 - **Dockerized Deployment:** Includes Dockerfile and docker-compose for easy local or cloud deployment.
 
@@ -43,7 +43,14 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
     -   **Cluster (Category/Tag):** Groups memories by metadata and generates focused summaries for each cluster (e.g., "Project Updates", "Personal Preferences").
     -   **Hybrid:** Combines global summaries with detailed cluster breakdowns.
 -   **MCP Optimization:** The output is structured specifically for tool use by AI agents (like GitHub Copilot), providing `narrative` (for understanding) and `bullets` (for strict fact adherence).
+### LMApi Provider (Ollama Pooling)
+The system supports **LMApi**, a specialized provider that pools multiple Ollama servers to provide high availability and intelligent request routing. This is ideal for production environments or multi-user setups.
 
+**Benefits of LMApi over direct Ollama:**
+- **Sticky Assignment:** Minimizes model loading overhead by prioritizing servers already running the requested model.
+- **Idle Distribution:** Optimizes hardware utilization by distributing different models across idle servers first.
+- **Capacity Overflow:** Maximizes throughput by utilizing available parallel slots on busy servers when necessary.
+- **Priority Queueing:** Ensures reliable request handling during peak load by queueing requests until slots become available.
 ### Key Components
 - [src/app/qdrantAPI.ts](src/app/qdrantAPI.ts): Express router implementing Memory API endpoints backed by `MemoryRAGSystem`.
 - [src/services/memoryRAGSystem.ts](src/services/memoryRAGSystem.ts): Core business logic for memory storage, semantic search, categorization, tagging, and summary generation.
@@ -80,7 +87,7 @@ A specialized service responsible for **post-retrieval processing**. Raw search 
    PORT=3000
    QDRANT_URL=http://localhost:6333
    EMBEDDING_MODEL=nomic-embed-text:v1.5
-   LLM_PROVIDER=ollama
+   LLM_PROVIDER=ollama # Options: lmstudio, ollama, lmapi
    LLM_MODEL=phi4
    LLM_HOST=http://localhost:11434
    PROMPT_TEMPLATE_BASE_PATH=./prompts
@@ -259,6 +266,7 @@ npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio
 *Supported Providers:*
 - `lmstudio`
 - `ollama`
+- `lmapi`
 
 ## Report Generation
 The system generates detailed reports for various operations (ingestion, feedback, evaluation). By default, reports are generated in Markdown format. You can switch to HTML format by using the `--report-format=html` flag with the supported scripts.

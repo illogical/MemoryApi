@@ -299,8 +299,9 @@ export class LMApiEmbeddingClient implements EmbeddingClient {
         }
         const data = await res.json();
         const embedding = data.embedding || data.response;
-        if (!embedding) {
-            throw new Error('LMApi embedding response missing embedding/response data');
+
+        if (!embedding || !Array.isArray(embedding)) {
+            throw new Error(`LMApi embedding response invalid. Expected array, got ${typeof embedding}`);
         }
         return embedding;
     }
