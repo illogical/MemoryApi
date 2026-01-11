@@ -91,11 +91,13 @@ The system supports **LMApi**, a specialized provider that pools multiple Ollama
    LLM_MODEL=phi4
    LLM_HOST=http://localhost:11434
    PROMPT_TEMPLATE_BASE_PATH=./prompts
+   SQLITE_DB_PATH=./data/memory.db
    NEO4J_URI=bolt://localhost:7687
    NEO4J_USER=neo4j
    NEO4J_PASSWORD=password
    ```
    Notes:
+   - `SQLITE_DB_PATH` defaults to `./data/memory.db` relative to the project root if unspecified. You can provide an absolute path if desired.
    - `PROMPT_TEMPLATE_BASE_PATH` defaults to the local `prompts/` directory if unspecified.
    - Graph features are optional; if Neo4j is unavailable, the API runs in a degraded mode for graph endpoints.
 4. **Start LM Studio:**

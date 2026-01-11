@@ -1,10 +1,11 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
+import { config } from './configService';
 
 // Enable verbose logging
 sqlite3.verbose();
 
-const DB_PATH = path.join(process.cwd(), 'data', 'memory.db');
+const DB_PATH = config.SQLITE_DB_PATH;
 
 export interface Memory {
     content: string;

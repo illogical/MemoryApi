@@ -13,6 +13,7 @@ class Config {
     public NEO4J_PASSWORD: string = 'password';
 
     public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'prompts');
+    public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'memory.db');
     public PORT: number = 3000;
 
     constructor() {
