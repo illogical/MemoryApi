@@ -10,6 +10,7 @@ const TAGS_FILE = path.join(process.cwd(), 'src', 'samples', 'allTags.json');
 export interface MemoryQueueItem extends Memory {
     id: string; // Maintain ID as string for frontend compatibility, though SQL uses int
     addedAt: string;
+    model?: string;
 }
 
 export class ReviewMemoriesService {
@@ -31,7 +32,8 @@ export class ReviewMemoriesService {
             Category: row.Category as MemoryCategory,
             Tags: JSON.parse(row.Tags || '[]'),
             addedAt: row.Created,
-            LastUpdated: row.LastUpdated
+            LastUpdated: row.LastUpdated,
+            model: row.Model || undefined
         }));
     }
 

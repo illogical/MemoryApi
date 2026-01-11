@@ -247,7 +247,18 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'memory-card';
         card.dataset.id = item.id;
 
-        // Creation date display (top-right corner, converted to EST/EDT)
+        // Meta bar (top-right) showing model and timestamp side by side
+        const metaBar = document.createElement('div');
+        metaBar.className = 'memory-meta';
+
+        if (item.Model) {
+            const modelDisplay = document.createElement('div');
+            modelDisplay.className = 'memory-model';
+            modelDisplay.textContent = item.Model;
+            metaBar.appendChild(modelDisplay);
+        }
+
+        // Creation date display (converted to EST/EDT)
         const dateDisplay = document.createElement('div');
         dateDisplay.className = 'memory-date';
         const createdDate = new Date(item.addedAt);
@@ -266,7 +277,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const [datePart, timePart] = easternDateTime.split(', ');
         const [month, day, year] = datePart.split('/');
         dateDisplay.textContent = `${year}-${month}-${day} ${timePart}`;
-        card.appendChild(dateDisplay);
+        metaBar.appendChild(dateDisplay);
+
+        card.appendChild(metaBar);
 
         // Content
         const contentGroup = createFormGroup('Content', 'textarea', item.Content);

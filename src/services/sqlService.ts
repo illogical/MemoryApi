@@ -156,7 +156,19 @@ export class SqlService {
     }
 
     public async getMemoriesByStatus(status: string): Promise<any[]> {
-        return this.all(`SELECT * FROM Memories WHERE Status = ? AND Deleted = 0 ORDER BY Created DESC`, [status]);
+        // Include earliest history row to surface which model first processed the memory
+        return this.all(
+            `SELECT m.*, 
+                    (SELECT mh.Model
+                     FROM MemoryHistory mh
+                     WHERE mh.MemoryId = m.ID
+                     ORDER BY mh.Created ASC
+                     LIMIT 1) AS Model
+             FROM Memories m
+             WHERE m.Status = ? AND m.Deleted = 0
+             ORDER BY m.Created DESC`,
+            [status]
+        );
     }
 
     public async updateMemoryRelations(memoryId: number, graphId?: string, vectorId?: string): Promise<void> {
