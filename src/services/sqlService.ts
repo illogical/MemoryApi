@@ -156,7 +156,7 @@ export class SqlService {
     }
 
     public async getMemoriesByStatus(status: string): Promise<any[]> {
-        return this.all(`SELECT * FROM Memories WHERE Status = ? AND Deleted = 0`, [status]);
+        return this.all(`SELECT * FROM Memories WHERE Status = ? AND Deleted = 0 ORDER BY Created DESC`, [status]);
     }
 
     public async updateMemoryRelations(memoryId: number, graphId?: string, vectorId?: string): Promise<void> {

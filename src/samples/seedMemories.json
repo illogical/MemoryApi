@@ -103,7 +103,7 @@
       "tags": ["Checklist", "Testing", "Optimization", "Integration"]
     },
     {
-      "content": "Create a template for API integration.",
+      "content": "Create a template for an API integration software specification.",
       "description": "API integration template prompt",
       "category": "Prompt",
       "tags": ["Prompt", "Template", "API", "Integration"]
@@ -113,6 +113,18 @@
       "description": "Workflow automation project idea",
       "category": "Idea",
       "tags": ["Automation", "Workflow", "Project"]
+    },
+    {
+      "content": "I prefer reading science fiction and futuristic novels with an emphasis on advanced technology and space exploration and character development.",
+      "description": "Reading genre preference",
+      "category": "Preference",
+      "tags": ["Books", "Favorite"]
+    },
+    {
+      "content": "Remmber that FancyZones is my go-to free software tool/utility for window management on Windows. It is installed as part of Microsoft PowerToys. Hold Shift while dragging a window to see the zone layout and drop the window into a zone. Zones are easily customized in the PowerToys settings.",
+      "description": "Window management tool preference reminder",
+      "category": "Reminder",
+      "tags": ["Utility", "Productivity", "Customize", "Software", "Favorite"]
     }
   ]
 }

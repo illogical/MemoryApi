@@ -247,6 +247,27 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'memory-card';
         card.dataset.id = item.id;
 
+        // Creation date display (top-right corner, converted to EST/EDT)
+        const dateDisplay = document.createElement('div');
+        dateDisplay.className = 'memory-date';
+        const createdDate = new Date(item.addedAt);
+        // Convert UTC to Eastern Time (handles EST/EDT automatically)
+        const easternDateTime = createdDate.toLocaleString('en-US', { 
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true // <-- 12-hour format with AM/PM
+        });
+        // Format as YYYY-MM-DD HH:MM:SS AM/PM
+        const [datePart, timePart] = easternDateTime.split(', ');
+        const [month, day, year] = datePart.split('/');
+        dateDisplay.textContent = `${year}-${month}-${day} ${timePart}`;
+        card.appendChild(dateDisplay);
+
         // Content
         const contentGroup = createFormGroup('Content', 'textarea', item.Content);
         const descriptionGroup = createFormGroup('Description (Summary)', 'textarea', item.Description);
