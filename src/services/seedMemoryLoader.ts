@@ -1,9 +1,12 @@
 import fs from 'fs';
+import fsp from 'fs/promises';
 import path from 'path';
-import { SeedMemoryFile } from '../models/seedMemory';
+import { SeedMemory, SeedMemoryFile } from '../models/seedMemory';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+
+
 
 export class SeedMemoryLoader {
         /**
@@ -33,12 +36,11 @@ export class SeedMemoryLoader {
                 LastUpdated: new Date().toISOString()
             }));
         }
-    constructor(private ragSystem: MemoryRAGSystem) {}
 
-    async loadSeedMemories(jsonFilePath: string): Promise<void> {
+    public async loadSeedMemoriesToDatabases(jsonFilePath: string, ragSystem: MemoryRAGSystem): Promise<void> {
         try {
             // Ensure the collection exists before loading seed memories
-            await this.ragSystem.initializeCollection();
+            await ragSystem.initializeCollection();
 
             const absPath = path.isAbsolute(jsonFilePath)
                 ? jsonFilePath
@@ -67,7 +69,7 @@ export class SeedMemoryLoader {
                     LastUpdated: new Date().toISOString()
                 };
                 try {
-                    await this.ragSystem.addMemory(memory);
+                    await ragSystem.addMemory(memory);
                     loadedCount++;
                 } catch (addErr) {
                     console.error(`Error adding memory:`, addErr, memory);
@@ -77,5 +79,30 @@ export class SeedMemoryLoader {
         } catch (err) {
             console.error('Unexpected error in loadSeedMemories:', err);
         }
+    }
+
+    /**
+     * Append a single seed memory to the seedMemories.json file.
+     */
+    public async appendSeedMemory(seedMemory: SeedMemory, jsonFilePath: string): Promise<void> {
+        const absPath = path.isAbsolute(jsonFilePath)
+            ? jsonFilePath
+            : path.join(process.cwd(), jsonFilePath);
+
+        const fileContent = await fsp.readFile(absPath, 'utf-8');
+        const data = JSON.parse(fileContent) as SeedMemoryFile;
+
+        if (!Array.isArray(data.memories)) {
+            data.memories = [];
+        }
+
+        data.memories.push({
+            content: seedMemory.content,
+            description: seedMemory.description || '',
+            category: seedMemory.category,
+            tags: Array.isArray(seedMemory.tags) ? seedMemory.tags : []
+        });
+
+        await fsp.writeFile(absPath, JSON.stringify(data, null, 2), 'utf-8');
     }
 }

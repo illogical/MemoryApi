@@ -3,9 +3,12 @@ import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory } from '../models/memory';
 import { logger } from '../utils/logger';
+import path from 'path';
+import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 
 // Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem();
+const seedMemoryLoader = new SeedMemoryLoader();
 
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {
@@ -281,6 +284,35 @@ memoryRouter.post('/memories/search-and-summarize', async (req: Request, res: Re
     } catch (error) {
         logger.error(`Error in search-and-summarize: ${error}`);
         res.status(500).json({ error: 'Failed to search and summarize memories' });
+    }
+});
+
+// POST /api/seeds/memories - Append a memory to seedMemories.json
+memoryRouter.post('/seeds/memories', async (req: Request, res: Response) => {
+    try {
+        const { content, description, category, tags } = req.body;
+
+        // Validate required fields
+        if (!content) {
+            return res.status(400).json({ error: 'Content is required' });
+        }
+
+        // Construct seed memory object
+        const seedMemory = {
+            content,
+            description: description || '',
+            category: category || 'Note',
+            tags: Array.isArray(tags) ? tags : []
+        };
+
+        const seedFilePath = path.join(__dirname, '..', 'samples', 'seedMemories.json');
+        await seedMemoryLoader.appendSeedMemory(seedMemory, seedFilePath);
+
+        logger.info(`Memory added to seedMemories.json: ${content.substring(0, 50)}...`);
+        res.status(201).json({ message: 'Memory added to seed data successfully' });
+    } catch (error) {
+        logger.error(`Error adding memory to seed data: ${error}`);
+        res.status(500).json({ error: 'Failed to add memory to seed data' });
     }
 });
 

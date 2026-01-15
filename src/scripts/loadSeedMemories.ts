@@ -26,7 +26,7 @@ async function main() {
     const seedFilePath = path.resolve(seedFileArg);
 
     // Use SeedMemoryLoader to load and parse the JSON file
-    const loader = new SeedMemoryLoader(ragSystem);
+    const loader = new SeedMemoryLoader();
     let seedMemories: Memory[] = [];
     try {
         seedMemories = await loader.loadSeedMemoriesToMemoryObjects(seedFilePath);

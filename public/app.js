@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.className = 'memory-card';
         card.dataset.id = item.id;
 
-        // Meta bar (top-right) showing model and timestamp side by side
+        // Meta bar (top-right) showing model and timestamp
         const metaBar = document.createElement('div');
         metaBar.className = 'memory-meta';
 
@@ -346,6 +346,19 @@ document.addEventListener('DOMContentLoaded', () => {
         tagsGroup.appendChild(tagsContainer);
         tagsGroup.appendChild(tagInputWrapper);
 
+        // Seed data checkbox (now inline with actions)
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.className = 'memory-seed-checkbox';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `seed-checkbox-${item.id}`;
+        checkbox.checked = false;
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.htmlFor = `seed-checkbox-${item.id}`;
+        checkboxLabel.textContent = 'Save to seed';
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(checkboxLabel);
+
         // Actions
         const actions = document.createElement('div');
         actions.className = 'actions';
@@ -353,12 +366,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn-save';
         saveBtn.textContent = 'Save Changes';
-        saveBtn.onclick = () => saveMemory(item.id, {
-            Content: contentGroup.querySelector('textarea').value,
-            Description: descriptionGroup.querySelector('textarea').value,
-            Category: catSelect.value,
-            Tags: currentTags
-        });
+        saveBtn.onclick = () => {
+            const memoryData = {
+                Content: contentGroup.querySelector('textarea').value,
+                Description: descriptionGroup.querySelector('textarea').value,
+                Category: catSelect.value,
+                Tags: currentTags
+            };
+            const saveToSeed = checkbox.checked;
+            saveAndOptionallyCommit(item.id, memoryData, saveToSeed, false);
+        };
 
         const commitBtn = document.createElement('button');
         commitBtn.className = 'btn-commit';
@@ -375,13 +392,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Normal commit logic
-            // Auto-save before commit to ensure latest state is used
-            await saveMemory(item.id, {
+            const memoryData = {
                 Content: contentGroup.querySelector('textarea').value,
                 Description: descriptionGroup.querySelector('textarea').value,
                 Category: catSelect.value,
                 Tags: currentTags
-            }, false); // false = don't alert on save
+            };
+            const saveToSeed = checkbox.checked;
+            // Auto-save before commit to ensure latest state is used
+            await saveAndOptionallyCommit(item.id, memoryData, saveToSeed, false);
             commitMemory(item.id);
         };
 
@@ -390,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteBtn.textContent = 'Delete';
         deleteBtn.onclick = () => deleteMemory(item.id);
 
+        actions.appendChild(checkboxContainer);
         actions.appendChild(deleteBtn);
         actions.appendChild(saveBtn);
         actions.appendChild(commitBtn);
@@ -511,22 +531,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function saveMemory(id, data, showAlert = true) {
+    async function saveAndOptionallyCommit(id, data, saveToSeed = false, showAlert = true) {
         try {
+            // Save to review queue
             const res = await fetch(`/api/review/queue/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if (res.ok) {
-                if (showAlert) alert('Memory updated successfully!');
-            } else {
-                alert('Failed to update memory.');
+
+            if (!res.ok) {
+                showNotification('Failed to update memory.', 'error');
+                return false;
             }
+
+            if (!saveToSeed) {
+                if(showAlert) {
+                    showNotification('Memory updated successfully!', 'success');
+                }
+                return true;
+            }
+
+            // Save to seed data
+            try {
+                const seedSuccess = await addSeedMemory(data);
+
+                if (!seedSuccess) {
+                    showNotification('Memory saved to review queue, but failed to save to seed data.', 'error');
+                    return true; // Review queue save succeeded
+                }
+
+                if (showAlert) {
+                    showNotification('Memory saved and added to seed data!', 'success');
+                }
+            } catch (err) {
+                console.error('Error saving to seed data:', err);
+                showNotification('Memory saved to review queue, but seed save failed.', 'error');
+                // Review queue save succeeded
+            }
+
+            return true;
         } catch (err) {
             console.error(err);
-            alert('Error updating memory.');
+            showNotification('Error updating memory.', 'error');
+            return false;
         }
+    }
+
+
+    async function addSeedMemory(data)
+    {
+        const seedRes = await fetch('/api/seeds/memories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: data.Content,
+                        description: data.Description,
+                        category: data.Category,
+                        tags: data.Tags
+                    })
+                });
+
+        return seedRes.ok;
+    }
+    
+
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `seed-notification ${type === 'error' ? 'error' : ''}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
+    async function saveMemory(id, data, showAlert = true) {
+        // Legacy function for backwards compatibility
+        return saveAndOptionallyCommit(id, data, false, showAlert);
     }
 
     async function commitMemory(id) {
