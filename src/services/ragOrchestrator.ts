@@ -4,23 +4,24 @@ import { SqlService } from './sqlService';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 import { LoggingService } from './loggingService';
+import { ReminderService } from './reminderService';
+import { config } from './configService';
 
 export class RAGOrchestrator {
     private vectorService: VectorService;
     private graphService: GraphService;
     private sqlService: SqlService;
     private loggingService: LoggingService;
+    private reminderService: ReminderService;
 
-    constructor(
-        vectorService: VectorService,
-        graphService: GraphService,
-        sqlService: SqlService,
-        loggingService: LoggingService
-    ) {
-        this.vectorService = vectorService;
-        this.graphService = graphService;
-        this.sqlService = sqlService;
+    constructor(loggingService: LoggingService) {
         this.loggingService = loggingService;
+        
+        // Initialize services
+        this.vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
+        this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+        this.sqlService = new SqlService();
+        this.reminderService = new ReminderService(config.TODOIST_TOKEN, this.loggingService);
     }
 
     async initialize(): Promise<void> {
@@ -52,6 +53,12 @@ export class RAGOrchestrator {
             model,
             durationMilliseconds
         );
+
+        // If memory is a reminder, create a task in Todoist
+        if (memory.Category === MemoryCategory.REMINDER) {
+            this.loggingService.info(`[RAGOrchestrator.addMemory] Memory is a Reminder, creating Todoist task`);
+            await this.reminderService.createTask(memory);
+        }
 
         return id;
     }

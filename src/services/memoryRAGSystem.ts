@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
 import { RAGOrchestrator } from './ragOrchestrator';
-import { VectorService } from './vectorService';
 import { ModelClient, EmbeddingClient, ModelClientFactory } from './modelClients';
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
@@ -9,7 +8,6 @@ import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
-import { GraphService } from './graphService';
 import { SqlService } from './sqlService';
 import { config } from './configService';
 
@@ -20,7 +18,6 @@ class MemoryRAGSystem {
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(config.PROMPT_TEMPLATE_BASE_PATH);
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
-    private graphService: GraphService;
     private sqlService: SqlService;
 
     // Config knobs for summarization
@@ -33,12 +30,11 @@ class MemoryRAGSystem {
     private postSearchAggregator: MemoryPostSearchAggregator;
 
     constructor() {
-        // Initialize Services
-        const vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
-        this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+        // Initialize Orchestrator (which will initialize Vector, Graph, SQL, and Reminder services)
+        this.orchestrator = new RAGOrchestrator(this.loggingService);
+        
+        // Initialize SQL Service for use in this class
         this.sqlService = new SqlService();
-
-        this.orchestrator = new RAGOrchestrator(vectorService, this.graphService, this.sqlService, this.loggingService);
 
         // Initialize embedding client
         this.embeddingClient = ModelClientFactory.createEmbeddingClient(config.LLM_PROVIDER, config.LLM_HOST);
@@ -146,7 +142,7 @@ class MemoryRAGSystem {
 
 
     /**
-     * Upserts the memory record into Qdrant.
+     * Upserts the memory record into Qdrant and Neo4j.
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string, model?: string, durationMilliseconds?: number): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');

@@ -15,6 +15,7 @@ class Config {
     public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'prompts');
     public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'memory.db');
     public PORT: number = 3000;
+    public TODOIST_TOKEN: string = 'your_todoist_api_token_here';
 
     constructor() {
         dotenv.config();

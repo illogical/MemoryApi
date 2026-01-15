@@ -69,7 +69,8 @@ The system supports **LMApi**, a specialized provider that pools multiple Ollama
 - Docker (optional, for containerized deployment)
 - Qdrant server (local or remote)
 - LM Studio running locally with the required embedding model (e.g., `nomic-embed-text-v1.5`)
- - Neo4j (optional, if using graph features)
+- Neo4j (optional, if using graph features)
+- Todoist API token (optional, for reminder integration - get one from https://todoist.com/prefs/integrations)
 
 ## Installation
 1. **Clone the repository:**
@@ -95,9 +96,11 @@ The system supports **LMApi**, a specialized provider that pools multiple Ollama
    NEO4J_URI=bolt://localhost:7687
    NEO4J_USER=neo4j
    NEO4J_PASSWORD=password
+   TODOIST_TOKEN=your_todoist_api_token_here
    ```
    Notes:
    - `SQLITE_DB_PATH` defaults to `./data/memory.db` relative to the project root if unspecified. You can provide an absolute path if desired.
+   - `TODOIST_TOKEN` is optional. If provided, memories categorized as "Reminder" will automatically create tasks in Todoist.
    - `PROMPT_TEMPLATE_BASE_PATH` defaults to the local `prompts/` directory if unspecified.
    - Graph features are optional; if Neo4j is unavailable, the API runs in a degraded mode for graph endpoints.
 4. **Start LM Studio:**
