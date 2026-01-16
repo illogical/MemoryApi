@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import sampleController from '../controllers/sampleController';
+//import sampleController from '../controllers/sampleController';
 
 const router = Router();
-router.get('/sample', sampleController.getSample);
+//router.get('/sample', sampleController.getSample);
 
 export default router;

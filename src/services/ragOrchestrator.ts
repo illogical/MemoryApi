@@ -21,7 +21,7 @@ export class RAGOrchestrator {
         this.vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
         this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
         this.sqlService = new SqlService();
-        this.reminderService = new ReminderService(config.TODOIST_TOKEN, this.loggingService);
+        this.reminderService = new ReminderService(config.TODOIST_API_KEY, this.loggingService);
     }
 
     async initialize(): Promise<void> {
@@ -36,6 +36,7 @@ export class RAGOrchestrator {
     async addMemory(memory: Memory, embedding: number[], id: string, model?: string, durationMilliseconds?: number): Promise<string> {
         this.loggingService.trace(`[RAGOrchestrator.addMemory] Adding memory ${id} to both stores`);
 
+        this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory details: Category=${memory.Category}, Tags=${memory.Tags?.length || 0}`);
         // Parallel execution for dual-write to vector and graph stores
         await Promise.all([
             this.vectorService.upsertMemory(memory, embedding, id),
@@ -43,6 +44,7 @@ export class RAGOrchestrator {
         ]);
 
         // Add to SQL for relational tracking and history
+        this.loggingService.debug(`[RAGOrchestrator.addMemory] Adding memory to SQL...`);
         // Note: SqlService.addMemory returns a numeric ID, but we use the UUID from vector/graph stores
         await this.sqlService.addMemory(
             memory.Content,
@@ -53,7 +55,8 @@ export class RAGOrchestrator {
             model,
             durationMilliseconds
         );
-
+        this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory ${id} added successfully.`);
+        
         // If memory is a reminder, create a task in Todoist
         if (memory.Category === MemoryCategory.REMINDER) {
             this.loggingService.info(`[RAGOrchestrator.addMemory] Memory is a Reminder, creating Todoist task`);

@@ -2,6 +2,7 @@ import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { SqlService } from './sqlService';
+import { LoggingService } from './loggingService';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -16,10 +17,12 @@ export interface MemoryQueueItem extends Memory {
 export class ReviewMemoriesService {
     private memorySystem: MemoryRAGSystem;
     private sqlService: SqlService;
+    private logger: LoggingService;
 
     constructor(memorySystem: MemoryRAGSystem) {
         this.memorySystem = memorySystem;
         this.sqlService = this.memorySystem.getSqlService();
+        this.logger = new LoggingService();
     }
 
     async getQueue(): Promise<MemoryQueueItem[]> {
@@ -149,69 +152,67 @@ export class ReviewMemoriesService {
     }
 
     async commitMemory(id: string): Promise<string | null> {
-        const memoryId = parseInt(id);
-        if (isNaN(memoryId)) return null;
+        this.logger.info(`[commitMemory] Starting commit for memory ID: ${id}`);
+        
+        try {
+            const memoryId = parseInt(id);
+            if (isNaN(memoryId)) {
+                this.logger.error(`[commitMemory] Invalid memory ID format: ${id}`);
+                return null;
+            }
+            this.logger.debug(`[commitMemory] Parsed memory ID: ${memoryId}`);
 
-        const row = await this.sqlService.getMemory(memoryId);
-        if (!row) return null;
+            this.logger.debug(`[commitMemory] Fetching memory from SQL...`);
+            const row = await this.sqlService.getMemory(memoryId);
+            if (!row) {
+                this.logger.error(`[commitMemory] Memory not found in SQL: ${memoryId}`);
+                return null;
+            }
+            this.logger.debug(`[commitMemory] Memory retrieved: Content length=${row.Content.length}, Category=${row.Category}`);
 
-        // Generate embedding for the content
-        // We use the item's content directly
-        const embedding = await this.memorySystem.generateEmbedding(row.Content);
+            // Generate embedding for the content
+            this.logger.debug(`[commitMemory] Generating embedding for content...`);
+            const embedding = await this.memorySystem.generateEmbedding(row.Content);
+            this.logger.debug(`[commitMemory] Embedding generated: dimension=${embedding?.length || 0}`);
 
-        // Upsert to vector DB
-        // Use the SQL ID as string for the Vector ID to maintain simple 1:1 if possible.
-        // Or if upsertMemory generates a UUID, we store that.
-        // Let's force using the SQL ID as String for consistency, if Qdrant handles it (it usually wants UUID, but string ID helps).
-        // Actually, Qdrant usually strictly likes UUIDs fast. But string is OK.
-        // Let's try passing `id` (string).
+            // Prepare memory data
+            const memoryData: Memory = {
+                Content: row.Content,
+                Description: row.Description,
+                Category: row.Category,
+                Tags: JSON.parse(row.Tags || '[]'),
+                LastUpdated: row.LastUpdated,
+                Status: row.Status
+            };
+            this.logger.debug(`[commitMemory] Memory data prepared: Tags=${memoryData.Tags.length}`);
 
-        const memoryData: Memory = {
-            Content: row.Content,
-            Description: row.Description,
-            Category: row.Category,
-            Tags: JSON.parse(row.Tags || '[]'),
-            LastUpdated: row.LastUpdated
-        };
+            // Upsert to vector DB
+            this.logger.debug(`[commitMemory] Upserting to vector DB with ID: ${id}`);
+            const vectorId = await this.memorySystem.upsertMemory(memoryData, embedding, id);
+            this.logger.info(`[commitMemory] Vector DB upsert completed. Vector ID: ${vectorId}`);
 
-        // Note: upsertMemory calls orchestrator.addMemory.
-        // In clean architecture, we should perhaps rely on orchestration.
-        const vectorId = await this.memorySystem.upsertMemory(memoryData, embedding, id); // using id string "123"
+            // Update SQL Status to "Reviewed" and store Vector ID
+            this.logger.debug(`[commitMemory] Updating memory status to 'Reviewed'...`);
+            await this.sqlService.updateMemoryStatus(memoryId, 'Reviewed');
+            this.logger.debug(`[commitMemory] Memory status updated successfully`);
 
-        // Update SQL Status to "Reviewed" and store Vector ID
-        await this.sqlService.updateMemoryStatus(memoryId, 'Reviewed');
+            // Update relations
+            if (vectorId) {
+                this.logger.debug(`[commitMemory] Updating memory relations with vectorId: ${vectorId}`);
+                await this.sqlService.updateMemoryRelations(memoryId, undefined, vectorId);
+                this.logger.debug(`[commitMemory] Memory relations updated successfully`);
+            } else {
+                this.logger.error(`[commitMemory] No vectorId returned from upsertMemory`);
+            }
 
-        // Update relations
-        // graphId might be generated by graphService inside orchestrator? 
-        // `upsertMemory` in MemoryRAGSystem only calls `orchestrator.addMemory`.
-        // `orchestrator.addMemory` likely orchestrates graph too.
-        // But `orchestrator.addMemory` MIGHT NOT return Graph ID.
-        // If `MemoryRAGSystem`'s sqlService usage is just for `MemoryDatabaseRelations`?
-        // Wait, `orchestrator` uses `sqlService` internally too for relations?
-        // Let's check RAGOrchestrator to be safe. 
-        // If RAGOrchestrator handles `MemoryDatabaseRelations` insertion, we might double insert or conflict?
-        // `MemoryRAGSystem` passes `sqlService` to `orchestrator`.
-
-        // Let's assume `orchestrator` handles the DB relations mapping if it has access.
-        // But `MemoryDatabaseRelations` has `MemoryId` (PK).
-        // If I created the memory via `sqlService.addMemory`, it inserted a row.
-        // If `orchestrator` tries to insert a row for the same MemoryId...
-        // `orchestrator.addMemory` might insert a NEW memory row if it doesn't know about this one?
-        // Or does it update?
-
-        // Current `orchestrator` logic is unknown to me directly without reading `ragOrchestrator.ts`.
-        // However, `sqlService.addMemory` creates the relation row with NULLs.
-        // If `orchestrator` updates it, great.
-
-        // If I pass `id` to `upsertMemory`, does it reuse it?
-
-        // I will assume for now `upsertMemory` works.
-        // I should explicitly update the VectorId in SQL if I get it back.
-
-        if (vectorId) {
-            await this.sqlService.updateMemoryRelations(memoryId, undefined, vectorId);
+            this.logger.info(`[commitMemory] Successfully committed memory ${memoryId} with vectorId: ${vectorId}`);
+            return vectorId;
+        } catch (error) {
+            this.logger.error(`[commitMemory] Error committing memory ${id}: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof Error && error.stack) {
+                this.logger.error(`[commitMemory] Stack trace: ${error.stack}`);
+            }
+            throw error;
         }
-
-        return vectorId;
     }
 }

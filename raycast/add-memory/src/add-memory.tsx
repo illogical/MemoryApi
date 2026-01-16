@@ -25,8 +25,8 @@ interface ReviewQueueResponse {
 export default function Command(props: { arguments: Arguments }) {
   const { memory } = props.arguments;
 
-  // API endpoint configuration
-  const API_URL = "http://localhost:3000/api/review/queue";
+  // API endpoint configuration from environment variables
+  const API_URL = process.env.MEMORY_URL || "http://192.168.7.45:3000/api/review/queue";
 
   // Validate memory input
   if (!memory || !memory.trim()) {

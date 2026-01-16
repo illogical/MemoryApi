@@ -24,6 +24,19 @@ export class GraphService {
         await this.driver.close();
     }
 
+    async clearAllData(): Promise<void> {
+        const session = this.getSession();
+        try {
+            await session.run('MATCH (n) DETACH DELETE n');
+            console.log('All graph data cleared successfully.');
+        } catch (error) {
+            console.error('Error clearing graph data:', error);
+            throw error;
+        } finally {
+            await session.close();
+        }
+    }
+
     async initializeSchema(): Promise<void> {
         const session = this.getSession();
         try {
@@ -42,7 +55,7 @@ export class GraphService {
                     CREATE VECTOR INDEX memory_embedding_index IF NOT EXISTS
                     FOR (m:Memory) ON (m.embedding)
                     OPTIONS {indexConfig: {
-                        ` + "`vector.dimensions`" + `: 1536,
+                        ` + "`vector.dimensions`" + `: 768,
                         ` + "`vector.similarity_function`" + `: 'cosine'
                     }}
                 `);
