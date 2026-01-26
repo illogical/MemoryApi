@@ -11,7 +11,6 @@ const TAGS_FILE = path.join(process.cwd(), 'src', 'samples', 'allTags.json');
 export interface MemoryQueueItem extends Memory {
     id: string; // Maintain ID as string for frontend compatibility, though SQL uses int
     addedAt: string;
-    model?: string;
 }
 
 export class ReviewMemoriesService {
@@ -35,30 +34,21 @@ export class ReviewMemoriesService {
             Category: row.Category as MemoryCategory,
             Tags: JSON.parse(row.Tags || '[]'),
             addedAt: row.Created,
-            LastUpdated: row.LastUpdated,
-            model: row.Model || undefined
+            LastUpdated: row.LastUpdated
         }));
     }
 
     async addToQueue(memory: Memory): Promise<MemoryQueueItem> {
         // Generate metadata
         await this.memorySystem.loadInferenceModel();
-        const start = Date.now();
         const prepared = await this.memorySystem.summarizeClassifyAndPrepareMemory(memory);
-        const durationMilliseconds = Date.now() - start;
-
-        // Determine active model name from MemoryRAGSystem
-        const modelStatus = await this.memorySystem.getModelProviderStatus();
-        const modelName = modelStatus.model || 'unknown';
 
         const memoryId = await this.sqlService.addMemory(
             memory.Content,
             prepared.description,
             prepared.tagsList,
             prepared.category,
-            'New',
-            modelName,
-            durationMilliseconds
+            'New'
         );
 
         // Fetch back to confirm data

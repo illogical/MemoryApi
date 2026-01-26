@@ -33,7 +33,7 @@ export class RAGOrchestrator {
         this.loggingService.log('[RAGOrchestrator] Services initialized.');
     }
 
-    async addMemory(memory: Memory, embedding: number[], id: string, model?: string, durationMilliseconds?: number): Promise<string> {
+    async addMemory(memory: Memory, embedding: number[], id: string): Promise<string> {
         this.loggingService.trace(`[RAGOrchestrator.addMemory] Adding memory ${id} to both stores`);
 
         this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory details: Category=${memory.Category}, Tags=${memory.Tags?.length || 0}`);
@@ -51,9 +51,7 @@ export class RAGOrchestrator {
             memory.Description || '',
             memory.Tags || [],
             memory.Category || 'Uncategorized',
-            memory.Status,
-            model,
-            durationMilliseconds
+            memory.Status
         );
         this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory ${id} added successfully.`);
         
