@@ -3,6 +3,7 @@ import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { Memory } from '../models/memory';
 import { MemoryReportService, ReportStats } from '../services/memoryReportService';
+import { randomUUID } from 'crypto';
 
 async function main() {
     const startTime = Date.now();
@@ -43,7 +44,9 @@ async function main() {
     const preparedMemories = await Promise.all(
         seedMemories.map(async (memory) => {
             try {
+                const processStartTime = Date.now();
                 const prepared = await ragSystem.summarizeClassifyAndPrepareMemory(memory);
+                const processDuration = Date.now() - processStartTime;
                 return {
                     ...memory,
                     Description: prepared.description,
@@ -51,7 +54,8 @@ async function main() {
                     Tags: prepared.tagsList,
                     summary: prepared.summary,
                     classification: prepared.classification,
-                    tags: prepared.tags
+                    tags: prepared.tags,
+                    processDuration: processDuration
                 };
             } catch (err) {
                 console.error('Error summarizing/classifying/tagging:', err, memory);
@@ -66,7 +70,8 @@ async function main() {
     for (const mem of validMemories) {
         try {
             const embedding = await ragSystem.generateEmbedding(mem.Content);
-            const id = await ragSystem.upsertMemory(mem, embedding);
+            const memoryId = randomUUID();
+            const id = await ragSystem.upsertMemory(mem, embedding, memoryId, config.LLM_MODEL, (mem as any).processDuration);
             (mem as any).id = id;
             loadedCount++;
         } catch (err) {

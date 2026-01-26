@@ -4,6 +4,7 @@ import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { GraphService } from '../services/graphService';
 import { Memory } from '../models/memory';
 import * as path from 'path';
+import { randomUUID } from 'crypto';
 
 async function main() {
     const startTime = Date.now();
@@ -90,7 +91,9 @@ async function main() {
     const preparedMemories = await Promise.all(
         seedMemories.map(async (memory, index) => {
             try {
+                const processStartTime = Date.now();
                 const prepared = await ragSystem.summarizeClassifyAndPrepareMemory(memory);
+                const processDuration = Date.now() - processStartTime;
                 if ((index + 1) % 5 === 0 || index === seedMemories.length - 1) {
                     console.log(`    Processed ${index + 1}/${seedMemories.length} memories`);
                 }
@@ -101,7 +104,8 @@ async function main() {
                     Tags: prepared.tagsList,
                     summary: prepared.summary,
                     classification: prepared.classification,
-                    tags: prepared.tags
+                    tags: prepared.tags,
+                    processDuration: processDuration
                 };
             } catch (error) {
                 console.error(`    ✗ Error processing memory ${index + 1}:`, error);
@@ -118,10 +122,10 @@ async function main() {
     let failCount = 0;
 
     for (let i = 0; i < validMemories.length; i++) {
-        const mem = validMemories[i];
+        const mem = validMemories[i] as any;
         try {
             const embedding = await ragSystem.generateEmbedding(mem.Content);
-            await ragSystem.upsertMemory(mem, embedding);
+            await ragSystem.upsertMemory(mem, embedding, randomUUID(), config.LLM_MODEL, mem.processDuration);
             successCount++;
             
             if ((i + 1) % 5 === 0 || i === validMemories.length - 1) {
