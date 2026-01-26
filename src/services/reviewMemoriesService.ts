@@ -43,22 +43,14 @@ export class ReviewMemoriesService {
     async addToQueue(memory: Memory): Promise<MemoryQueueItem> {
         // Generate metadata
         await this.memorySystem.loadInferenceModel();
-        const start = Date.now();
         const prepared = await this.memorySystem.summarizeClassifyAndPrepareMemory(memory);
-        const durationMilliseconds = Date.now() - start;
-
-        // Determine active model name from MemoryRAGSystem
-        const modelStatus = await this.memorySystem.getModelProviderStatus();
-        const modelName = modelStatus.model || 'unknown';
 
         const memoryId = await this.sqlService.addMemory(
             memory.Content,
             prepared.description,
             prepared.tagsList,
             prepared.category,
-            'New',
-            modelName,
-            durationMilliseconds
+            'New'
         );
 
         // Fetch back to confirm data

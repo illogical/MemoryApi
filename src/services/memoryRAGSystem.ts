@@ -144,11 +144,11 @@ class MemoryRAGSystem {
     /**
      * Upserts the memory record into Qdrant and Neo4j.
      */
-    async upsertMemory(memory: Memory, embedding: number[], id?: string, model?: string, durationMilliseconds?: number): Promise<string> {
+    async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');
         const memoryId = id || randomUUID();
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
-        return await this.orchestrator.addMemory(memory, embedding, memoryId, model, durationMilliseconds);
+        return await this.orchestrator.addMemory(memory, embedding, memoryId);
     }
 
     /**
@@ -163,15 +163,9 @@ class MemoryRAGSystem {
             await this.loadInferenceModel();
             this.loggingService.info('[addMemory] Inference model loaded. Summarizing, classifying, and tagging...');
 
-            // Capture timing for summarize/classify/tag operations
-            const startTime = Date.now();
             const prepared = await this.summarizeClassifyAndPrepareMemory(memory);
-            const durationMilliseconds = Date.now() - startTime;
 
-            this.loggingService.debug(`[addMemory] Prepared memory fields in ${durationMilliseconds}ms: ${JSON.stringify(prepared, null, 2)}`);
-
-            // Get model name for tracking
-            const modelName = this.modelClient?.modelName || 'unknown';
+            this.loggingService.debug(`[addMemory] Prepared memory fields: ${JSON.stringify(prepared, null, 2)}`);
 
             // Step 2: Generate embedding
             this.loggingService.info(`[addMemory] Embedding model loaded. Generating embedding for content: ${prepared.description ? prepared.description : memory.Content}`);
@@ -187,7 +181,7 @@ class MemoryRAGSystem {
                     LastUpdated: new Date().toISOString()
                 };
                 this.loggingService.info(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
-                return await this.upsertMemory(memoryToUpsert, embedding, undefined, modelName, durationMilliseconds);
+                return await this.upsertMemory(memoryToUpsert, embedding);
             } catch (embeddingError) {
                 this.loggingService.error(`[addMemory] Error during embedding generation: ${embeddingError}`);
                 throw new Error('Failed to generate embedding. ' + (embeddingError instanceof Error ? embeddingError.message : String(embeddingError)));
