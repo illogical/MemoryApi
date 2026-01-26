@@ -141,13 +141,40 @@ class MemoryRAGSystem {
     }
 
 
-    /**
-     * Upserts the memory record into Qdrant and Neo4j.
+/**
+     * Upserts the memory record into Qdrant and Neo4j. Also adds to SQL for relational tracking.
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');
-        const memoryId = id || randomUUID();
+        let memoryId = id || randomUUID();
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
+
+        // this is a new memory that skipped review. Automatically set the status to Reviewed.
+        if(!id)
+        {
+            // Add to SQL for relational tracking and history
+            this.loggingService.debug(`[RAGOrchestrator.addMemory] Adding memory to SQL...`);
+            // Note: SqlService.addMemory returns a numeric ID, but we use the UUID from vector/graph stores
+            let newId = await this.sqlService.addMemory(
+                memory.Content,
+                memory.Description || '',
+                memory.Tags || [],
+                memory.Category || 'Uncategorized',
+                memory.Status || "Reviewed"
+            );
+
+            memoryId = newId.toString();
+        }
+        else
+        {
+            // update the current memory's status
+            let memory = await this.sqlService.getMemory(parseInt(memoryId));
+            if(memory)
+            {
+                await this.sqlService.updateMemoryStatus(parseInt(memoryId), "Reviewed");
+            }
+        }
+
         return await this.orchestrator.addMemory(memory, embedding, memoryId);
     }
 

@@ -125,7 +125,7 @@ async function main() {
         const mem = validMemories[i] as any;
         try {
             const embedding = await ragSystem.generateEmbedding(mem.Content);
-            await ragSystem.upsertMemory(mem, embedding, randomUUID(), config.LLM_MODEL, mem.processDuration);
+            await ragSystem.upsertMemory(mem, embedding);
             successCount++;
             
             if ((i + 1) % 5 === 0 || i === validMemories.length - 1) {

@@ -70,8 +70,7 @@ async function main() {
     for (const mem of validMemories) {
         try {
             const embedding = await ragSystem.generateEmbedding(mem.Content);
-            const memoryId = randomUUID();
-            const id = await ragSystem.upsertMemory(mem, embedding, memoryId, config.LLM_MODEL, (mem as any).processDuration);
+            const id = await ragSystem.upsertMemory(mem, embedding);
             (mem as any).id = id;
             loadedCount++;
         } catch (err) {

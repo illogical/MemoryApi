@@ -43,17 +43,7 @@ export class RAGOrchestrator {
             this.graphService.upsertMemory({ id, ...memory }, embedding)
         ]);
 
-        // Add to SQL for relational tracking and history
-        this.loggingService.debug(`[RAGOrchestrator.addMemory] Adding memory to SQL...`);
-        // Note: SqlService.addMemory returns a numeric ID, but we use the UUID from vector/graph stores
-        await this.sqlService.addMemory(
-            memory.Content,
-            memory.Description || '',
-            memory.Tags || [],
-            memory.Category || 'Uncategorized',
-            memory.Status
-        );
-        this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory ${id} added successfully.`);
+        this.loggingService.debug(`[RAGOrchestrator.addMemory] Memory ${id} added to Vector & Graph stores successfully.`);
         
         // If memory is a reminder, create a task in Todoist
         if (memory.Category === MemoryCategory.REMINDER) {
