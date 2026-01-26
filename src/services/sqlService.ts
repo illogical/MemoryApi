@@ -80,7 +80,7 @@ export class SqlService {
         });
     }
 
-    public async addMemory(content: string, description: string, tags: string[], category: string, status: string = 'New', model?: string, durationMilliseconds?: number): Promise<number> {
+    public async addMemory(content: string, description: string, tags: string[], category: string, status: string = 'New'): Promise<number> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
@@ -96,9 +96,6 @@ export class SqlService {
                 [memoryId]
             );
 
-            // Add history record for the new memory with model and duration info
-            await this.addMemoryHistory(memoryId, content, description, tags, category, model, durationMilliseconds);
-
             return memoryId;
         } catch (error) {
             console.error('Error adding memory:', error);
@@ -106,20 +103,7 @@ export class SqlService {
         }
     }
 
-    public async addMemoryHistory(memoryId: number, content: string, description: string, tags: string[], category: string, model?: string, durationMilliseconds?: number): Promise<void> {
-        const timestamp = new Date().toISOString();
-        const tagsString = JSON.stringify(tags);
 
-        try {
-            await this.run(
-                `INSERT INTO MemoryHistory (Content, Description, Tags, Category, Created, MemoryId, Model, DurationMilliseconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [content, description, tagsString, category, timestamp, memoryId, model, durationMilliseconds]
-            );
-        } catch (error) {
-            console.error('Error adding memory history:', error);
-            throw error;
-        }
-    }
 
     public async updateMemory(id: number, content: string, description: string, tags: string[], category: string, status?: string): Promise<void> {
         const timestamp = new Date().toISOString();
@@ -137,7 +121,6 @@ export class SqlService {
         params.push(id);
 
         try {
-            await this.addMemoryHistory(id, content, description, tags, category);
             await this.run(sql, params);
         } catch (error) {
             console.error('Error updating memory:', error);
@@ -156,14 +139,8 @@ export class SqlService {
     }
 
     public async getMemoriesByStatus(status: string): Promise<any[]> {
-        // Include earliest history row to surface which model first processed the memory
         return this.all(
-            `SELECT m.*, 
-                    (SELECT mh.Model
-                     FROM MemoryHistory mh
-                     WHERE mh.MemoryId = m.ID
-                     ORDER BY mh.Created ASC
-                     LIMIT 1) AS Model
+            `SELECT m.*
              FROM Memories m
              WHERE m.Status = ? AND m.Deleted = 0
              ORDER BY m.Created DESC`,

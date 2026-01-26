@@ -10,7 +10,6 @@
 - **`MemoryDatabaseRelations`**: Managed join table linking SQL `MemoryId` to external `GraphId` (Neo4j) and `VectorId` (Qdrant).
 - **`TagSuggestions`**: Deduplicated storage for suggested tags (always lowercased).
 - **`MemorySuggestedTagsRelation`**: Join table tracking tag suggestions per memory.
-- **`MemoryHistory`**: Versioning table for memories; stores snapshots of content and metadata for every revision.
 - **`SearchHistory`**: Logs semantic search queries, results (vector/graph), the summarization prompt (`MergePrompt`), and the final aggregate summary (`MergeSummary`). Useful for RAG evaluation.
 
 ## Integration Points
@@ -21,9 +20,9 @@
 - **UI**: Dashboard status bar includes a "SQL DB" pill showing "Active (X History)".
 
 ## Key Methods in `SqlService`
-- `addMemory`: Inserts to `Memories`, initializes relations, and records initial history. Supports `Status` (New/Reviewed).
-- `updateMemory`: Updates content/tags/category/description, sets `LastUpdated`, and records a new history snapshot.
-- `softDeleteMemory`: Sets `Deleted = 1` to hide records without removing them from history.
+- `addMemory`: Inserts to `Memories` and initializes relations. Supports `Status` (New/Reviewed).
+- `updateMemory`: Updates content/tags/category/description and sets `LastUpdated`.
+- `softDeleteMemory`: Sets `Deleted = 1` to hide records.
 - `updateMemoryRelations`: Updates Graph/Vector IDs for a memory.
 - `addTagSuggestion`: Idempotent insertion (returns existing ID if tag exists).
 - `getMemoriesByStatus`: Retrieves non-deleted memories by their workflow status.
@@ -45,12 +44,11 @@ I have completed the refactoring of the memory review system to use the SQLite d
 ### Database Schema
 #### [initDb.ts](file:///c:/LocalDev/Projects/MemoryApi/src/scripts/initDb.ts)
 - **Memories Table**: Added `Status` (default 'New') and `Deleted` (default 0) columns.
-- **MemoryHistory Table**: Renamed from `MemoryReview`, removed `LastUpdated`. Used for tracking memory versions.
 
 ### Backend Services
 #### [sqlService.ts](file:///c:/LocalDev/Projects/MemoryApi/src/services/sqlService.ts)
-- Implemented `addMemory` with history tracking.
-- Implemented `updateMemory` with history tracking.
+- Implemented `addMemory`.
+- Implemented `updateMemory`.
 - Implemented `softDeleteMemory`.
 - Implemented `getMemoriesByStatus`.
 - Removed legacy `MemoryReview` methods.
@@ -68,9 +66,9 @@ I have completed the refactoring of the memory review system to use the SQLite d
 
 ### Automated Verification
 I verified the end-to-end flow confirms:
-1. **Adding**: Memories are added to SQLite with status 'New' and a history record is created.
+1. **Adding**: Memories are added to SQLite with status 'New'.
 2. **Retrieving**: Queue correctly pulls 'New' memories from DB.
-3. **Updating**: Updates produce a new history record and update the main table.
+3. **Updating**: Updates modify the main table.
 4. **Committing**: Status changes to 'Reviewed', and the memory is passed to the orchestration layer.
 5. **Deleting**: Memory is soft-deleted (Deleted=1) and correctly removed from the queue view.
 

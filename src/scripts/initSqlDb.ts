@@ -83,24 +83,6 @@ async function initializeDatabase() {
       );
     `);
 
-
-    // Create MemoryHistory Table
-    console.log('Creating MemoryHistory table...');
-    await runRun(`
-      CREATE TABLE IF NOT EXISTS MemoryHistory (
-        ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        Content TEXT NOT NULL,
-        Description TEXT,
-        Tags TEXT,
-        Category TEXT,
-        Created TEXT NOT NULL,
-        MemoryId INTEGER,
-        Model TEXT,
-        DurationMilliseconds INTEGER,
-        FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE SET NULL
-      );
-    `);
-
     // Create SearchHistory Table
     console.log('Creating SearchHistory table...');
     await runRun(`
