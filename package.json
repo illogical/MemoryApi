@@ -15,7 +15,8 @@
     "eval:aggregation": "npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio",
     "add-memory": "npx tsx src/scripts/addMemory.ts",
     "search-memories": "npx tsx src/scripts/searchMemories.ts",
-    "init-sql": "npx tsx src/scripts/initDb.ts"
+    "init-sql": "npx tsx src/scripts/initSqlDb.ts",
+    "reset": "npx tsx src/scripts/resetVectorAndGraph.ts"
   },
   "dependencies": {
     "@lmstudio/sdk": "^1.5.0",

@@ -184,7 +184,7 @@ export class ReviewMemoriesService {
                 LastUpdated: row.LastUpdated,
                 Status: row.Status
             };
-            this.logger.debug(`[commitMemory] Memory data prepared: Tags=${memoryData.Tags.length}`);
+            this.logger.debug(`[commitMemory] Memory data prepared: Tags=${memoryData.Tags?.length}`);
 
             // Upsert to vector DB
             this.logger.debug(`[commitMemory] Upserting to vector DB with ID: ${id}`);

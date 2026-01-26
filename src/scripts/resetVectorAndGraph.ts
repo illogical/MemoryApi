@@ -39,8 +39,6 @@ async function main() {
         process.exit(1);
     }
 
-    console.log('Phase 1 complete.\n');
-
     // ===== PHASE 2: INITIALIZE DATABASES =====
     console.log('Phase 2: Initializing databases...');
     
@@ -62,8 +60,6 @@ async function main() {
         process.exit(1);
     }
 
-    console.log('Phase 2 complete.\n');
-
     // ===== PHASE 3: LOAD SEED DATA =====
     console.log('Phase 3: Loading seed data...');
     
@@ -71,7 +67,7 @@ async function main() {
     const seedFileArg = process.argv.slice(2).find(arg => !arg.startsWith('--'));
     const seedFilePath = seedFileArg 
         ? path.resolve(seedFileArg)
-        : path.resolve(__dirname, '../samples/seedMemories.json');
+        : path.resolve(process.cwd(), 'src/samples/seedMemories.json');
 
     console.log(`  - Reading from: ${seedFilePath}`);
 
@@ -86,8 +82,6 @@ async function main() {
         await graphService.close();
         process.exit(1);
     }
-
-    console.log('Phase 3 complete.\n');
 
     // ===== PHASE 4: PROCESS AND POPULATE =====
     console.log('Phase 4: Processing and populating databases...');
@@ -143,8 +137,6 @@ async function main() {
     if (failCount > 0) {
         console.log(`  ✗ Failed to upsert ${failCount} memories`);
     }
-
-    console.log('Phase 4 complete.\n');
 
     // ===== CLEANUP =====
     await graphService.close();
