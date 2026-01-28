@@ -1,7 +1,6 @@
 ---
 name: semantic-memory
 description: Long-term semantic memory system for AI agents using MCP. Use when asked to remember preferences, store reminders, save code snippets, recall past context, search personal knowledge, or retrieve relevant information for coding tasks. Enables context persistence across sessions through vector search with automatic categorization and tagging.
-license: Complete terms in LICENSE.txt
 ---
 
 # Semantic Memory for AI Agents
@@ -30,7 +29,17 @@ Use the semantic memory tools when the user asks to:
 Stores a new memory with automatic categorization, tagging, and summarization. Memories are queued for review before final storage.
 
 **Parameters**:
-- `Content` (required): Full memory content, often starting with "Remember..."
+- `Content` (required): The actual memory text as the user stated it, without meta-framing preambles
+
+**Important**: Provide only the memory content itself. Strip away meta-instructions like "Remember that", "Idea:", or similar preambles. The system automatically handles categorization and tagging.
+
+**Before and After Examples**:
+
+| What NOT to Do | What TO Do |
+|---|---|
+| `"Remember that I prefer Vite and Bun.js"` | `"I prefer Vite and Bun.js for React.js web apps"` |
+| `"Idea: Build a fitness app with gamification"` | `"Build a fitness tracking app with gamification features"` |
+| `"Reminder: Call dentist on Friday"` | `"Call dentist on Friday at 2 PM"` |
 
 **Example Invocations**:
 
@@ -42,7 +51,7 @@ add_memory({
 
 // Store a reminder
 add_memory({
-  Content: "Remember that FancyZones is my go-to tool for window management on Windows. Hold Shift while dragging a window to see zones."
+  Content: "Remember that I prefer Vite and Bun.js for React.js web apps."
 })
 
 // Store a code snippet
@@ -52,7 +61,7 @@ add_memory({
 
 // Store an idea
 add_memory({
-  Content: "Idea: Build a fitness tracking app with gamification features."
+  Content: "Build a fitness tracking app with gamification features."
 })
 ```
 
