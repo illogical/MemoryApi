@@ -22,7 +22,7 @@
       "content": "I went to the VSLive conference in 2025 in Orlando.",
       "description": "I went to the VSLive conference in 2025 in Orlando.",
       "category": "Event",
-      "tags": ["Work", "Travel", "History"]
+      "tags": ["Work", "Travel"]
     },
     {
       "content": "My favorite cuisine is Mexican.",
@@ -38,9 +38,123 @@
     },
     {
       "content": "Remember that FancyZones is my go-to free software tool/utility for window management on Windows. It is installed as part of Microsoft PowerToys. Hold Shift while dragging a window to see the zone layout and drop the window into a zone. Zones are easily customized in the PowerToys settings.",
-      "description": "Window management tool preference reminder",
-      "category": "Reminder",
+      "description": "Windows window management tool preference",
+      "category": "Preference",
       "tags": ["Utility", "Productivity", "Customize", "Software", "Favorite"]
+    },
+    {
+      "content": "Magnet is my go-to software tool/utility for window management on MacOS. I like the iCloud settings sync and the Commands configuration for window drop zones, menu bar shortcuts and the maximize button options on hover.",
+      "description": "MacOS window management tool preference",
+      "category": "Preference",
+      "tags": ["Utility", "Productivity", "Customize", "Software", "Favorite"]
+    },
+    {
+      "content": "I have been a computer geek since childhood and have always enjoyed tinkering with technology and learned my first programming languages such as C++, C#, JavaScript, and HTML. I no longer use C++ but still utilize the other languages for work and personal projects.",
+      "description": "Personal interest in technology and programming background",
+      "category": "Preference",
+      "tags": ["Programming", "Learning", "Career"]
+    },
+    {
+      "content": "I enjoy using Visual Studio Code as my primary code editor for most programming tasks due to its extensive extension ecosystem, lightweight performance, and cross-platform support.",
+      "description": "Code editor preference",
+      "category": "Preference",
+      "tags": ["Programming", "Software", "Favorite"]
+    },
+    {
+      "content": "My preferred tech stack consists of Bun, Vite, TypeScript, and React.js. I like to structure projects so that both the API and web frontend can hot-reload automatically when my dev machine pulls the latest changes via git pull.",
+      "description": "Preferred tech stack with hot-reload dev workflow",
+      "category": "Preference",
+      "tags": ["Programming", "Config", "Favorite", "Productivity"]
+    },
+    {
+      "content": "Prompt engineering tip: Ask the AI to 'think step by step' or 'reason through this before answering' to significantly improve accuracy on complex or multi-step tasks.",
+      "description": "Chain of thought prompting technique tip",
+      "category": "Note",
+      "tags": ["Tip", "Prompt Engineering", "Generative AI"]
+    },
+    {
+      "content": "Prompt engineering tip: Provide explicit context and constraints upfront; state your role, the desired output format, and any limits before describing the task itself.",
+      "description": "Prompt structure tip: context and constraints first",
+      "category": "Note",
+      "tags": ["Tip", "Prompt Engineering", "Generative AI"]
+    },
+    {
+      "content": "Prompt engineering tip: Use delimiters such as triple backticks, XML tags, or ### headers to clearly separate instructions from content, preventing the model from conflating the two.",
+      "description": "Prompt tip: use delimiters to separate instructions from content",
+      "category": "Note",
+      "tags": ["Tip", "Prompt Engineering", "Generative AI"]
+    },
+    {
+      "content": "Command+Space opens Raycast on Mac — my go-to launcher for app switching, quick calculations, clipboard history, and custom scripts.",
+      "description": "Raycast launcher keyboard shortcut on Mac",
+      "category": "Note",
+      "tags": ["Shortcut", "Utility", "Productivity", "Software"]
+    },
+    {
+      "content": "Shift+Ctrl+C takes a screenshot on both Mac and Windows.",
+      "description": "Cross-platform screenshot keyboard shortcut",
+      "category": "Note",
+      "tags": ["Shortcut", "Utility", "Productivity"]
+    },
+    {
+      "content": "Ctrl+Space activates SuperWhisper for voice dictation — press once to start recording and again to stop and transcribe.",
+      "description": "SuperWhisper voice dictation keyboard shortcut",
+      "category": "Note",
+      "tags": ["Shortcut", "Utility", "Productivity", "Software"]
+    },
+    {
+      "content": "Terminator 2: Judgment Day (1991) is one of my all-time favorite movies, an iconic sci-fi action film with groundbreaking visual effects and a memorable story about fate and sacrifice.",
+      "description": "Favorite movie: Terminator 2",
+      "category": "Preference",
+      "tags": ["Movie", "Favorite"]
+    },
+    {
+      "content": "Nothing But Trouble (1991) is a favorite cult classic dark comedy/horror film, surreal humor, a bizarre aesthetic, and an unforgettable cast.",
+      "description": "Favorite movie: Nothing But Trouble",
+      "category": "Preference",
+      "tags": ["Movie", "Favorite"]
+    },
+    {
+      "content": "Short Circuit (1986) is one of my favorite movies, a heartfelt sci-fi comedy featuring Johnny 5, a military robot that gains sentience and wants to live.",
+      "description": "Favorite movie: Short Circuit",
+      "category": "Preference",
+      "tags": ["Movie", "Favorite"]
+    },
+    {
+      "content": "Dark (Netflix, 2017-2020) is one of my favorite TV shows, a masterfully complex German sci-fi thriller involving time travel, interconnected family trees, and multiple timelines.",
+      "description": "Favorite TV show: Dark",
+      "category": "Preference",
+      "tags": ["TV Show", "Favorite"]
+    },
+    {
+      "content": "Breaking Bad (AMC, 2008-2013) is one of my favorite TV shows. Widely considered one of the greatest dramas ever made, following Walter White's transformation from chemistry teacher to drug kingpin.",
+      "description": "Favorite TV show: Breaking Bad",
+      "category": "Preference",
+      "tags": ["TV Show", "Favorite"]
+    },
+    {
+      "content": "The Office (NBC, 2005-2013) is one of my favorite TV shows. A mockumentary comedy about the everyday lives of office workers at Dunder Mifflin paper company in Scranton, PA. Loved the characters and humor.",
+      "description": "Favorite TV show: The Office",
+      "category": "Preference",
+      "tags": ["TV Show", "Favorite"]
+    },
+    {
+      "content": "I prefer Vitest for unit testing in TypeScript and JavaScript projects. My testing strategy covers three levels: unit tests, React component tests, and end-to-end tests.",
+      "description": "Testing framework and strategy preference",
+      "category": "Preference",
+      "tags": ["Testing", "Programming", "Favorite"]
+    },
+    {
+      "content": "The 'deno' npm package allows you to run TypeScript directly without transpiling to JavaScript first, useful for scripts and CLI tools that don't need a build step.",
+      "description": "Deno npm package for running TypeScript without transpiling",
+      "category": "Note",
+      "tags": ["Resource", "Programming", "Tip"]
+    },
+    {
+      "content": "Comparing gemma4 and qwen3.5 models for use in agent harnesses. Interested in evaluating their reasoning quality, tool use accuracy, and performance across different parameter sizes.",
+      "description": "Comparison of gemma4 vs qwen3.5 models for AI agent use cases",
+      "category": "Note",
+      "tags": ["Comparison", "Generative AI", "Research", "Machine Learning"]
     }
   ]
 }
