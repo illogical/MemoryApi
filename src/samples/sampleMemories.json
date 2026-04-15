@@ -1,0 +1,232 @@
+{
+  "memories": [
+    {
+      "content": "I prefer dark mode in all my development tools and editors.",
+      "description": "Dark mode UI preference",
+      "category": "Preference",
+      "tags": ["Productivity", "Software", "Customize", "Favorite"]
+    },
+    {
+      "content": "I prefer tabs over spaces for code indentation in all languages.",
+      "description": "Code indentation preference",
+      "category": "Preference",
+      "tags": ["Programming", "Favorite"]
+    },
+    {
+      "content": "I prefer TypeScript over JavaScript for all new frontend projects.",
+      "description": "TypeScript vs JavaScript language preference",
+      "category": "Preference",
+      "tags": ["Programming", "Favorite"]
+    },
+    {
+      "content": "Doctor appointment on April 25th at 2pm.",
+      "description": "Upcoming medical appointment",
+      "category": "Reminder",
+      "tags": ["Appointment", "Health", "Reminder"]
+    },
+    {
+      "content": "Review and merge the auth module pull request before end of week.",
+      "description": "Code review action item",
+      "category": "Reminder",
+      "tags": ["Review", "Work", "Follow Up", "Action Required"]
+    },
+    {
+      "content": "Renew domain registration for mysite.com by June 15th.",
+      "description": "Domain renewal deadline",
+      "category": "Reminder",
+      "tags": ["Update", "Action Required"]
+    },
+    {
+      "content": "git stash && git pull --rebase && git stash pop",
+      "description": "Git stash and rebase workflow command",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Command", "Workflow"]
+    },
+    {
+      "content": "docker-compose up -d --build",
+      "description": "Docker compose build and run command",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Command", "Deployment"]
+    },
+    {
+      "content": "const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };",
+      "description": "JavaScript debounce utility function",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "Attended dotnet Conf 2024 virtual conference in November.",
+      "description": "dotnet Conf 2024 attendance",
+      "category": "Event",
+      "tags": ["Work", "Learning"]
+    },
+    {
+      "content": "Team offsite in Austin, TX in February 2025 — focused on Q2 roadmap planning.",
+      "description": "Team planning offsite event",
+      "category": "Event",
+      "tags": ["Work", "Travel"]
+    },
+    {
+      "content": "Presented a talk on microservices patterns at the local tech meetup in March 2025.",
+      "description": "Local tech meetup presentation",
+      "category": "Event",
+      "tags": ["Work", "Career"]
+    },
+    {
+      "content": "Research notes: vector databases like Pinecone and Weaviate are good options for semantic search with embedding models.",
+      "description": "Vector database research notes",
+      "category": "Note",
+      "tags": ["Research", "Notes", "Machine Learning", "Data Science"]
+    },
+    {
+      "content": "Key insight: prompt chaining significantly improves LLM accuracy on multi-step reasoning tasks.",
+      "description": "Prompt engineering insight note",
+      "category": "Note",
+      "tags": ["Notes", "Generative AI", "Prompt Engineering", "Research"]
+    },
+    {
+      "content": "Deployment checklist: run migrations, update env vars, smoke test all endpoints, monitor error rate for 30 minutes post-deploy.",
+      "description": "Production deployment checklist",
+      "category": "Note",
+      "tags": ["Checklist", "Deployment", "Testing", "Workflow"]
+    },
+    {
+      "content": "Write a system prompt for an AI coding assistant that helps debug Python code step by step, asking clarifying questions before suggesting fixes.",
+      "description": "AI coding assistant system prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Debugging", "Programming"]
+    },
+    {
+      "content": "Generate a detailed code review checklist for a REST API written in ASP.NET Core, covering security, performance, and readability.",
+      "description": "Code review checklist generation prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Template", "API"]
+    },
+    {
+      "content": "Write a persuasive LinkedIn post announcing an open source project launch, highlighting the problem it solves and how to contribute.",
+      "description": "LinkedIn announcement post prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Draft"]
+    },
+    {
+      "content": "Idea: Build a browser extension that uses AI to summarize long articles in one click.",
+      "description": "AI article summarizer browser extension idea",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Generative AI", "Automation"]
+    },
+    {
+      "content": "Idea: Create a VS Code extension that tracks time spent editing each file and generates daily focus reports.",
+      "description": "VS Code time-tracking extension idea",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Productivity", "Software"]
+    },
+    {
+      "content": "Idea: Design a CLI tool that auto-generates TypeScript types from a REST API's OpenAPI spec.",
+      "description": "OpenAPI-to-TypeScript CLI tool idea",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "API", "Automation"]
+    },
+    {
+      "content": "Completed AWS Solutions Architect Associate certification in March 2024.",
+      "description": "AWS certification history",
+      "category": "History",
+      "tags": ["Career", "Learning"]
+    },
+    {
+      "content": "Led migration from monolith to microservices architecture at previous company in 2023.",
+      "description": "Microservices migration career history",
+      "category": "History",
+      "tags": ["Career", "Work", "Deployment"]
+    },
+    {
+      "content": "Graduated with a degree in Computer Science from State University in 2015.",
+      "description": "CS degree graduation history",
+      "category": "History",
+      "tags": ["Career", "Learning"]
+    },
+        {
+      "content": "I want to make a ...",
+      "description": "Idea for a new project",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration"]
+    },
+        {
+      "content": "I have an idea for a ...",
+      "description": "Idea for a new project",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Notes"]
+    },
+    {
+      "content": "console.log('Hello, world!');",
+      "description": "JavaScript hello world code snippet",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "Read later: 'The Art of Machine Learning' article.",
+      "description": "Read later note for ML article",
+      "category": "Note",
+      "tags": ["Read Later", "Machine Learning", "Learning"]
+    },
+    {
+      "content": "Write a prompt for generating creative story ideas.",
+      "description": "Prompt for story idea generation",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Inspiration", "Idea"]
+    },
+    {
+      "content": "Idea: Build a fitness tracking app.",
+      "description": "Fitness app project idea",
+      "category": "Idea",
+      "tags": ["Health", "Project", "Inspiration"]
+    },
+    {
+      "content": "foreach(int i = 0; i < count; i++) { }",
+      "description": "C# foreach loop code snippet",
+      "category": "Code snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+        {
+      "content": "Create an AI prompt that will ...",
+      "description": "Prompt for AI creation",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Project"]
+    },
+    {
+      "content": "Update project documentation by Monday.",
+      "description": "Project documentation update reminder",
+      "category": "Reminder",
+      "tags": ["Update", "Project", "Work"]
+    },
+    {
+      "content": "SELECT * FROM users WHERE active = 1;",
+      "description": "SQL query code snippet to select active users",
+      "category": "Snippet",
+      "tags": ["Snippet", "Command", "Programming"]
+    },
+    {
+      "content": "Completed UX design course in 2022.",
+      "description": "UX design course history",
+      "category": "History",
+      "tags": ["UX", "Learning"]
+    },
+    {
+      "content": "Checklist for deployment: test, optimize, integrate.",
+      "description": "Deployment checklist note",
+      "category": "Note",
+      "tags": ["Checklist", "Testing", "Optimization", "Integration"]
+    },
+    {
+      "content": "Create a template for an API integration software specification.",
+      "description": "API integration template prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Template", "API", "Integration"]
+    },
+    {
+      "content": "Idea: Automate daily workflow tasks.",
+      "description": "Workflow automation project idea",
+      "category": "Idea",
+      "tags": ["Automation", "Workflow", "Project"]
+    }
+  ]
+}

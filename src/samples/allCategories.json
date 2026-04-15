@@ -2,10 +2,11 @@
     "Categories": [
         "Preference",
         "Reminder",
-        "Code snippet",
+        "Snippet",
         "Event",
         "Note",
         "Prompt",
-        "Idea"
+        "Idea",
+        "History"
     ]
 }
