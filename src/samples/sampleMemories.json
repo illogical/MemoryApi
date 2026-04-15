@@ -39,19 +39,19 @@
     {
       "content": "git stash && git pull --rebase && git stash pop",
       "description": "Git stash and rebase workflow command",
-      "category": "Code snippet",
+      "category": "Snippet",
       "tags": ["Snippet", "Command", "Workflow"]
     },
     {
       "content": "docker-compose up -d --build",
       "description": "Docker compose build and run command",
-      "category": "Code snippet",
+      "category": "Snippet",
       "tags": ["Snippet", "Command", "Deployment"]
     },
     {
       "content": "const debounce = (fn, delay) => { let timer; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); }; };",
       "description": "JavaScript debounce utility function",
-      "category": "Code snippet",
+      "category": "Snippet",
       "tags": ["Snippet", "Programming"]
     },
     {
@@ -76,7 +76,7 @@
       "content": "Research notes: vector databases like Pinecone and Weaviate are good options for semantic search with embedding models.",
       "description": "Vector database research notes",
       "category": "Note",
-      "tags": ["Research", "Notes", "Machine Learning", "Data Science"]
+      "tags": ["Research", "Notes", "Machine Learning", "Data Science", "Idea"]
     },
     {
       "content": "Key insight: prompt chaining significantly improves LLM accuracy on multi-step reasoning tasks.",
@@ -159,7 +159,7 @@
     {
       "content": "console.log('Hello, world!');",
       "description": "JavaScript hello world code snippet",
-      "category": "Code snippet",
+      "category": "Snippet",
       "tags": ["Snippet", "Programming"]
     },
     {
@@ -183,7 +183,7 @@
     {
       "content": "foreach(int i = 0; i < count; i++) { }",
       "description": "C# foreach loop code snippet",
-      "category": "Code snippet",
+      "category": "Snippet",
       "tags": ["Snippet", "Programming"]
     },
         {
