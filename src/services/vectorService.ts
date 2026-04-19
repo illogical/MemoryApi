@@ -221,20 +221,13 @@ export class VectorService {
         const counts = {} as Record<MemoryCategory, number>;
 
         for (const category of Object.values(MemoryCategory)) {
-            const response = await this.client.scroll(this.COLLECTION_NAME, {
+            const response = await this.client.count(this.COLLECTION_NAME, {
                 filter: {
-                    must: [
-                        {
-                            key: 'Category',
-                            match: { value: category }
-                        }
-                    ]
+                    must: [{ key: 'Category', match: { value: category } }]
                 },
-                limit: 1,
-                with_payload: false,
-                with_vector: false
+                exact: false
             });
-            counts[category as MemoryCategory] = response.points.length;
+            counts[category as MemoryCategory] = response.count;
         }
 
         return counts;

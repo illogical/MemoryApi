@@ -32,12 +32,66 @@ export class SqlService {
             }
         });
         this.enableForeignKeys();
+        this.initializeSchema().catch(err => console.error('Error initializing schema:', err));
     }
 
     private enableForeignKeys() {
         this.db.run('PRAGMA foreign_keys = ON;', (err) => {
             if (err) console.error('Error enabling foreign keys:', err.message);
         });
+    }
+
+    private async initializeSchema(): Promise<void> {
+        await this.run(`CREATE TABLE IF NOT EXISTS Memories (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Content TEXT NOT NULL,
+            Description TEXT,
+            Tags TEXT,
+            Category TEXT,
+            Created TEXT NOT NULL,
+            LastUpdated TEXT NOT NULL,
+            Status TEXT NOT NULL DEFAULT 'New',
+            Deleted BOOLEAN DEFAULT 0
+        )`);
+        await this.run(`CREATE TABLE IF NOT EXISTS MemoryDatabaseRelations (
+            MemoryId INTEGER PRIMARY KEY,
+            GraphId TEXT,
+            VectorId TEXT,
+            FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE CASCADE
+        )`);
+        await this.run(`CREATE TABLE IF NOT EXISTS TagSuggestions (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            TagText TEXT NOT NULL UNIQUE,
+            Count INTEGER NOT NULL DEFAULT 0,
+            Active BOOLEAN NOT NULL DEFAULT 1,
+            LastUpdated TEXT NOT NULL,
+            Created TEXT NOT NULL
+        )`);
+        await this.run(`CREATE TABLE IF NOT EXISTS MemorySuggestedTagsRelation (
+            MemoryId INTEGER,
+            SuggestedTagId INTEGER,
+            PRIMARY KEY (MemoryId, SuggestedTagId),
+            FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE CASCADE,
+            FOREIGN KEY (SuggestedTagId) REFERENCES TagSuggestions(ID) ON DELETE CASCADE
+        )`);
+        await this.run(`CREATE TABLE IF NOT EXISTS SearchHistory (
+            ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            SearchText TEXT,
+            Created TEXT,
+            VectorResults TEXT,
+            GraphResults TEXT,
+            MergePrompt TEXT,
+            MergeSummary TEXT,
+            ParamLimit INTEGER,
+            ScoreThreshold REAL,
+            Strategy TEXT,
+            Format TEXT,
+            Model TEXT,
+            ResultCount INTEGER,
+            DurationMilliseconds INTEGER
+        )`);
+        await this.run(`CREATE INDEX IF NOT EXISTS idx_memories_created ON Memories(Created)`);
+        await this.run(`CREATE INDEX IF NOT EXISTS idx_tagsuggestions_tagtext ON TagSuggestions(TagText)`);
     }
 
     // Helper to wrap db.run in a promise
