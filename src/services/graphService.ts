@@ -44,6 +44,9 @@ export class GraphService {
             await session.run(`CREATE CONSTRAINT memory_id_unique IF NOT EXISTS FOR (m:Memory) REQUIRE m.id IS UNIQUE`);
             await session.run(`CREATE CONSTRAINT tag_name_unique IF NOT EXISTS FOR (t:Tag) REQUIRE t.name IS UNIQUE`);
             await session.run(`CREATE CONSTRAINT category_name_unique IF NOT EXISTS FOR (c:Category) REQUIRE c.name IS UNIQUE`);
+            await session.run(`CREATE CONSTRAINT tool_name_unique IF NOT EXISTS FOR (t:Tool) REQUIRE t.name IS UNIQUE`);
+            await session.run(`CREATE CONSTRAINT project_name_unique IF NOT EXISTS FOR (p:Project) REQUIRE p.name IS UNIQUE`);
+            await session.run(`CREATE CONSTRAINT topic_name_unique IF NOT EXISTS FOR (tp:Topic) REQUIRE tp.name IS UNIQUE`);
 
             // Index for faster lookups
             await session.run(`CREATE INDEX memory_last_updated_index IF NOT EXISTS FOR (m:Memory) ON (m.lastUpdated)`);
@@ -86,18 +89,23 @@ export class GraphService {
                 lastUpdated: memory.LastUpdated,
                 category: memory.Category ? memory.Category.toString() : 'Uncategorized',
                 tags: memory.Tags || [],
-                embedding: embedding || []
+                embedding: embedding || [],
+                sourceType: memory.SourceType || null,
+                durability: memory.Durability || null,
+                dataset: memory.Dataset || null,
+                tools: memory.Tools || [],
+                projects: memory.Projects || [],
+                topics: memory.Topics || []
             };
 
-            // Cypher query to merge nodes and relationships
-            // 1. Merge Memory node
-            // 2. Merge Category node and link
-            // 3. Merge Tag nodes and link
             const query = `
                 MERGE (m:Memory {id: $id})
                 SET m.content = $content,
                     m.description = $description,
-                    m.lastUpdated = $lastUpdated
+                    m.lastUpdated = $lastUpdated,
+                    m.sourceType = $sourceType,
+                    m.durability = $durability,
+                    m.dataset = $dataset
                 
                 FOREACH (_ IN CASE WHEN size($embedding) > 0 THEN [1] ELSE [] END |
                     SET m.embedding = $embedding
@@ -111,6 +119,24 @@ export class GraphService {
                 FOREACH (tagName IN $tags |
                     MERGE (t:Tag {name: tagName})
                     MERGE (m)-[:TAGGED_WITH]->(t)
+                )
+
+                // Tool Relationships
+                FOREACH (toolName IN $tools |
+                    MERGE (t:Tool {name: toolName})
+                    MERGE (m)-[:USES_TOOL]->(t)
+                )
+
+                // Project Relationships
+                FOREACH (projName IN $projects |
+                    MERGE (p:Project {name: projName})
+                    MERGE (m)-[:RELATES_TO_PROJECT]->(p)
+                )
+
+                // Topic Relationships
+                FOREACH (topicName IN $topics |
+                    MERGE (tp:Topic {name: topicName})
+                    MERGE (m)-[:ABOUT_TOPIC]->(tp)
                 )
             `;
 
@@ -244,6 +270,21 @@ export class GraphService {
             return count.toNumber();
         } catch (error) {
             console.error('Error getting relationship count:', error);
+            throw error;
+        } finally {
+            await session.close();
+        }
+    }
+
+    async getMemoryCount(): Promise<number> {
+        const session = this.getSession('READ');
+        try {
+            const result = await session.run('MATCH (m:Memory) RETURN count(m) as count');
+            if (result.records.length === 0) return 0;
+            const count = result.records[0].get('count');
+            return count.toNumber();
+        } catch (error) {
+            console.error('Error getting memory count:', error);
             throw error;
         } finally {
             await session.close();

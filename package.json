@@ -13,10 +13,12 @@
     "eval:tagging": "npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio",
     "eval:category": "npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio",
     "eval:aggregation": "npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio",
+    "eval:entities": "npx tsx src/scripts/evaluateEntityExtraction.ts --model=phi-4 --provider=lmstudio",
     "add-memory": "npx tsx src/scripts/addMemory.ts",
     "search-memories": "npx tsx src/scripts/searchMemories.ts",
     "init-sql": "npx tsx src/scripts/initSqlDb.ts",
-    "reset": "npx tsx src/scripts/resetVectorAndGraph.ts"
+    "reset": "npx tsx src/scripts/resetVectorAndGraph.ts",
+    "reset:full": "npx tsx src/scripts/resetAllAndLoadSeeds.ts"
   },
   "dependencies": {
     "@lmstudio/sdk": "^1.5.0",

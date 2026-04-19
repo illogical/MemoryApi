@@ -4,6 +4,21 @@ import { Memory } from '../models/memory';
 import { ReportFormat, ReportFormatter, PostSearchAggregationResult } from './reportFormatters/reportFormatter';
 import { MarkdownReportFormatter } from './reportFormatters/markdownReportFormatter';
 import { HtmlReportFormatter } from './reportFormatters/htmlReportFormatter';
+import { VectorService } from './vectorService';
+import { GraphService } from './graphService';
+import { SqlService } from './sqlService';
+
+export interface IngestionVerificationReport {
+    timestamp: string;
+    qdrantCount: number;
+    neo4jMemoryCount: number;
+    neo4jRelationshipCount: number;
+    sqliteMemoryCount: number;
+    categoryDistribution: Record<string, number>;
+    tagFrequency: Record<string, number>;
+    storeCountsMatch: boolean;
+    warnings: string[];
+}
 
 export interface ProcessedMemory extends Memory {
     summary?: string;
@@ -168,5 +183,77 @@ export class MemoryReportService {
         };
 
         return await this.generateAndSaveReport(content, stats, 'combined_post_search_aggregation', formatter.getFileExtension());
+    }
+
+    /**
+     * Queries all three stores and compiles a cross-store verification report.
+     * Prints the summary to the console and returns the structured report.
+     */
+    async generateVerificationReport(
+        vectorService: VectorService,
+        graphService: GraphService,
+        sqlService: SqlService
+    ): Promise<IngestionVerificationReport> {
+        const timestamp = new Date().toISOString();
+        const warnings: string[] = [];
+
+        const [qdrantCount, neo4jMemoryCount, neo4jRelationshipCount, sqliteMemoryCount, categoryDistribution, tagFrequency] =
+            await Promise.all([
+                vectorService.getRecordCount().catch(err => { warnings.push(`Qdrant count error: ${err}`); return -1; }),
+                graphService.getMemoryCount().catch(err => { warnings.push(`Neo4j memory count error: ${err}`); return -1; }),
+                graphService.getRelationshipCount().catch(err => { warnings.push(`Neo4j relationship count error: ${err}`); return -1; }),
+                sqlService.getMemoryCount().catch(err => { warnings.push(`SQLite count error: ${err}`); return -1; }),
+                vectorService.getCategoryCounts().catch(err => { warnings.push(`Category distribution error: ${err}`); return {} as Record<string, number>; }),
+                vectorService.getTagFrequency().catch(err => { warnings.push(`Tag frequency error: ${err}`); return {} as Record<string, number>; })
+            ]);
+
+        const storeCountsMatch = qdrantCount >= 0 && neo4jMemoryCount >= 0 && sqliteMemoryCount >= 0
+            && qdrantCount === neo4jMemoryCount
+            && qdrantCount === sqliteMemoryCount;
+
+        if (!storeCountsMatch) {
+            warnings.push(
+                `Store count mismatch — Qdrant: ${qdrantCount}, Neo4j: ${neo4jMemoryCount}, SQLite: ${sqliteMemoryCount}`
+            );
+        }
+
+        const report: IngestionVerificationReport = {
+            timestamp,
+            qdrantCount,
+            neo4jMemoryCount,
+            neo4jRelationshipCount,
+            sqliteMemoryCount,
+            categoryDistribution,
+            tagFrequency,
+            storeCountsMatch,
+            warnings
+        };
+
+        // Print summary to console
+        console.log('\n=== Ingestion Verification Report ===');
+        console.log(`Timestamp:       ${timestamp}`);
+        console.log(`Qdrant count:    ${qdrantCount}`);
+        console.log(`Neo4j memories:  ${neo4jMemoryCount}`);
+        console.log(`Neo4j relations: ${neo4jRelationshipCount}`);
+        console.log(`SQLite count:    ${sqliteMemoryCount}`);
+        console.log(`Counts match:    ${storeCountsMatch ? '✓ YES' : '✗ NO'}`);
+        console.log('Category distribution:');
+        for (const [cat, count] of Object.entries(categoryDistribution)) {
+            if (count > 0) console.log(`  ${cat}: ${count}`);
+        }
+        const topTags = Object.entries(tagFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        if (topTags.length > 0) {
+            console.log('Top tags:');
+            for (const [tag, count] of topTags) {
+                console.log(`  ${tag}: ${count}`);
+            }
+        }
+        if (warnings.length > 0) {
+            console.log('Warnings:');
+            for (const w of warnings) console.log(`  ⚠ ${w}`);
+        }
+        console.log('=====================================\n');
+
+        return report;
     }
 }

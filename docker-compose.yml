@@ -3,10 +3,13 @@ services:
   api:
     build: .
     ports:
-      - "3000:3000"
+      - "${PORT:-17107}:${PORT:-17107}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - PORT=${PORT:-17107}
     command: npm run dev

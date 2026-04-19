@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 async function main() {
     const startTime = Date.now();
     console.log('=== Clean Slate Reset and Repopulate ===\n');
+    console.warn('WARNING: This script does not clear SQLite state. Use reset:full for a true clean slate.');
 
     // Initialize services
     const ragSystem = new MemoryRAGSystem();

@@ -1,5 +1,6 @@
 import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
+import { SqlService } from '../services/sqlService';
 import { MemoryCategory } from '../models/memoryCategory';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -12,6 +13,7 @@ const logger = new LoggingService();
 
 // Instantiate underlying memory system (same core used by REST API)
 const memorySystem = new MemoryRAGSystem();
+const sqlService = new SqlService();
 
 // Create MCP server using modern API
 const server = new McpServer({
@@ -111,9 +113,36 @@ server.tool(
   }
 );
 
+// Register list_all_memories tool — admin-level export of all stored memories
+server.tool(
+  'list_all_memories',
+  'List all stored memories with optional filtering by sourceType, dataset, or category. Returns ID, Content, Category, SourceType, Durability, Dataset, Tags, and IngestionBatchId per record.',
+  {
+    sourceType: z.string().describe('Filter by source type (e.g. seed-import, explicit-user-memory).').optional(),
+    dataset: z.string().describe('Filter by dataset (prod, dev, test).').optional(),
+    category: z.string().describe('Filter by memory category.').optional()
+  } as any,
+  async (args: any) => {
+    logger.info(`MCP Tool [list_all_memories] invoked`);
+    try {
+      const memories = await sqlService.getAllMemories({
+        sourceType: args.sourceType,
+        dataset: args.dataset,
+        category: args.category
+      });
+      logger.info(`MCP Tool [list_all_memories] returning ${memories.length} memories`);
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(memories, null, 2) }],
+        structuredContent: { memories }
+      };
+    } catch (error: any) {
+      logger.error(`MCP Tool [list_all_memories] error: ${error?.message || error}`);
+      throw error;
+    }
+  }
+);
+
 async function main() {
-  try {
-    logger.info('Initializing Memory MCP server...');
 
     // Initialize transport first
     const transport = new StdioServerTransport();

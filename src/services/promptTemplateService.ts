@@ -135,4 +135,14 @@ export class PromptTemplateService {
 
     return template;
   }
+
+  /**
+   * Renders the entity_extraction.txt template with provided content.
+   */
+  renderEntityExtraction(content: string): string {
+    const templatePath = this.resolveTemplatePath('entity_extraction.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    template = template.replace(/{{content}}/g, content);
+    return template;
+  }
 }

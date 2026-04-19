@@ -10,6 +10,8 @@ import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
 import { SqlService } from './sqlService';
 import { config } from './configService';
+import { IngestionContext } from '../models/ingestionContext';
+import { normalizeEntityNames } from '../utils/normalization';
 
 class MemoryRAGSystem {
     private orchestrator: RAGOrchestrator;
@@ -88,10 +90,13 @@ class MemoryRAGSystem {
         return this.memoryTextProcessor;
     }
 
-    async summarizeClassifyAndTagTextParallel(text: string): Promise<{ summary: string, classification: string; tags: string[]; suggestedTags: string[]; }> {
+    async summarizeClassifyAndTagTextParallel(
+        text: string,
+        skipEntityExtraction: boolean = false
+    ): Promise<{ summary: string; classification: string; tags: string[]; suggestedTags: string[]; entities: { tools: string[]; projects: string[]; topics: string[] }; }> {
         this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         const processor = this.getOrCreateTextProcessor();
-        return await processor.summarizeClassifyAndTagTextParallel(text);
+        return await processor.summarizeClassifyAndTagTextParallel(text, skipEntityExtraction);
     }
 
     /**
@@ -105,8 +110,13 @@ class MemoryRAGSystem {
         description: string;
         category: MemoryCategory;
         tagsList: string[];
+        tools: string[];
+        projects: string[];
+        topics: string[];
     }> {
-        const { summary, classification, tags, suggestedTags } = await this.summarizeClassifyAndTagTextParallel(memory.Content);
+        const hasExplicitEntities = !!(memory.Tools?.length || memory.Projects?.length || memory.Topics?.length);
+        const { summary, classification, tags, suggestedTags, entities } =
+            await this.summarizeClassifyAndTagTextParallel(memory.Content, hasExplicitEntities);
 
         // Prepare description, category, tagsList
         let description = memory.Description;
@@ -121,7 +131,13 @@ class MemoryRAGSystem {
         if (!tagsList || tagsList.length === 0) {
             tagsList = tags;
         }
-        return { summary, classification, tags, suggestedTags, description, category, tagsList };
+
+        // Use explicit entity values from seed; fall back to LLM-extracted
+        const tools = hasExplicitEntities ? normalizeEntityNames(memory.Tools || []) : entities.tools;
+        const projects = hasExplicitEntities ? normalizeEntityNames(memory.Projects || []) : entities.projects;
+        const topics = hasExplicitEntities ? normalizeEntityNames(memory.Topics || []) : entities.topics;
+
+        return { summary, classification, tags, suggestedTags, description, category, tagsList, tools, projects, topics };
     }
 
     /**
@@ -144,26 +160,42 @@ class MemoryRAGSystem {
 /**
      * Upserts the memory record into Qdrant and Neo4j. Also adds to SQL for relational tracking.
      */
-    async upsertMemory(memory: Memory, embedding: number[], id?: string): Promise<string> {
+    async upsertMemory(memory: Memory, embedding: number[], id?: string, ingestionContext?: IngestionContext): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');
         let memoryId = id || randomUUID();
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
+
+        // Merge ingestion context into memory if provided
+        if (ingestionContext) {
+            memory.IngestionBatchId = ingestionContext.batchId;
+            memory.SourceType = ingestionContext.sourceType;
+            memory.Dataset = ingestionContext.dataset;
+        }
 
         // this is a new memory that skipped review. Automatically set the status to Reviewed.
         if(!id)
         {
             // Add to SQL for relational tracking and history
             this.loggingService.debug(`[RAGOrchestrator.addMemory] Adding memory to SQL...`);
-            // Note: SqlService.addMemory returns a numeric ID, but we use the UUID from vector/graph stores
-            let newId = await this.sqlService.addMemory(
+            // Note: SqlService.addMemory returns a numeric SQL ID; we keep using the UUID for vector/graph
+            await this.sqlService.addMemory(
                 memory.Content,
                 memory.Description || '',
                 memory.Tags || [],
                 memory.Category || 'Uncategorized',
-                memory.Status || "Reviewed"
+                memory.Status || "Reviewed",
+                {
+                    sourceType: memory.SourceType,
+                    durability: memory.Durability,
+                    dataset: memory.Dataset,
+                    ingestionBatchId: memory.IngestionBatchId,
+                    userReviewed: memory.UserReviewed,
+                    tools: memory.Tools,
+                    projects: memory.Projects,
+                    topics: memory.Topics
+                }
             );
-
-            memoryId = newId.toString();
+            // memoryId stays as the UUID assigned above — do NOT overwrite with SQL integer
         }
         else
         {
@@ -205,6 +237,9 @@ class MemoryRAGSystem {
                     Description: prepared.description,
                     Category: prepared.category,
                     Tags: prepared.tagsList,
+                    Tools: prepared.tools,
+                    Projects: prepared.projects,
+                    Topics: prepared.topics,
                     LastUpdated: new Date().toISOString()
                 };
                 this.loggingService.info(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);

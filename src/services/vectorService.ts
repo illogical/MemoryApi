@@ -66,7 +66,15 @@ export class VectorService {
                         Description: memory.Description,
                         Tags: memory.Tags,
                         Category: memory.Category,
-                        LastUpdated: new Date().toISOString()
+                        LastUpdated: new Date().toISOString(),
+                        SourceType: memory.SourceType,
+                        Durability: memory.Durability,
+                        Dataset: memory.Dataset,
+                        IngestionBatchId: memory.IngestionBatchId,
+                        UserReviewed: memory.UserReviewed,
+                        Tools: memory.Tools,
+                        Projects: memory.Projects,
+                        Topics: memory.Topics
                     }
                 }
             ]
@@ -225,12 +233,43 @@ export class VectorService {
                 filter: {
                     must: [{ key: 'Category', match: { value: category } }]
                 },
-                exact: false
+                exact: true
             });
             counts[category as MemoryCategory] = response.count;
         }
 
         return counts;
+    }
+
+    async getTagFrequency(): Promise<Record<string, number>> {
+        this.loggingService.trace('[VectorService.getTagFrequency] Called');
+        const frequency: Record<string, number> = {};
+        let offset: string | number | null = null;
+
+        while (true) {
+            const response = await this.client.scroll(this.COLLECTION_NAME, {
+                limit: 100,
+                offset: offset ?? undefined,
+                with_payload: true,
+                with_vector: false
+            });
+
+            for (const point of response.points) {
+                const tags = (point.payload as any)?.Tags;
+                if (Array.isArray(tags)) {
+                    for (const tag of tags) {
+                        if (typeof tag === 'string') {
+                            frequency[tag] = (frequency[tag] || 0) + 1;
+                        }
+                    }
+                }
+            }
+
+            if (!response.next_page_offset) break;
+            offset = response.next_page_offset;
+        }
+
+        return frequency;
     }
 
     async deleteCollection(): Promise<void> {

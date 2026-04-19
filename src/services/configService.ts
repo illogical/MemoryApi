@@ -12,7 +12,7 @@ class Config {
     public NEO4J_USER: string = 'neo4j';
     public NEO4J_PASSWORD: string = 'password';
 
-    public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'prompts');
+    public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'src', 'prompts');
     public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'memory.db');
     public PORT: number = 3000;
     public TODOIST_API_KEY: string = 'your_todoist_api_token_here';

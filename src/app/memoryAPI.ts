@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
+import { SqlService } from '../services/sqlService';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory } from '../models/memory';
 import { logger } from '../utils/logger';
@@ -9,6 +10,7 @@ import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 // Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem();
 const seedMemoryLoader = new SeedMemoryLoader();
+const sqlService = new SqlService();
 
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {
@@ -315,5 +317,15 @@ memoryRouter.post('/seeds/memories', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to add memory to seed data' });
     }
 });
-
+// GET /api/admin/memories — list all memories with optional filters
+memoryRouter.get('/admin/memories', async (req: Request, res: Response) => {
+    try {
+        const { sourceType, dataset, category } = req.query as Record<string, string | undefined>;
+        const memories = await sqlService.getAllMemories({ sourceType, dataset, category });
+        res.json({ count: memories.length, memories });
+    } catch (error) {
+        logger.error(`Error listing all memories: ${error}`);
+        res.status(500).json({ error: 'Failed to list memories' });
+    }
+});
 export { MemoryRAGSystem, memoryRouter, memorySystem };

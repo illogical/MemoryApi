@@ -8,6 +8,7 @@ import { randomUUID } from 'crypto';
 async function main() {
     const startTime = Date.now();
     // Instantiate your MemoryRAGSystem
+    console.warn('WARNING: This script does not clear Neo4j or SQLite state. Use reset:full for a true clean slate.');
     const ragSystem = new MemoryRAGSystem();
     try {
         await ragSystem.deleteCollection();

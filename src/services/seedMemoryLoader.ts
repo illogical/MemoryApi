@@ -5,6 +5,7 @@ import { SeedMemory, SeedMemoryFile } from '../models/seedMemory';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+import { normalizeTags } from '../utils/normalization';
 
 
 
@@ -32,8 +33,15 @@ export class SeedMemoryLoader {
                 Description: seed.description || '',
                 Content: seed.content,
                 Category: seed.category as MemoryCategory | undefined,
-                Tags: seed.tags || [],
-                LastUpdated: new Date().toISOString()
+                Tags: normalizeTags(seed.tags || []),
+                LastUpdated: new Date().toISOString(),
+                // Pass explicit metadata and entity values (used as ground truth for seeds)
+                SourceType: seed.sourceType as any,
+                Durability: seed.durability as any,
+                Dataset: seed.dataset as any,
+                Tools: seed.tools,
+                Projects: seed.projects,
+                Topics: seed.topics
             }));
         }
 
@@ -65,8 +73,14 @@ export class SeedMemoryLoader {
                     Description: seed.description || '',
                     Content: seed.content,
                     Category: seed.category as MemoryCategory | undefined,
-                    Tags: seed.tags || [],
-                    LastUpdated: new Date().toISOString()
+                    Tags: normalizeTags(seed.tags || []),
+                    LastUpdated: new Date().toISOString(),
+                    SourceType: seed.sourceType as any,
+                    Durability: seed.durability as any,
+                    Dataset: seed.dataset as any,
+                    Tools: seed.tools,
+                    Projects: seed.projects,
+                    Topics: seed.topics
                 };
                 try {
                     await ragSystem.addMemory(memory);
