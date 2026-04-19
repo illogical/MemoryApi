@@ -20,7 +20,7 @@ import { config } from '../services/configService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 import { GraphService } from '../services/graphService';
 import { VectorService } from '../services/vectorService';
-import { SqlService } from '../services/sqlService';
+import { sqlService } from '../services/sqlService';
 import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { MemoryReportService } from '../services/memoryReportService';
 import { LoggingService } from '../services/loggingService';
@@ -62,6 +62,7 @@ async function main() {
     console.log(`Batch ID: ${batchId}\n`);
 
     const loggingService = new LoggingService();
+    await sqlService.waitUntilReady();
 
     // ===== PHASE 1: CLEAR ALL STORES =====
     console.log('Phase 1: Clearing all stores...');
@@ -97,8 +98,11 @@ async function main() {
 
     try {
         console.log('  - Deleting SQLite database...');
+        await sqlService.close();
         await deleteSqliteDb();
         await recreateSqliteDb(); // Ensure data dir exists before new connections open
+        await sqlService.reconnect();
+        console.log('  ✓ SQLite connection reset and schema recreated');
     } catch (error) {
         console.error('  ✗ Failed to delete/recreate SQLite database:', error);
         await graphService.close();
@@ -108,8 +112,7 @@ async function main() {
     // Re-create ragSystem AFTER db deletion so its internal SqlService gets a fresh,
     // writable connection to the newly-created database file.
     const ragSystem = new MemoryRAGSystem();
-    // Allow SqlService's async schema init to complete before we proceed
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await sqlService.waitUntilReady();
 
     // ===== PHASE 2: INITIALIZE SCHEMAS =====
     console.log('\nPhase 2: Initializing schemas...');
@@ -204,11 +207,37 @@ async function main() {
     console.log('\nPhase 5: Generating verification report...');
 
     const vectorService = new VectorService(config.QDRANT_URL, loggingService);
-    const sqlService = new SqlService();
     const reportService = new MemoryReportService();
+    let sqlValidationPassed = false;
 
     try {
         await reportService.generateVerificationReport(vectorService, graphService, sqlService);
+
+        const sqlValidation = await sqlService.validateMemoryPopulation(
+            {
+                sourceType: MemorySourceType.SeedImport,
+                dataset: MemoryDataset.Dev
+            },
+            seedMemories.length
+        );
+
+        console.log('SQL reseed validation:');
+        console.log(`  Expected rows:    ${sqlValidation.expectedCount}`);
+        console.log(`  Seed rows found:  ${sqlValidation.totalCount}`);
+        console.log(`  Missing GraphId:  ${sqlValidation.missingGraphIds}`);
+        console.log(`  Missing VectorId: ${sqlValidation.missingVectorIds}`);
+        console.log(`  Mismatched IDs:   ${sqlValidation.mismatchedRelationIds}`);
+        console.log(`  Missing relation: ${sqlValidation.missingRelationRows}`);
+
+        if (!sqlValidation.isValid) {
+            const sampleIds = sqlValidation.invalidMemoryIds.slice(0, 10).join(', ');
+            throw new Error(
+                `SQL reseed validation failed.${sampleIds ? ` Invalid memory IDs: ${sampleIds}` : ''}`
+            );
+        }
+
+        sqlValidationPassed = true;
+        console.log('  ✓ SQL reseed validation passed');
     } catch (error) {
         console.error('  ✗ Failed to generate verification report:', error);
     }
@@ -216,7 +245,10 @@ async function main() {
     const totalMs = Date.now() - startTime;
     console.log(`Total duration: ${(totalMs / 1000).toFixed(1)}s`);
 
+    // Close all open handles so the process exits cleanly
     await graphService.close();
+    await sqlService.close();
+    process.exit(failCount > 0 || !sqlValidationPassed ? 1 : 0);
 }
 
 main().catch(err => {

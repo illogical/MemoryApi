@@ -40,6 +40,10 @@ async function testSqlService() {
         if (updatedMemory.GraphId !== "graph-123") console.error("GraphId update failed");
         if (updatedMemory.VectorId !== "vector-456") console.error("VectorId update failed");
 
+        const validation = await sqlService.validateMemoryPopulation(undefined, 1);
+        console.log("Validation result:", validation);
+        if (!validation.isValid) console.error("SQL population validation should pass after relation update");
+
         // 4. Test Tag Suggestions
         console.log("Testing tag suggestions...");
         const tagId1 = await sqlService.addTagSuggestion("TestTag");
@@ -99,7 +103,7 @@ async function testSqlService() {
     } catch (error) {
         console.error("Test failed:", error);
     } finally {
-        sqlService.close();
+        await sqlService.close();
     }
 }
 testSqlService();

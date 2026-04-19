@@ -16,6 +16,7 @@
  */
 
 import { BaseEvaluator } from '../services/baseEvaluator';
+import type { BaseEvaluationReport } from '../services/baseEvaluator';
 import { ModelProvider } from '../services/modelClients';
 import { config } from '../services/configService';
 import { normalizeEntityNames } from '../utils/normalization';
@@ -129,6 +130,14 @@ class EntityExtractionEvaluator extends BaseEvaluator {
             averageF1Score: relevant.reduce((s, c) => s + c.metrics[type].f1Score, 0) / totalCases,
             totalCases
         };
+    }
+
+    async runEvaluation(_seedPath: string): Promise<BaseEvaluationReport> {
+        throw new Error('EntityExtractionEvaluator.runEvaluation is not used by this script entrypoint');
+    }
+
+    generateMarkdownReport(_report: BaseEvaluationReport): string {
+        throw new Error('EntityExtractionEvaluator.generateMarkdownReport is not used by this script entrypoint');
     }
 }
 

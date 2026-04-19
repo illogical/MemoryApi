@@ -181,19 +181,7 @@ export class ReviewMemoriesService {
             const vectorId = await this.memorySystem.upsertMemory(memoryData, embedding, id);
             this.logger.info(`[commitMemory] Vector DB upsert completed. Vector ID: ${vectorId}`);
 
-            // Update SQL Status to "Reviewed" and store Vector ID
-            this.logger.debug(`[commitMemory] Updating memory status to 'Reviewed'...`);
-            await this.sqlService.updateMemoryStatus(memoryId, 'Reviewed');
-            this.logger.debug(`[commitMemory] Memory status updated successfully`);
-
-            // Update relations
-            if (vectorId) {
-                this.logger.debug(`[commitMemory] Updating memory relations with vectorId: ${vectorId}`);
-                await this.sqlService.updateMemoryRelations(memoryId, undefined, vectorId);
-                this.logger.debug(`[commitMemory] Memory relations updated successfully`);
-            } else {
-                this.logger.error(`[commitMemory] No vectorId returned from upsertMemory`);
-            }
+            this.logger.debug(`[commitMemory] Shared upsert flow updated SQL status and relation IDs for memory ${memoryId}`);
 
             this.logger.info(`[commitMemory] Successfully committed memory ${memoryId} with vectorId: ${vectorId}`);
             return vectorId;

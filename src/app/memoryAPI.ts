@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
-import { SqlService } from '../services/sqlService';
+import { sqlService } from '../services/sqlService';
 import { MemoryCategory } from '../models/memoryCategory';
 import { Memory } from '../models/memory';
 import { logger } from '../utils/logger';
@@ -10,7 +10,7 @@ import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 // Memory system instance (shared)
 const memorySystem = new MemoryRAGSystem();
 const seedMemoryLoader = new SeedMemoryLoader();
-const sqlService = new SqlService();
+
 
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {

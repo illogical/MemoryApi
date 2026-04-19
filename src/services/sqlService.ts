@@ -20,10 +20,28 @@ export interface TagSuggestion {
     created: string;
 }
 
+export interface MemoryPopulationValidationResult {
+    totalCount: number;
+    expectedCount?: number;
+    missingGraphIds: number;
+    missingVectorIds: number;
+    mismatchedRelationIds: number;
+    missingRelationRows: number;
+    invalidMemoryIds: number[];
+    isValid: boolean;
+}
+
 export class SqlService {
-    private db: sqlite3.Database;
+    private db!: sqlite3.Database;
+    private initializationPromise: Promise<void>;
+    private isClosed: boolean = true;
 
     constructor() {
+        this.initializationPromise = Promise.resolve();
+        this.openConnection();
+    }
+
+    private openConnection(): void {
         this.db = new sqlite3.Database(DB_PATH, (err) => {
             if (err) {
                 console.error('Error opening database:', err.message);
@@ -31,8 +49,12 @@ export class SqlService {
                 console.log('Connected to the SQLite database.');
             }
         });
+        this.isClosed = false;
         this.enableForeignKeys();
-        this.initializeSchema().catch(err => console.error('Error initializing schema:', err));
+        this.initializationPromise = this.initializeSchema().catch(err => {
+            console.error('Error initializing schema:', err);
+            throw err;
+        });
     }
 
     private enableForeignKeys() {
@@ -42,7 +64,7 @@ export class SqlService {
     }
 
     private async initializeSchema(): Promise<void> {
-        await this.run(`CREATE TABLE IF NOT EXISTS Memories (
+        await this.runRaw(`CREATE TABLE IF NOT EXISTS Memories (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
             Content TEXT NOT NULL,
             Description TEXT,
@@ -74,18 +96,18 @@ export class SqlService {
         ];
         for (const col of newColumns) {
             try {
-                await this.run(`ALTER TABLE Memories ADD COLUMN ${col.name} ${col.def}`);
+                await this.runRaw(`ALTER TABLE Memories ADD COLUMN ${col.name} ${col.def}`);
             } catch {
                 // Column already exists — ignore
             }
         }
-        await this.run(`CREATE TABLE IF NOT EXISTS MemoryDatabaseRelations (
+        await this.runRaw(`CREATE TABLE IF NOT EXISTS MemoryDatabaseRelations (
             MemoryId INTEGER PRIMARY KEY,
             GraphId TEXT,
             VectorId TEXT,
             FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE CASCADE
         )`);
-        await this.run(`CREATE TABLE IF NOT EXISTS TagSuggestions (
+        await this.runRaw(`CREATE TABLE IF NOT EXISTS TagSuggestions (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
             TagText TEXT NOT NULL UNIQUE,
             Count INTEGER NOT NULL DEFAULT 0,
@@ -93,14 +115,14 @@ export class SqlService {
             LastUpdated TEXT NOT NULL,
             Created TEXT NOT NULL
         )`);
-        await this.run(`CREATE TABLE IF NOT EXISTS MemorySuggestedTagsRelation (
+        await this.runRaw(`CREATE TABLE IF NOT EXISTS MemorySuggestedTagsRelation (
             MemoryId INTEGER,
             SuggestedTagId INTEGER,
             PRIMARY KEY (MemoryId, SuggestedTagId),
             FOREIGN KEY (MemoryId) REFERENCES Memories(ID) ON DELETE CASCADE,
             FOREIGN KEY (SuggestedTagId) REFERENCES TagSuggestions(ID) ON DELETE CASCADE
         )`);
-        await this.run(`CREATE TABLE IF NOT EXISTS SearchHistory (
+        await this.runRaw(`CREATE TABLE IF NOT EXISTS SearchHistory (
             ID INTEGER PRIMARY KEY AUTOINCREMENT,
             SearchText TEXT,
             Created TEXT,
@@ -116,14 +138,31 @@ export class SqlService {
             ResultCount INTEGER,
             DurationMilliseconds INTEGER
         )`);
-        await this.run(`CREATE INDEX IF NOT EXISTS idx_memories_created ON Memories(Created)`);
-        await this.run(`CREATE INDEX IF NOT EXISTS idx_tagsuggestions_tagtext ON TagSuggestions(TagText)`);
-        await this.run(`CREATE INDEX IF NOT EXISTS idx_memories_sourcetype ON Memories(SourceType)`);
-        await this.run(`CREATE INDEX IF NOT EXISTS idx_memories_ingestionbatchid ON Memories(IngestionBatchId)`);
+        await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_created ON Memories(Created)`);
+        await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_tagsuggestions_tagtext ON TagSuggestions(TagText)`);
+        await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_sourcetype ON Memories(SourceType)`);
+        await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_ingestionbatchid ON Memories(IngestionBatchId)`);
     }
 
-    // Helper to wrap db.run in a promise
-    private run(sql: string, params: any[] = []): Promise<void> {
+    public async waitUntilReady(): Promise<void> {
+        await this.initializationPromise;
+    }
+
+    public async reconnect(): Promise<void> {
+        await this.close();
+        this.openConnection();
+        await this.waitUntilReady();
+    }
+
+    private async ensureReady(): Promise<void> {
+        if (this.isClosed) {
+            throw new Error('SQLite connection is closed');
+        }
+        await this.initializationPromise;
+    }
+
+    // Helper to wrap db.run in a promise during initialization
+    private runRaw(sql: string, params: any[] = []): Promise<void> {
         return new Promise((resolve, reject) => {
             this.db.run(sql, params, function (err) {
                 if (err) return reject(err);
@@ -132,8 +171,13 @@ export class SqlService {
         });
     }
 
+    private async run(sql: string, params: any[] = []): Promise<void> {
+        await this.ensureReady();
+        return this.runRaw(sql, params);
+    }
+
     // Helper to wrap db.run in a promise and return the lastID
-    private runInsert(sql: string, params: any[] = []): Promise<number> {
+    private runInsertRaw(sql: string, params: any[] = []): Promise<number> {
         return new Promise((resolve, reject) => {
             this.db.run(sql, params, function (err) {
                 if (err) return reject(err);
@@ -142,8 +186,13 @@ export class SqlService {
         });
     }
 
+    private async runInsert(sql: string, params: any[] = []): Promise<number> {
+        await this.ensureReady();
+        return this.runInsertRaw(sql, params);
+    }
+
     // Helper to wrap db.get in a promise
-    private get<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+    private getRaw<T>(sql: string, params: any[] = []): Promise<T | undefined> {
         return new Promise((resolve, reject) => {
             this.db.get(sql, params, (err, row) => {
                 if (err) return reject(err);
@@ -152,14 +201,24 @@ export class SqlService {
         });
     }
 
+    private async get<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+        await this.ensureReady();
+        return this.getRaw<T>(sql, params);
+    }
+
     // Helper to wrap db.all in a promise
-    private all<T>(sql: string, params: any[] = []): Promise<T[]> {
+    private allRaw<T>(sql: string, params: any[] = []): Promise<T[]> {
         return new Promise((resolve, reject) => {
             this.db.all(sql, params, (err, rows) => {
                 if (err) return reject(err);
                 resolve(rows as T[]);
             });
         });
+    }
+
+    private async all<T>(sql: string, params: any[] = []): Promise<T[]> {
+        await this.ensureReady();
+        return this.allRaw<T>(sql, params);
     }
 
     public async addMemory(
@@ -358,14 +417,6 @@ export class SqlService {
         }
     }
 
-    public close() {
-        this.db.close((err) => {
-            if (err) {
-                console.error('Error closing database:', err.message);
-            }
-        });
-    }
-
     public async getAllMemories(filters?: {
         sourceType?: string;
         dataset?: string;
@@ -400,4 +451,79 @@ export class SqlService {
             params
         );
     }
+
+    public async validateMemoryPopulation(filters?: {
+        sourceType?: string;
+        dataset?: string;
+        category?: string;
+    }, expectedCount?: number): Promise<MemoryPopulationValidationResult> {
+        const memories = await this.getAllMemories(filters);
+        const invalidMemoryIds: number[] = [];
+        let missingGraphIds = 0;
+        let missingVectorIds = 0;
+        let mismatchedRelationIds = 0;
+        let missingRelationRows = 0;
+
+        for (const memory of memories) {
+            const hasGraphId = typeof memory.GraphId === 'string' && memory.GraphId.trim().length > 0;
+            const hasVectorId = typeof memory.VectorId === 'string' && memory.VectorId.trim().length > 0;
+
+            if (!hasGraphId && !hasVectorId) {
+                missingRelationRows++;
+            }
+            if (!hasGraphId) {
+                missingGraphIds++;
+            }
+            if (!hasVectorId) {
+                missingVectorIds++;
+            }
+            if (hasGraphId && hasVectorId && memory.GraphId !== memory.VectorId) {
+                mismatchedRelationIds++;
+            }
+
+            if (!hasGraphId || !hasVectorId || (hasGraphId && hasVectorId && memory.GraphId !== memory.VectorId)) {
+                invalidMemoryIds.push(memory.ID);
+            }
+        }
+
+        const totalCount = memories.length;
+        const countMatches = expectedCount === undefined || totalCount === expectedCount;
+        const isValid = countMatches
+            && missingGraphIds === 0
+            && missingVectorIds === 0
+            && mismatchedRelationIds === 0
+            && missingRelationRows === 0;
+
+        return {
+            totalCount,
+            expectedCount,
+            missingGraphIds,
+            missingVectorIds,
+            mismatchedRelationIds,
+            missingRelationRows,
+            invalidMemoryIds,
+            isValid
+        };
+    }
+
+    public async close(): Promise<void> {
+        if (this.isClosed) {
+            return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+            this.db.close((err) => {
+                if (err) {
+                    console.error('Error closing database:', err.message);
+                    reject(err);
+                    return;
+                }
+                resolve();
+            });
+        });
+
+        this.isClosed = true;
+    }
 }
+
+export const sqlService = new SqlService();

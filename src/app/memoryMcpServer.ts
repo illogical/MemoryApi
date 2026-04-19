@@ -143,7 +143,7 @@ server.tool(
 );
 
 async function main() {
-
+  try {
     // Initialize transport first
     const transport = new StdioServerTransport();
 

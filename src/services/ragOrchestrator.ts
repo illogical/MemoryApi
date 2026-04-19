@@ -1,6 +1,6 @@
 import { VectorService } from './vectorService';
 import { GraphService } from './graphService';
-import { SqlService } from './sqlService';
+import { SqlService, sqlService } from './sqlService';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
 import { LoggingService } from './loggingService';
@@ -20,7 +20,7 @@ export class RAGOrchestrator {
         // Initialize services
         this.vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
         this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
-        this.sqlService = new SqlService();
+        this.sqlService = sqlService;
         this.reminderService = new ReminderService(config.TODOIST_API_KEY, this.loggingService);
     }
 

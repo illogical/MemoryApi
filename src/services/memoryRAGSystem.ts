@@ -8,7 +8,7 @@ import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
-import { SqlService } from './sqlService';
+import { SqlService, sqlService } from './sqlService';
 import { config } from './configService';
 import { IngestionContext } from '../models/ingestionContext';
 import { normalizeEntityNames } from '../utils/normalization';
@@ -35,8 +35,7 @@ class MemoryRAGSystem {
         // Initialize Orchestrator (which will initialize Vector, Graph, SQL, and Reminder services)
         this.orchestrator = new RAGOrchestrator(this.loggingService);
         
-        // Initialize SQL Service for use in this class
-        this.sqlService = new SqlService();
+        this.sqlService = sqlService;
 
         // Initialize embedding client
         this.embeddingClient = ModelClientFactory.createEmbeddingClient(config.LLM_PROVIDER, config.LLM_HOST);
@@ -162,7 +161,8 @@ class MemoryRAGSystem {
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string, ingestionContext?: IngestionContext): Promise<string> {
         this.loggingService.trace('[upsertMemory] Called');
-        let memoryId = id || randomUUID();
+        const memoryId = id || randomUUID();
+        let sqlMemoryId: number | null = null;
         this.loggingService.info(`[upsertMemory] Upserting memory with ID: ${memoryId}`);
 
         // Merge ingestion context into memory if provided
@@ -177,8 +177,8 @@ class MemoryRAGSystem {
         {
             // Add to SQL for relational tracking and history
             this.loggingService.debug(`[RAGOrchestrator.addMemory] Adding memory to SQL...`);
-            // Note: SqlService.addMemory returns a numeric SQL ID; we keep using the UUID for vector/graph
-            await this.sqlService.addMemory(
+            // SQL owns the numeric row ID; vector and graph share the external memory ID.
+            sqlMemoryId = await this.sqlService.addMemory(
                 memory.Content,
                 memory.Description || '',
                 memory.Tags || [],
@@ -195,19 +195,28 @@ class MemoryRAGSystem {
                     topics: memory.Topics
                 }
             );
-            // memoryId stays as the UUID assigned above — do NOT overwrite with SQL integer
+            this.loggingService.debug(`[upsertMemory] Created SQL row ${sqlMemoryId} for external ID ${memoryId}`);
         }
         else
         {
             // update the current memory's status
-            let memory = await this.sqlService.getMemory(parseInt(memoryId));
-            if(memory)
+            sqlMemoryId = parseInt(memoryId, 10);
+            const existingMemory = await this.sqlService.getMemory(sqlMemoryId);
+            if(existingMemory)
             {
-                await this.sqlService.updateMemoryStatus(parseInt(memoryId), "Reviewed");
+                await this.sqlService.updateMemoryStatus(sqlMemoryId, "Reviewed");
+                this.loggingService.debug(`[upsertMemory] Reusing SQL row ${sqlMemoryId} for reviewed memory ${memoryId}`);
             }
         }
 
-        return await this.orchestrator.addMemory(memory, embedding, memoryId);
+        const externalId = await this.orchestrator.addMemory(memory, embedding, memoryId);
+
+        if (sqlMemoryId !== null) {
+            await this.sqlService.updateMemoryRelations(sqlMemoryId, externalId, externalId);
+            this.loggingService.debug(`[upsertMemory] Linked SQL row ${sqlMemoryId} to GraphId=${externalId} VectorId=${externalId}`);
+        }
+
+        return externalId;
     }
 
     /**

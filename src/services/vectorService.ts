@@ -266,7 +266,9 @@ export class VectorService {
             }
 
             if (!response.next_page_offset) break;
-            offset = response.next_page_offset;
+            offset = typeof response.next_page_offset === 'string' || typeof response.next_page_offset === 'number'
+                ? response.next_page_offset
+                : null;
         }
 
         return frequency;
