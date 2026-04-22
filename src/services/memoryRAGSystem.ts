@@ -22,10 +22,10 @@ class MemoryRAGSystem {
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
     private sqlService: SqlService;
 
-    // Config knobs for summarization
-    private readonly MAX_MEMORIES_FOR_SUMMARY = 10;
-    private readonly MAX_CLUSTERS = 5;
-    private readonly MAX_MEMORIES_PER_CLUSTER = 5;
+    // Config knobs for summarization — driven by configService
+    private readonly MAX_MEMORIES_FOR_SUMMARY = config.AGGREGATION_MAX_MEMORIES;
+    private readonly MAX_CLUSTERS = config.AGGREGATION_MAX_CLUSTERS;
+    private readonly MAX_MEMORIES_PER_CLUSTER = config.AGGREGATION_MAX_MEMORIES_PER_CLUSTER;
 
     private memoryTextProcessor: MemoryTextProcessor | null = null;
 
@@ -52,7 +52,12 @@ class MemoryRAGSystem {
             this.loggingService,
             {
                 MAX_CLUSTERS: this.MAX_CLUSTERS,
-                MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER
+                MAX_MEMORIES_PER_CLUSTER: this.MAX_MEMORIES_PER_CLUSTER,
+                CONTENT_MAX_CHARS: config.AGGREGATION_CONTENT_MAX_CHARS,
+                DEFAULT_SCORE_THRESHOLD: config.AGGREGATION_DEFAULT_SCORE_THRESHOLD,
+                DEFAULT_LIMIT: config.AGGREGATION_MAX_MEMORIES,
+                OVERFLOW_THRESHOLD_CHARS: config.AGGREGATION_OVERFLOW_THRESHOLD_CHARS,
+                CONDENSATION_BATCH_SIZE: config.AGGREGATION_CONDENSATION_BATCH_SIZE
             },
             this.sqlService
         );

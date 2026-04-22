@@ -56,6 +56,11 @@ export class MemoryPostSearchAggregator {
     private sqlService: SqlService;
     private MAX_CLUSTERS: number;
     private MAX_MEMORIES_PER_CLUSTER: number;
+    private CONTENT_MAX_CHARS: number;
+    private DEFAULT_SCORE_THRESHOLD: number;
+    private DEFAULT_LIMIT: number;
+    private OVERFLOW_THRESHOLD_CHARS: number;
+    private CONDENSATION_BATCH_SIZE: number;
 
     /**
      * @param loadInferenceModel Function to ensure LLM is loaded
@@ -69,7 +74,15 @@ export class MemoryPostSearchAggregator {
         getModel: () => ModelClient,
         promptTemplateService: PromptTemplateService,
         loggingService: LoggingService,
-        config: { MAX_CLUSTERS: number; MAX_MEMORIES_PER_CLUSTER: number },
+        config: {
+            MAX_CLUSTERS: number;
+            MAX_MEMORIES_PER_CLUSTER: number;
+            CONTENT_MAX_CHARS: number;
+            DEFAULT_SCORE_THRESHOLD: number;
+            DEFAULT_LIMIT: number;
+            OVERFLOW_THRESHOLD_CHARS: number;
+            CONDENSATION_BATCH_SIZE: number;
+        },
         sqlService: SqlService
     ) {
         this.getModel = getModel;
@@ -77,6 +90,11 @@ export class MemoryPostSearchAggregator {
         this.loggingService = loggingService;
         this.MAX_CLUSTERS = config.MAX_CLUSTERS;
         this.MAX_MEMORIES_PER_CLUSTER = config.MAX_MEMORIES_PER_CLUSTER;
+        this.CONTENT_MAX_CHARS = config.CONTENT_MAX_CHARS;
+        this.DEFAULT_SCORE_THRESHOLD = config.DEFAULT_SCORE_THRESHOLD;
+        this.DEFAULT_LIMIT = config.DEFAULT_LIMIT;
+        this.OVERFLOW_THRESHOLD_CHARS = config.OVERFLOW_THRESHOLD_CHARS;
+        this.CONDENSATION_BATCH_SIZE = config.CONDENSATION_BATCH_SIZE;
         this.sqlService = sqlService;
     }
 
@@ -248,8 +266,8 @@ export class MemoryPostSearchAggregator {
     }> {
         this.loggingService.trace('[searchAndSummarizeForMcp] Called');
         const startTime = Date.now();
-        const limit = options.limit ?? 10;
-        const scoreThreshold = options.scoreThreshold ?? 0.7;
+        const limit = options.limit ?? this.DEFAULT_LIMIT;
+        const scoreThreshold = options.scoreThreshold ?? this.DEFAULT_SCORE_THRESHOLD;
         const strategy = options.strategy ?? 'linear';
         const format = options.format ?? 'bullets';
         const category = options.category;
@@ -389,7 +407,7 @@ export class MemoryPostSearchAggregator {
         // Serialize memories for prompt
         const packed = memories.map(m => {
             const desc = m.Description ? m.Description : '';
-            const content = m.Content ? m.Content.slice(0, 200) : '';
+            const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
             return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
         }).join('\n');
 
@@ -462,7 +480,7 @@ export class MemoryPostSearchAggregator {
             const packed = topItems
                 .map(m => {
                     const desc = m.Description ?? '';
-                    const content = m.Content ? m.Content.slice(0, 200) : '';
+                    const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
                     return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
                 })
                 .join('\n');
@@ -560,7 +578,7 @@ export class MemoryPostSearchAggregator {
         const serializeMemories = (items: MemoryWithId[]) => {
             return items.slice(0, this.MAX_MEMORIES_PER_CLUSTER).map(m => {
                 const desc = m.Description ? m.Description : '';
-                const content = m.Content ? m.Content.slice(0, 200) : '';
+                const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
                 return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
             }).join('\n');
         };

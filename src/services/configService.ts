@@ -17,6 +17,15 @@ class Config {
     public PORT: number = 3000;
     public TODOIST_API_KEY: string = 'your_todoist_api_token_here';
 
+    // Aggregation pipeline tuning
+    public AGGREGATION_MAX_MEMORIES: number = 25;
+    public AGGREGATION_MAX_CLUSTERS: number = 5;
+    public AGGREGATION_MAX_MEMORIES_PER_CLUSTER: number = 8;
+    public AGGREGATION_DEFAULT_SCORE_THRESHOLD: number = 0.6;
+    public AGGREGATION_OVERFLOW_THRESHOLD_CHARS: number = 15000;
+    public AGGREGATION_CONDENSATION_BATCH_SIZE: number = 1;
+    public AGGREGATION_CONTENT_MAX_CHARS: number = 800;
+
     constructor() {
         dotenv.config();
 
@@ -26,8 +35,8 @@ class Config {
         for (const key of configProps) {
             const envValue = process.env[key];
             if (envValue) {
-                if (key === 'PORT') {
-                    this.PORT = parseInt(envValue, 10);
+                if (typeof (this as any)[key] === 'number') {
+                    (this as any)[key] = parseFloat(envValue);
                 } else {
                     (this as any)[key] = envValue;
                 }
