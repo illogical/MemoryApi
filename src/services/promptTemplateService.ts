@@ -16,6 +16,9 @@ export class PromptTemplateService {
   // Cache for tag suggestion prompts: key is content, value is rendered output
   private tagSuggestionCache: Map<string, string> = new Map();
 
+  private validCategoriesCache: string[] | null = null;
+  private validTagsCache: string[] | null = null;
+
   constructor(templateBasePath: string) {
     // templateBasePath should be the directory containing prompt template files
     this.templateBasePath = templateBasePath;
@@ -144,5 +147,21 @@ export class PromptTemplateService {
     let template = fs.readFileSync(templatePath, 'utf-8');
     template = template.replace(/{{content}}/g, content);
     return template;
+  }
+
+  getValidCategories(): string[] {
+    if (this.validCategoriesCache) return this.validCategoriesCache;
+    const categoriesPath = path.join(this.templateBasePath, '../samples/allCategories.json');
+    const data = JSON.parse(fs.readFileSync(categoriesPath, 'utf-8'));
+    this.validCategoriesCache = data.Categories as string[];
+    return this.validCategoriesCache;
+  }
+
+  getValidTags(): string[] {
+    if (this.validTagsCache) return this.validTagsCache;
+    const tagsPath = path.join(this.templateBasePath, '../samples/allTags.json');
+    const data = JSON.parse(fs.readFileSync(tagsPath, 'utf-8'));
+    this.validTagsCache = (data.TagGroups as Array<{ Tags: string[] }>).flatMap(g => g.Tags);
+    return this.validTagsCache;
   }
 }
