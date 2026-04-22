@@ -54,19 +54,6 @@ Durability is set at ingestion time (explicitly by the user, or defaulted for LL
 
 ---
 
-## Suggested Future Graph Relationships
-
-Beyond the current (Tags, Category, Tools, Projects, Topics), these relationship types would add meaningful structure for the memory types in this project:
-
-| Relationship | Node Type | Rationale |
-|---|---|---|
-| `:PLATFORM` | `Platform` (Windows, MacOS, etc.) | Many tool/shortcut memories are platform-specific; enables "What shortcuts do I use on Mac?" |
-| `:SKILL` | `Skill` (testing, prompt-engineering, etc.) | Distinct from tool names — captures methods and practices |
-| `:SENTIMENT` | edge property: positive/negative/neutral | "I don't enjoy cooking" = negative Preference. Enables filtering by sentiment. |
-| `:SOURCE` | `Source` (conference, reading, personal, etc.) | Contextualizes where knowledge came from; useful for provenance |
-
----
-
 ## Implementation Plan
 
 ### Phase 1 — Serialization Improvements
