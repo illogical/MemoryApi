@@ -557,6 +557,43 @@ class MemoryRAGSystem {
     public getSqlService(): SqlService {
         return this.sqlService;
     }
+
+    /**
+     * Classify text into a valid MemoryCategory using the LLM.
+     * Delegates to MemoryTextProcessor with retry logic.
+     */
+    async classifyText(text: string): Promise<string> {
+        await this.loadInferenceModel();
+        const processor = this.getOrCreateTextProcessor();
+        return processor.classifyText(text);
+    }
+
+    /**
+     * Tag text using the LLM, returning only valid canonical tags.
+     * Delegates to MemoryTextProcessor with retry logic.
+     */
+    async tagText(text: string): Promise<string[]> {
+        await this.loadInferenceModel();
+        const processor = this.getOrCreateTextProcessor();
+        return processor.tagText(text);
+    }
+
+    /**
+     * Convenience wrapper around searchAndSummarizeForMcp without requiring
+     * the caller to know about the MCP-specific parameters.
+     */
+    async searchAndSummarize(
+        query: string,
+        options?: {
+            limit?: number;
+            scoreThreshold?: number;
+            strategy?: 'linear' | 'cluster-category' | 'cluster-tag' | 'hybrid';
+            format?: 'narrative' | 'bullets' | 'both';
+            category?: MemoryCategory;
+        }
+    ) {
+        return this.searchAndSummarizeForMcp(query, options, false);
+    }
 }
 
 

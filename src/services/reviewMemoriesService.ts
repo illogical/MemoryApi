@@ -1,5 +1,6 @@
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryDurability } from '../models/memoryDurability';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { SqlService } from './sqlService';
 import { LoggingService } from './loggingService';
@@ -11,6 +12,7 @@ const TAGS_FILE = path.join(process.cwd(), 'src', 'samples', 'allTags.json');
 export interface MemoryQueueItem extends Memory {
     id: string; // Maintain ID as string for frontend compatibility, though SQL uses int
     addedAt: string;
+    Durability?: MemoryDurability;
 }
 
 export class ReviewMemoriesService {
@@ -33,6 +35,7 @@ export class ReviewMemoriesService {
             Description: row.Description,
             Category: row.Category as MemoryCategory,
             Tags: JSON.parse(row.Tags || '[]'),
+            Durability: row.Durability as MemoryDurability | undefined,
             addedAt: row.Created,
             LastUpdated: row.LastUpdated
         }));
@@ -60,6 +63,7 @@ export class ReviewMemoriesService {
             Description: row.Description,
             Category: row.Category as MemoryCategory,
             Tags: JSON.parse(row.Tags || '[]'),
+            Durability: row.Durability as MemoryDurability | undefined,
             addedAt: row.Created,
             LastUpdated: row.LastUpdated
         };
@@ -80,6 +84,7 @@ export class ReviewMemoriesService {
         const newDescription = updates.Description ?? current.Description;
         const newTags = updates.Tags ?? currentTags;
         const newCategory = updates.Category ?? current.Category;
+        const newDurability = updates.Durability ?? current.Durability;
 
         // Update logic in SqlService handles history snapshot
         await this.sqlService.updateMemory(
@@ -87,11 +92,9 @@ export class ReviewMemoriesService {
             newContent,
             newDescription,
             newTags,
-            newCategory
-            // Status remains 'New' implicit via updateMemory if not passed, 
-            // but updateMemory optional status arg allows it. We don't pass it, so it keeps current?
-            // Wait, my updateMemory implementation: if (status) sql += ... else it strictly updates content.
-            // Correct.
+            newCategory,
+            undefined, // status: keep current (New), only changed on commit
+            newDurability
         );
 
         const updatedRow = await this.sqlService.getMemory(memoryId);
@@ -101,6 +104,7 @@ export class ReviewMemoriesService {
             Description: updatedRow.Description,
             Category: updatedRow.Category as MemoryCategory,
             Tags: JSON.parse(updatedRow.Tags || '[]'),
+            Durability: updatedRow.Durability as MemoryDurability | undefined,
             addedAt: updatedRow.Created,
             LastUpdated: updatedRow.LastUpdated
         };
@@ -119,6 +123,35 @@ export class ReviewMemoriesService {
 
     getCategories(): string[] {
         return Object.values(MemoryCategory);
+    }
+
+    getDurabilities(): { value: string; label: string; description: string; priority: number }[] {
+        return [
+            {
+                value: MemoryDurability.Durable,
+                label: 'Durable',
+                description: 'Stable long-term fact — preferences, skills, installed tools, habits',
+                priority: 1
+            },
+            {
+                value: MemoryDurability.Working,
+                label: 'Working',
+                description: 'Currently active but may change — in-progress projects, drafts',
+                priority: 2
+            },
+            {
+                value: MemoryDurability.Historical,
+                label: 'Historical',
+                description: 'Past events or completed items — conferences attended, old reminders',
+                priority: 3
+            },
+            {
+                value: MemoryDurability.Temporary,
+                label: 'Temporary',
+                description: 'Short-lived — appointments, time-sensitive reminders',
+                priority: 4
+            }
+        ];
     }
 
     async getAllTags(): Promise<string[]> {

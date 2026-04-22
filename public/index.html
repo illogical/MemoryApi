@@ -508,6 +508,88 @@
             }
         }
 
+        /* Durability selector and help tooltip */
+        .durability-group {
+            margin-bottom: 15px;
+        }
+
+        .durability-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .durability-header label {
+            margin: 0;
+        }
+
+        .durability-help-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .durability-help-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-main);
+            background: none;
+        }
+
+        .durability-definitions {
+            display: none;
+            margin-top: 8px;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .durability-definitions.visible {
+            display: block;
+        }
+
+        .durability-def-row {
+            display: flex;
+            gap: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+        }
+
+        .durability-def-row:last-child {
+            border-bottom: none;
+        }
+
+        .durability-def-priority {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            min-width: 14px;
+            padding-top: 2px;
+        }
+
+        .durability-def-name {
+            font-weight: 600;
+            color: var(--text-main);
+            min-width: 72px;
+        }
+
+        .durability-def-desc {
+            color: var(--text-muted);
+            flex: 1;
+        }
+
         /* Refresh Button */
         .btn-icon {
             background: none;

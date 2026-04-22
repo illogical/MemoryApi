@@ -390,8 +390,100 @@ export class MemoryPostSearchAggregator {
     }
 
     /**
+     * Serializes a single memory into a packed string block for prompt injection.
+     * Includes Durability, Tools, Projects, and Topics when present.
+     * Logs a warning when content is truncated.
+     */
+    private serializeMemory(m: MemoryWithId, caller: string): string {
+        const desc = m.Description ?? '';
+        const fullContent = m.Content ?? '';
+        const content = fullContent.slice(0, this.CONTENT_MAX_CHARS);
+        if (fullContent.length > this.CONTENT_MAX_CHARS) {
+            this.loggingService.info(
+                `[${caller}] Content truncated for memory ${m.id}: ` +
+                `${fullContent.length} chars → ${this.CONTENT_MAX_CHARS} chars. ` +
+                `Full content: ${fullContent}`
+            );
+        }
+
+        const lines: string[] = [
+            `ID: ${m.id}`,
+            `Category: ${m.Category ?? ''}`,
+            `Durability: ${m.Durability ?? ''}`,
+            `Tags: ${(m.Tags || []).join(', ')}`,
+        ];
+        if (m.Tools && m.Tools.length > 0) lines.push(`Tools: ${m.Tools.join(', ')}`);
+        if (m.Projects && m.Projects.length > 0) lines.push(`Projects: ${m.Projects.join(', ')}`);
+        if (m.Topics && m.Topics.length > 0) lines.push(`Topics: ${m.Topics.join(', ')}`);
+        lines.push(`LastUpdated: ${m.LastUpdated}`);
+        lines.push(`Description: ${desc}`);
+        lines.push(`Content: ${content}`);
+        lines.push('---');
+        return lines.join('\n');
+    }
+
+    /**
+     * Condenses a set of memories into a compact intermediate representation
+     * for use when the full packed block would exceed OVERFLOW_THRESHOLD_CHARS.
+     *
+     * batchSize = 1: all memories passed in one condensation call (pre-pass).
+     * batchSize = N: memories split into chunks of N, each condensed independently,
+     *                then the condensed chunks are concatenated.
+     */
+    async condenseMemories(memories: MemoryWithId[], batchSize: number = 1): Promise<string> {
+        this.loggingService.info(
+            `[condenseMemories] Starting condensation of ${memories.length} memories ` +
+            `(batchSize=${batchSize})`
+        );
+
+        const effectiveBatch = batchSize < 1 ? 1 : batchSize;
+        if (batchSize < 1) {
+            this.loggingService.info(
+                `[condenseMemories] Invalid batchSize (${batchSize}) — clamped to 1`
+            );
+        }
+
+        const chunks: MemoryWithId[][] = [];
+        if (effectiveBatch === 1) {
+            chunks.push(memories);
+        } else {
+            for (let i = 0; i < memories.length; i += effectiveBatch) {
+                chunks.push(memories.slice(i, i + effectiveBatch));
+            }
+        }
+
+        const condensedParts: string[] = [];
+        for (let ci = 0; ci < chunks.length; ci++) {
+            const chunk = chunks[ci];
+            const packed = chunk.map(m => this.serializeMemory(m, 'condenseMemories')).join('\n');
+            const prompt = this.promptTemplateService.renderMemoryCondensation(packed);
+
+            this.loggingService.debug(
+                `[condenseMemories] Condensing chunk ${ci + 1}/${chunks.length} ` +
+                `(${chunk.length} memories)`
+            );
+
+            const response = await this.getModel().respond([
+                {
+                    role: 'system',
+                    content: 'You are a memory condensation assistant. Output only the condensed lines, one per memory.'
+                },
+                { role: 'user', content: prompt }
+            ]);
+            condensedParts.push(response.content.trim());
+        }
+
+        const result = condensedParts.join('\n');
+        this.loggingService.info(
+            `[condenseMemories] Condensation complete. Output length: ${result.length} chars`
+        );
+        return result;
+    }
+
+    /**
      * Packs all memories and asks LLM for a global summary.
      * Mode can be 'narrative', 'bullets', or 'both'.
+     * Applies overflow condensation if the packed block exceeds OVERFLOW_THRESHOLD_CHARS.
      */
     async summarizeMemoriesLinear(
         memories: MemoryWithId[],
@@ -402,14 +494,21 @@ export class MemoryPostSearchAggregator {
             this.loggingService.debug('[summarizeMemoriesLinear] No memories to summarize');
             return {};
         }
-        //await this.loadInferenceModel();
 
         // Serialize memories for prompt
-        const packed = memories.map(m => {
-            const desc = m.Description ? m.Description : '';
-            const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
-            return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
-        }).join('\n');
+        const rawPacked = memories.map(m => this.serializeMemory(m, 'summarizeMemoriesLinear')).join('\n');
+
+        let packed: string;
+        if (rawPacked.length > this.OVERFLOW_THRESHOLD_CHARS) {
+            this.loggingService.info(
+                `[summarizeMemoriesLinear] Packed memories (${rawPacked.length} chars) exceed ` +
+                `OVERFLOW_THRESHOLD_CHARS (${this.OVERFLOW_THRESHOLD_CHARS}). ` +
+                `Running condensation pass (batchSize=${this.CONDENSATION_BATCH_SIZE}).`
+            );
+            packed = await this.condenseMemories(memories, this.CONDENSATION_BATCH_SIZE);
+        } else {
+            packed = rawPacked;
+        }
 
         this.loggingService.debug(`[summarizeMemoriesLinear] Packed memories:\n${packed}`);
 
@@ -425,7 +524,10 @@ export class MemoryPostSearchAggregator {
 
         // Call LLM for summary
         const response = await this.getModel().respond([
-            { role: 'system', content: 'You are a concise memory summarizer. Output only the summary.' },
+            {
+                role: 'system',
+                content: 'You are a memory aggregation engine. Synthesize the provided memory records into a structured summary as instructed. Do not add information not present in the memories. Follow the output format exactly.'
+            },
             { role: 'user', content: prompt }
         ]);
         this.loggingService.debug(`[summarizeMemoriesLinear] LLM response:\n${response.content}`);
@@ -477,13 +579,7 @@ export class MemoryPostSearchAggregator {
             const topItems = items.slice(0, this.MAX_MEMORIES_PER_CLUSTER);
 
             // Serialize cluster memories for prompt
-            const packed = topItems
-                .map(m => {
-                    const desc = m.Description ?? '';
-                    const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
-                    return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
-                })
-                .join('\n');
+            const packed = topItems.map(m => this.serializeMemory(m, 'summarizeMemoriesByCategory')).join('\n');
 
             this.loggingService.debug(`[summarizeMemoriesByCategory] Packed cluster memories:\n${packed}`);
 
@@ -503,7 +599,10 @@ export class MemoryPostSearchAggregator {
 
             // Call LLM for cluster summary
             const response = await this.getModel().respond([
-                { role: 'system', content: 'You classify content into a single category. Output only the category.' },
+                {
+                    role: 'system',
+                    content: 'You are a memory aggregation engine. Synthesize the provided memory records into a structured summary as instructed. Do not add information not present in the memories. Follow the output format exactly.'
+                },
                 { role: 'user', content: prompt }
             ]);
             this.loggingService.debug(`[summarizeMemoriesByCategory] LLM response for '${categoryKey}':\n${response.content}`);
@@ -576,11 +675,9 @@ export class MemoryPostSearchAggregator {
 
         // Helper: Serialize memories for prompt
         const serializeMemories = (items: MemoryWithId[]) => {
-            return items.slice(0, this.MAX_MEMORIES_PER_CLUSTER).map(m => {
-                const desc = m.Description ? m.Description : '';
-                const content = m.Content ? m.Content.slice(0, this.CONTENT_MAX_CHARS) : '';
-                return `ID: ${m.id}\nCategory: ${m.Category}\nTags: ${(m.Tags || []).join(', ')}\nLastUpdated: ${m.LastUpdated}\nDescription: ${desc}\nContent: ${content}\n---`;
-            }).join('\n');
+            return items.slice(0, this.MAX_MEMORIES_PER_CLUSTER)
+                .map(m => this.serializeMemory(m, 'summarizeMemoriesByTag'))
+                .join('\n');
         };
 
         // Helper: Summarize a tag cluster
@@ -594,7 +691,10 @@ export class MemoryPostSearchAggregator {
             });
             this.loggingService.debug(`[summarizeMemoriesByTag] Prompt for tag '${tagKey}':\n${prompt}`);
             const response = await this.getModel().respond([
-                { role: 'system', content: 'Output only comma-separated tags, nothing else.' },
+                {
+                    role: 'system',
+                    content: 'You are a memory aggregation engine. Synthesize the provided memory records into a structured summary as instructed. Do not add information not present in the memories. Follow the output format exactly.'
+                },
                 { role: 'user', content: prompt }
             ]);
             this.loggingService.debug(`[summarizeMemoriesByTag] LLM response for tag '${tagKey}':\n${response.content}`);

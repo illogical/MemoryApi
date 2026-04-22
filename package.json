@@ -19,6 +19,8 @@
     "init-sql": "npx tsx src/scripts/initSqlDb.ts",
     "reset": "npx tsx src/scripts/resetVectorAndGraph.ts",
     "reset:full": "npx tsx src/scripts/resetAllAndLoadSeeds.ts",
+    "e2e": "npx tsx src/scripts/e2eVerification.ts",
+    "e2e:skip-llm": "npx tsx src/scripts/e2eVerification.ts --skip-llm",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"

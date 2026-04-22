@@ -149,6 +149,16 @@ export class PromptTemplateService {
     return template;
   }
 
+  /**
+   * Renders the memory_condensation.txt template with provided memories string.
+   */
+  renderMemoryCondensation(memories: string): string {
+    const templatePath = this.resolveTemplatePath('memory_condensation.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    template = template.replace(/{{memories}}/g, memories);
+    return template;
+  }
+
   getValidCategories(): string[] {
     if (this.validCategoriesCache) return this.validCategoriesCache;
     const categoriesPath = path.join(this.templateBasePath, '../samples/allCategories.json');
