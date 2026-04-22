@@ -1,10 +1,8 @@
 import sqlite3 from 'sqlite3';
-import { config } from './configService';
+import { config, Config } from './configService';
 
 // Enable verbose logging
 sqlite3.verbose();
-
-const DB_PATH = config.SQLITE_DB_PATH;
 
 export interface Memory {
     content: string;
@@ -36,13 +34,26 @@ export class SqlService {
     private initializationPromise: Promise<void>;
     private isClosed: boolean = true;
 
-    constructor() {
+    private _dbPath: string = config.SQLITE_DB_PATH;
+
+    constructor(cfg: Config = config, db?: sqlite3.Database) {
+        this._dbPath = cfg.SQLITE_DB_PATH;
         this.initializationPromise = Promise.resolve();
-        this.openConnection();
+        if (db) {
+            this.db = db;
+            this.isClosed = false;
+            this.enableForeignKeys();
+            this.initializationPromise = this.initializeSchema().catch(err => {
+                console.error('Error initializing schema:', err);
+                throw err;
+            });
+        } else {
+            this.openConnection(this._dbPath);
+        }
     }
 
-    private openConnection(): void {
-        this.db = new sqlite3.Database(DB_PATH, (err) => {
+    private openConnection(dbPath: string): void {
+        this.db = new sqlite3.Database(dbPath, (err) => {
             if (err) {
                 console.error('Error opening database:', err.message);
             } else {
@@ -150,7 +161,7 @@ export class SqlService {
 
     public async reconnect(): Promise<void> {
         await this.close();
-        this.openConnection();
+        this.openConnection(this._dbPath);
         await this.waitUntilReady();
     }
 

@@ -18,7 +18,12 @@ export class ReminderService {
      */
     async createTask(memory: Memory): Promise<void> {
         this.loggingService.trace('[ReminderService.createTask] Called');
-        
+
+        if (!this.todoistToken) {
+            this.loggingService.info('[ReminderService.createTask] No API key configured — skipping Todoist call');
+            return;
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), this.REQUEST_TIMEOUT);
 

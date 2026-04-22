@@ -1,7 +1,32 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-class Config {
+// Load .env once at module load time so constructor only reads process.env
+dotenv.config();
+
+export interface ConfigValues {
+    QDRANT_URL: string;
+    LLM_HOST: string;
+    LLM_MODEL: string;
+    LLM_PROVIDER: string;
+    EMBEDDING_MODEL: string;
+    NEO4J_URI: string;
+    NEO4J_USER: string;
+    NEO4J_PASSWORD: string;
+    PROMPT_TEMPLATE_BASE_PATH: string;
+    SQLITE_DB_PATH: string;
+    PORT: number;
+    TODOIST_API_KEY: string;
+    AGGREGATION_MAX_MEMORIES: number;
+    AGGREGATION_MAX_CLUSTERS: number;
+    AGGREGATION_MAX_MEMORIES_PER_CLUSTER: number;
+    AGGREGATION_DEFAULT_SCORE_THRESHOLD: number;
+    AGGREGATION_OVERFLOW_THRESHOLD_CHARS: number;
+    AGGREGATION_CONDENSATION_BATCH_SIZE: number;
+    AGGREGATION_CONTENT_MAX_CHARS: number;
+}
+
+class Config implements ConfigValues {
     public QDRANT_URL: string = 'http://localhost:6333';
     public LLM_HOST: string = 'http://localhost:11434';
     public LLM_MODEL: string = 'granite-3.3';
@@ -26,13 +51,16 @@ class Config {
     public AGGREGATION_CONDENSATION_BATCH_SIZE: number = 1;
     public AGGREGATION_CONTENT_MAX_CHARS: number = 800;
 
-    constructor() {
-        dotenv.config();
-
+    constructor(overrides: Partial<ConfigValues> = {}) {
         const configProps = Object.keys(this);
         const missing: string[] = [];
 
         for (const key of configProps) {
+            // Constructor overrides take highest precedence
+            if (key in overrides) {
+                (this as any)[key] = (overrides as any)[key];
+                continue;
+            }
             const envValue = process.env[key];
             if (envValue) {
                 if (typeof (this as any)[key] === 'number') {
@@ -51,4 +79,5 @@ class Config {
     }
 }
 
+export { Config };
 export const config = new Config();
