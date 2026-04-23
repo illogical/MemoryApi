@@ -4,6 +4,7 @@ import { ModelClient, EmbeddingClient, ModelClientFactory } from './modelClients
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryDurability } from '../models/memoryDurability';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
@@ -97,7 +98,7 @@ class MemoryRAGSystem {
     async summarizeClassifyAndTagTextParallel(
         text: string,
         skipEntityExtraction: boolean = false
-    ): Promise<{ summary: string; classification: string; tags: string[]; suggestedTags: string[]; entities: { tools: string[]; projects: string[]; topics: string[] }; }> {
+    ): Promise<{ summary: string; classification: string; tags: string[]; suggestedTags: string[]; durability: MemoryDurability; entities: { tools: string[]; projects: string[]; topics: string[] }; }> {
         this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         const processor = this.getOrCreateTextProcessor();
         return await processor.summarizeClassifyAndTagTextParallel(text, skipEntityExtraction);
@@ -114,12 +115,13 @@ class MemoryRAGSystem {
         description: string;
         category: MemoryCategory;
         tagsList: string[];
+        durability: MemoryDurability;
         tools: string[];
         projects: string[];
         topics: string[];
     }> {
         const hasExplicitEntities = !!(memory.Tools?.length || memory.Projects?.length || memory.Topics?.length);
-        const { summary, classification, tags, suggestedTags, entities } =
+        const { summary, classification, tags, suggestedTags, durability: detectedDurability, entities } =
             await this.summarizeClassifyAndTagTextParallel(memory.Content, hasExplicitEntities);
 
         // Prepare description, category, tagsList
@@ -136,12 +138,15 @@ class MemoryRAGSystem {
             tagsList = tags;
         }
 
+        // Use explicit durability if provided; fall back to LLM-selected
+        const durability: MemoryDurability = memory.Durability ?? detectedDurability;
+
         // Use explicit entity values from seed; fall back to LLM-extracted
         const tools = hasExplicitEntities ? normalizeEntityNames(memory.Tools || []) : entities.tools;
         const projects = hasExplicitEntities ? normalizeEntityNames(memory.Projects || []) : entities.projects;
         const topics = hasExplicitEntities ? normalizeEntityNames(memory.Topics || []) : entities.topics;
 
-        return { summary, classification, tags, suggestedTags, description, category, tagsList, tools, projects, topics };
+        return { summary, classification, tags, suggestedTags, description, category, tagsList, durability, tools, projects, topics };
     }
 
     /**
@@ -251,6 +256,7 @@ class MemoryRAGSystem {
                     Description: prepared.description,
                     Category: prepared.category,
                     Tags: prepared.tagsList,
+                    Durability: prepared.durability,
                     Tools: prepared.tools,
                     Projects: prepared.projects,
                     Topics: prepared.topics,
@@ -576,6 +582,16 @@ class MemoryRAGSystem {
         await this.loadInferenceModel();
         const processor = this.getOrCreateTextProcessor();
         return processor.tagText(text);
+    }
+
+    /**
+     * Select a durability level for a memory using the LLM.
+     * Delegates to MemoryTextProcessor with retry/validation logic.
+     */
+    async selectDurability(text: string): Promise<MemoryDurability> {
+        await this.loadInferenceModel();
+        const processor = this.getOrCreateTextProcessor();
+        return processor.selectDurability(text);
     }
 
     /**

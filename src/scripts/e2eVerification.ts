@@ -530,6 +530,107 @@ async function testOverflowCondensationPath() {
 }
 
 // ────────────────────────────────────────────────────────────
+// SECTION 13: Durability auto-selection prompt rendering
+// ────────────────────────────────────────────────────────────
+
+async function testDurabilitySelectionPrompt() {
+    section('13. Durability selection prompt — template renders with all four examples injected');
+
+    const pts = new PromptTemplateService(config.PROMPT_TEMPLATE_BASE_PATH);
+
+    const testInputs = [
+        { text: 'I prefer dark mode in all editors', expectedHint: 'durable' },
+        { text: 'Doctor appointment on Thursday at 2 PM', expectedHint: 'temporary' },
+        { text: 'Attended VSLive conference in 2023', expectedHint: 'historical' },
+        { text: 'Comparing phi-4 vs llama3 for agent tasks', expectedHint: 'working' }
+    ];
+
+    for (const { text, expectedHint: _hint } of testInputs) {
+        try {
+            const rendered = pts.renderDurabilitySelection(text);
+            assertIncludes(`durability prompt contains user input: "${text.slice(0, 30)}"`, rendered, text);
+            assertIncludes('durability prompt contains durable example', rendered, 'Durability: durable');
+            assertIncludes('durability prompt contains temporary example', rendered, 'Durability: temporary');
+            assertIncludes('durability prompt contains historical example', rendered, 'Durability: historical');
+            assertIncludes('durability prompt contains working example', rendered, 'Durability: working');
+        } catch (err) {
+            fail(`durability prompt render for "${text.slice(0, 30)}"`, String(err));
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+// SECTION 14: Durability LLM auto-selection — selectDurability returns valid level
+// ────────────────────────────────────────────────────────────
+
+async function testDurabilityLLMSelection() {
+    section('14. Durability LLM auto-selection — selectDurability returns valid level for varied inputs');
+
+    if (skipLLM) {
+        console.log('  ⏭  Skipped (--skip-llm)');
+        return;
+    }
+
+    const rag = new MemoryRAGSystem();
+    try {
+        await rag.loadInferenceModel();
+    } catch (err) {
+        fail('loadInferenceModel', String(err));
+        return;
+    }
+
+    const validDurabilities = new Set(Object.values(MemoryDurability));
+
+    const testCases: { text: string; expectedDurability: MemoryDurability }[] = [
+        {
+            text: 'I prefer working in the afternoons when it is quiet.',
+            expectedDurability: MemoryDurability.Durable
+        },
+        {
+            text: 'Doctor appointment next Tuesday at 10 AM.',
+            expectedDurability: MemoryDurability.Temporary
+        },
+        {
+            text: 'I attended the VSLive conference in 2024 in Orlando.',
+            expectedDurability: MemoryDurability.Historical
+        },
+        {
+            text: 'Currently evaluating phi-4 vs llama3 models for agent tasks.',
+            expectedDurability: MemoryDurability.Working
+        },
+        {
+            text: 'My favorite programming language is C#.',
+            expectedDurability: MemoryDurability.Durable
+        },
+        {
+            text: 'Reminder to file taxes before April 15th.',
+            expectedDurability: MemoryDurability.Temporary
+        }
+    ];
+
+    for (const tc of testCases) {
+        try {
+            const durability = await rag.selectDurability(tc.text);
+            console.log(`  "${tc.text.slice(0, 50)}…" → ${durability} (expected: ${tc.expectedDurability})`);
+
+            if (validDurabilities.has(durability)) {
+                pass(`selectDurability returns valid level for "${tc.text.slice(0, 40)}"`);
+            } else {
+                fail(`selectDurability returns valid level`, `Invalid durability: "${durability}"`);
+            }
+
+            if (durability === tc.expectedDurability) {
+                pass(`selectDurability correct: ${durability}`);
+            } else {
+                console.log(`  ⚠️  Unexpected but valid: ${durability} (expected ${tc.expectedDurability})`);
+            }
+        } catch (err) {
+            fail(`selectDurability for "${tc.text.slice(0, 40)}"`, String(err));
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────
 // Main runner
 // ────────────────────────────────────────────────────────────
 
@@ -558,6 +659,8 @@ async function main() {
     await testTagValidation();
     await testBroadQueryPrompts();
     await testOverflowCondensationPath();
+    await testDurabilitySelectionPrompt();
+    await testDurabilityLLMSelection();
 
     // ── Summary ──
     console.log('\n══════════════════════════════════════════════════');

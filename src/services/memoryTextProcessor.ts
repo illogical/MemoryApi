@@ -4,6 +4,7 @@ import { ModelClient } from './modelClients';
 import { SqlService } from './sqlService';
 import { normalizeEntityNames } from '../utils/normalization';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryDurability } from '../models/memoryDurability';
 
 const MAX_LLM_ATTEMPTS = 3;
 
@@ -161,6 +162,36 @@ class MemoryTextProcessor {
         }
     }
 
+    async selectDurability(text: string): Promise<MemoryDurability> {
+        this.loggingService.trace('[MemoryTextProcessor.selectDurability] Called');
+        const validDurabilities = Object.values(MemoryDurability);
+        const prompt = this.promptTemplateService.renderDurabilitySelection(text);
+        this.loggingService.debug(`[MemoryTextProcessor.selectDurability] Prompt: ${prompt}`);
+
+        const call = () => this.timeModelResponse(() => this.modelClient.respond(
+            [
+                { role: 'system', content: 'You assign a durability level to a memory. Output only one of: durable, working, historical, temporary' },
+                { role: 'user', content: prompt }
+            ],
+            { temperature: 0.1, maxTokens: 20 }
+        ), 'selectDurability').then(r => r.content.trim().toLowerCase());
+
+        const validate = (raw: string, attempt: number): MemoryDurability | null => {
+            const normalized = raw.toLowerCase();
+            const matched = validDurabilities.find(d => d === normalized);
+            if (!matched) {
+                this.loggingService.info(`[selectDurability] Attempt ${attempt}/${MAX_LLM_ATTEMPTS}: discarded invalid durability "${raw}"`);
+                return null;
+            }
+            if (attempt > 1) this.loggingService.info(`[selectDurability] Valid durability "${matched}" found on attempt ${attempt}`);
+            return matched;
+        };
+
+        const result = await this.withLLMRetry(call, validate);
+        if (result === null) this.loggingService.info(`[selectDurability] All ${MAX_LLM_ATTEMPTS} attempts failed. Falling back to "${MemoryDurability.Durable}"`);
+        return result ?? MemoryDurability.Durable;
+    }
+
     async summarizeClassifyAndTagTextParallel(
         text: string,
         skipEntityExtraction: boolean = false
@@ -169,24 +200,26 @@ class MemoryTextProcessor {
         classification: string;
         tags: string[];
         suggestedTags: string[];
+        durability: MemoryDurability;
         entities: { tools: string[]; projects: string[]; topics: string[] };
     }> {
         this.loggingService.trace('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Called');
         try {
-            this.loggingService.info('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag, suggestTags, and extractEntities');
+            this.loggingService.info('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag, suggestTags, selectDurability, and extractEntities');
             const entityPromise = skipEntityExtraction
                 ? Promise.resolve({ tools: [], projects: [], topics: [] })
                 : this.extractEntities(text);
 
-            const [summary, classification, tags, suggestedTags, entities] = await Promise.all([
+            const [summary, classification, tags, suggestedTags, durability, entities] = await Promise.all([
                 this.summarizeText(text),
                 this.classifyText(text),
                 this.tagText(text),
                 this.suggestTags(text),
+                this.selectDurability(text),
                 entityPromise
             ]);
             this.loggingService.info('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Parallel operations complete');
-            return { summary, classification, tags, suggestedTags, entities };
+            return { summary, classification, tags, suggestedTags, durability, entities };
         } catch (error) {
             this.loggingService.error(`[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Error: ${error}`);
             throw new Error('Failed to classify, tag, and summarize text in parallel');

@@ -314,6 +314,26 @@
       "durability": "working",
       "dataset": "dev",
       "topics": ["llm-evaluation", "ai-agents", "model-comparison"]
+    },
+    {
+      "content": "Reminder: submit the quarterly expenses report by end of day Friday.",
+      "description": "Time-sensitive expense report submission reminder",
+      "category": "Reminder",
+      "tags": ["Work", "Finance", "Deadline"],
+      "sourceType": "seed-import",
+      "durability": "temporary",
+      "dataset": "dev",
+      "topics": ["reminders", "finance", "deadlines"]
+    },
+    {
+      "content": "Doctor appointment on Thursday at 2 PM — annual checkup with Dr. Smith.",
+      "description": "Upcoming doctor appointment reminder",
+      "category": "Reminder",
+      "tags": ["Health", "Appointment"],
+      "sourceType": "seed-import",
+      "durability": "temporary",
+      "dataset": "dev",
+      "topics": ["health", "appointments", "reminders"]
     }
   ]
 }
