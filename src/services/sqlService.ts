@@ -287,7 +287,7 @@ export class SqlService {
 
 
 
-    public async updateMemory(id: number, content: string, description: string, tags: string[], category: string, status?: string): Promise<void> {
+    public async updateMemory(id: number, content: string, description: string, tags: string[], category: string, status?: string, durability?: string): Promise<void> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
@@ -297,6 +297,11 @@ export class SqlService {
         if (status) {
             sql += `, Status = ?`;
             params.push(status);
+        }
+
+        if (durability !== undefined) {
+            sql += `, Durability = ?`;
+            params.push(durability);
         }
 
         sql += ` WHERE ID = ?`;

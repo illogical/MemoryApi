@@ -3,6 +3,7 @@ import { memorySystem } from './memoryAPI';
 import { ReviewMemoriesService } from '../services/reviewMemoriesService';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryDurability } from '../models/memoryDurability';
 import { logger } from '../utils/logger';
 
 const reviewRouter = Router();
@@ -59,6 +60,14 @@ reviewRouter.put('/review/queue/:id', async (req: Request, res: Response) => {
             });
         }
 
+        // Validate durability if provided
+        if (updates.Durability && !Object.values(MemoryDurability).includes(updates.Durability)) {
+            return res.status(400).json({
+                error: 'Invalid durability',
+                validDurabilities: Object.values(MemoryDurability)
+            });
+        }
+
         const updatedItem = await reviewService.updateQueueItem(id, updates);
 
         if (!updatedItem) {
@@ -100,6 +109,17 @@ reviewRouter.get('/review/categories', (req: Request, res: Response) => {
     } catch (error) {
         logger.error(`Error retrieving categories: ${error}`);
         res.status(500).json({ error: 'Failed to retrieve categories' });
+    }
+});
+
+// GET /api/review/durabilities - Get all durability levels with descriptions
+reviewRouter.get('/review/durabilities', (req: Request, res: Response) => {
+    try {
+        const durabilities = reviewService.getDurabilities();
+        res.json(durabilities);
+    } catch (error) {
+        logger.error(`Error retrieving durabilities: ${error}`);
+        res.status(500).json({ error: 'Failed to retrieve durabilities' });
     }
 });
 

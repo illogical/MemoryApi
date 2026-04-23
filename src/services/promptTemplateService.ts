@@ -149,6 +149,47 @@ export class PromptTemplateService {
     return template;
   }
 
+  /**
+   * Renders the durability_selection.txt template.
+   * Injects one representative seed-memory example per durability level as few-shot examples,
+   * then injects the user's memory content.
+   */
+  renderDurabilitySelection(content: string): string {
+    const MAX_EXAMPLE_CONTENT_LENGTH = 120;
+    const templatePath = this.resolveTemplatePath('durability_selection.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+
+    // Load seed memories and pick one example per durability level
+    const seedPath = path.join(this.templateBasePath, '../samples/seedMemories.json');
+    const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+    const seeds: Array<{ content: string; durability: string }> = seedData.memories || [];
+
+    const levels = ['durable', 'working', 'historical', 'temporary'] as const;
+    const exampleLines: string[] = [];
+    for (const level of levels) {
+      const ex = seeds.find(s => s.durability === level);
+      if (ex) {
+        exampleLines.push(`Input: "${ex.content.replace(/\n/g, ' ').slice(0, MAX_EXAMPLE_CONTENT_LENGTH)}"`);
+        exampleLines.push(`Durability: ${level}`);
+        exampleLines.push('');
+      }
+    }
+
+    template = template.replace(/{{examples}}/g, exampleLines.join('\n').trimEnd());
+    template = template.replace(/{{user_input}}/g, content);
+    return template;
+  }
+
+  /**
+   * Renders the memory_condensation.txt template with provided memories string.
+   */
+  renderMemoryCondensation(memories: string): string {
+    const templatePath = this.resolveTemplatePath('memory_condensation.txt');
+    let template = fs.readFileSync(templatePath, 'utf-8');
+    template = template.replace(/{{memories}}/g, memories);
+    return template;
+  }
+
   getValidCategories(): string[] {
     if (this.validCategoriesCache) return this.validCategoriesCache;
     const categoriesPath = path.join(this.templateBasePath, '../samples/allCategories.json');

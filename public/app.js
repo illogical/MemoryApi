@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueContainer = document.getElementById('queue-container');
     let categories = [];
     let allTags = [];
+    let durabilities = [];
     let serverStatus = { vector: false, graph: false, sql: false, model: false };
 
     // Fetch initial data
@@ -9,10 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/review/categories').then(res => res.json()),
         fetch('/api/review/tags').then(res => res.json()),
         fetch('/api/review/queue').then(res => res.json()),
+        fetch('/api/review/durabilities').then(res => res.json()),
         fetchSuggestedTags()
-    ]).then(([cats, tags, queue]) => {
+    ]).then(([cats, tags, queue, durs]) => {
         categories = cats;
         allTags = tags;
+        durabilities = durs;
         renderQueue(queue);
     }).catch(err => {
         console.error('Error loading data:', err);
@@ -301,6 +304,62 @@ document.addEventListener('DOMContentLoaded', () => {
         categoryGroup.appendChild(catLabel);
         categoryGroup.appendChild(catSelect);
 
+        // Durability
+        const durabilityGroup = document.createElement('div');
+        durabilityGroup.className = 'durability-group';
+
+        const durabilityHeader = document.createElement('div');
+        durabilityHeader.className = 'durability-header';
+
+        const durLabel = document.createElement('label');
+        durLabel.textContent = 'Durability';
+
+        const helpBtn = document.createElement('button');
+        helpBtn.className = 'durability-help-btn';
+        helpBtn.textContent = '?';
+        helpBtn.title = 'Show durability definitions';
+        helpBtn.type = 'button';
+
+        durabilityHeader.appendChild(durLabel);
+        durabilityHeader.appendChild(helpBtn);
+
+        const durSelect = document.createElement('select');
+        // Add a blank/unset option
+        const blankOpt = document.createElement('option');
+        blankOpt.value = '';
+        blankOpt.textContent = '\u2014 not set \u2014';
+        durSelect.appendChild(blankOpt);
+        durabilities.forEach(dur => {
+            const option = document.createElement('option');
+            option.value = dur.value;
+            option.textContent = `${dur.label} (priority ${dur.priority})`;
+            option.title = dur.description;
+            if (dur.value === item.Durability) option.selected = true;
+            durSelect.appendChild(option);
+        });
+
+        // Definitions panel (hidden by default, toggled by help button)
+        const defsPanel = document.createElement('div');
+        defsPanel.className = 'durability-definitions';
+        durabilities.forEach(dur => {
+            const row = document.createElement('div');
+            row.className = 'durability-def-row';
+            row.innerHTML = `
+                <span class="durability-def-priority">#${dur.priority}</span>
+                <span class="durability-def-name">${dur.label}</span>
+                <span class="durability-def-desc">${dur.description}</span>
+            `;
+            defsPanel.appendChild(row);
+        });
+
+        helpBtn.addEventListener('click', () => {
+            defsPanel.classList.toggle('visible');
+        });
+
+        durabilityGroup.appendChild(durabilityHeader);
+        durabilityGroup.appendChild(durSelect);
+        durabilityGroup.appendChild(defsPanel);
+
         // Tags
         const tagsGroup = document.createElement('div');
         tagsGroup.className = 'form-group';
@@ -371,7 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 Content: contentGroup.querySelector('textarea').value,
                 Description: descriptionGroup.querySelector('textarea').value,
                 Category: catSelect.value,
-                Tags: currentTags
+                Tags: currentTags,
+                Durability: durSelect.value || undefined
             };
             const saveToSeed = checkbox.checked;
             saveAndOptionallyCommit(item.id, memoryData, saveToSeed, false);
@@ -396,7 +456,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 Content: contentGroup.querySelector('textarea').value,
                 Description: descriptionGroup.querySelector('textarea').value,
                 Category: catSelect.value,
-                Tags: currentTags
+                Tags: currentTags,
+                Durability: durSelect.value || undefined
             };
             const saveToSeed = checkbox.checked;
             // Auto-save before commit to ensure latest state is used
@@ -417,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.appendChild(contentGroup);
         card.appendChild(descriptionGroup);
         card.appendChild(categoryGroup);
+        card.appendChild(durabilityGroup);
         card.appendChild(tagsGroup);
         card.appendChild(actions);
 
