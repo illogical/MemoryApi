@@ -24,6 +24,15 @@ export class GraphService {
         await this.driver.close();
     }
 
+    async runQuery(cypher: string, params: Record<string, any> = {}): Promise<void> {
+        const session = this.getSession('WRITE');
+        try {
+            await session.run(cypher, params);
+        } finally {
+            await session.close();
+        }
+    }
+
     async clearAllData(): Promise<void> {
         const session = this.getSession();
         try {
@@ -50,6 +59,7 @@ export class GraphService {
 
             // Index for faster lookups
             await session.run(`CREATE INDEX memory_last_updated_index IF NOT EXISTS FOR (m:Memory) ON (m.lastUpdated)`);
+            await session.run(`CREATE INDEX memory_created_index IF NOT EXISTS FOR (m:Memory) ON (m.created)`);
 
             // Vector Index
             const vectorIndexExists = await session.run(`SHOW INDEXES WHERE name = 'memory_embedding_index'`);
@@ -87,6 +97,7 @@ export class GraphService {
                 content: memory.Content,
                 description: memory.Description || '',
                 lastUpdated: memory.LastUpdated,
+                created: memory.Created || memory.LastUpdated,
                 category: memory.Category ? memory.Category.toString() : 'Uncategorized',
                 tags: memory.Tags || [],
                 embedding: embedding || [],
@@ -98,7 +109,8 @@ export class GraphService {
                 MERGE (m:Memory {id: $id})
                 SET m.content = $content,
                     m.description = $description,
-                    m.lastUpdated = $lastUpdated
+                    m.lastUpdated = $lastUpdated,
+                    m.created = COALESCE(m.created, $created)
                 
                 FOREACH (_ IN CASE WHEN size($embedding) > 0 THEN [1] ELSE [] END |
                     SET m.embedding = $embedding

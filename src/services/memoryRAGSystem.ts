@@ -189,7 +189,8 @@ class MemoryRAGSystem {
                     ingestionBatchId: memory.IngestionBatchId,
                     userReviewed: memory.UserReviewed,
                     tools: memory.Tools,
-                    projects: memory.Projects
+                    projects: memory.Projects,
+                    created: memory.Created
                 }
             );
             this.loggingService.debug(`[upsertMemory] Created SQL row ${sqlMemoryId} for external ID ${memoryId}`);
@@ -238,6 +239,7 @@ class MemoryRAGSystem {
                 const embedding = await this.generateEmbedding(memory.Content);
                 this.loggingService.info(`[addMemory] Embedding generated. Length: ${embedding.length}`);
                 // Step 3: Upsert memory
+                const now = new Date().toISOString();
                 const memoryToUpsert: Memory = {
                     ...memory,
                     Description: prepared.description,
@@ -245,7 +247,8 @@ class MemoryRAGSystem {
                     Tags: prepared.tagsList,
                     Tools: prepared.tools,
                     Projects: prepared.projects,
-                    LastUpdated: new Date().toISOString()
+                    LastUpdated: now,
+                    Created: now
                 };
                 this.loggingService.info(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
                 return await this.upsertMemory(memoryToUpsert, embedding);

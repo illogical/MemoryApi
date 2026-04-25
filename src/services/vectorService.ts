@@ -43,6 +43,12 @@ export class VectorService {
                     field_schema: 'keyword'
                 });
 
+                this.loggingService.log('[VectorService.initializeCollection] Creating payload index for Created');
+                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+                    field_name: 'Created',
+                    field_schema: 'datetime'
+                });
+
                 this.loggingService.log('[VectorService.initializeCollection] Collection initialized successfully');
             } else {
                 this.loggingService.log('[VectorService.initializeCollection] Collection already exists');
@@ -66,7 +72,8 @@ export class VectorService {
                         Description: memory.Description,
                         Tags: memory.Tags,
                         Category: memory.Category,
-                        LastUpdated: new Date().toISOString(),
+                        LastUpdated: memory.LastUpdated,
+                        Created: memory.Created,
                         IngestionBatchId: memory.IngestionBatchId,
                         UserReviewed: memory.UserReviewed,
                         Tools: memory.Tools,
@@ -174,7 +181,8 @@ export class VectorService {
         const updatedMemory = {
             ...existingMemory,
             ...updates,
-            LastUpdated: new Date().toISOString()
+            LastUpdated: new Date().toISOString(),
+            Created: existingMemory.Created
         };
 
         const vector = embedding || points[0].vector as number[];

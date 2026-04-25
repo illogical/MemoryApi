@@ -4,6 +4,7 @@ import { MemoryStatus } from "./memoryStatus";
 export interface Memory {
     Content: string;
     LastUpdated: string;
+    Created?: string;
     Category?: MemoryCategory;
     Description?: string;
     Tags?: string[];

@@ -242,9 +242,11 @@ export class SqlService {
             userReviewed?: string;
             tools?: string[];
             projects?: string[];
+            created?: string;
         }
     ): Promise<number> {
         const timestamp = new Date().toISOString();
+        const createdAt = metadata?.created ?? timestamp;
         const tagsString = JSON.stringify(tags);
         const toolsString = metadata?.tools ? JSON.stringify(metadata.tools) : null;
         const projectsString = metadata?.projects ? JSON.stringify(metadata.projects) : null;
@@ -254,7 +256,7 @@ export class SqlService {
                 `INSERT INTO Memories (Content, Description, Tags, Category, Created, LastUpdated, Status, Deleted, IngestionBatchId, UserReviewed, Tools, Projects)
                  VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
                 [
-                    content, description, tagsString, category, timestamp, timestamp, status,
+                    content, description, tagsString, category, createdAt, timestamp, status,
                     metadata?.ingestionBatchId ?? null,
                     metadata?.userReviewed ?? null,
                     toolsString,

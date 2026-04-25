@@ -19,6 +19,24 @@
       "tags": ["Programming", "Favorite"]
     },
     {
+      "content": "I prefer to write React components as plain functions with explicit return types, never using React.FC — it hides props and makes generics awkward.",
+      "description": "React component type declaration preference",
+      "category": "Preference",
+      "tags": ["Programming", "Software", "Favorite"]
+    },
+    {
+      "content": "I prefer Warp over traditional terminals for AI-assisted command search, and TablePlus over DataGrip for lightweight database browsing.",
+      "description": "Preferred terminal and database GUI tools",
+      "category": "Preference",
+      "tags": ["Software", "Productivity", "Favorite"]
+    },
+    {
+      "content": "Morning dev routine: pull latest, check CI status, review any overnight PR comments, then start a focused deep work block.",
+      "description": "Morning developer workflow routine",
+      "category": "Preference",
+      "tags": ["Workflow", "Productivity", "Favorite"]
+    },
+    {
       "content": "Doctor appointment on April 25th at 2pm.",
       "description": "Upcoming medical appointment",
       "category": "Reminder",
@@ -37,6 +55,18 @@
       "tags": ["Update", "Action Required"]
     },
     {
+      "content": "Action required: Rotate all production API keys before May 31st — the legacy credentials are being sunset by the vendor.",
+      "description": "Production API key rotation deadline",
+      "category": "Reminder",
+      "tags": ["Action Required", "Deployment", "Update", "API"]
+    },
+    {
+      "content": "Update project documentation by Monday.",
+      "description": "Project documentation update reminder",
+      "category": "Reminder",
+      "tags": ["Update", "Project", "Work"]
+    },
+    {
       "content": "git stash && git pull --rebase && git stash pop",
       "description": "Git stash and rebase workflow command",
       "category": "Snippet",
@@ -53,6 +83,30 @@
       "description": "JavaScript debounce utility function",
       "category": "Snippet",
       "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "console.log('Hello, world!');",
+      "description": "JavaScript hello world",
+      "category": "Snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "foreach (var item in collection) { }",
+      "description": "C# foreach loop",
+      "category": "Snippet",
+      "tags": ["Snippet", "Programming"]
+    },
+    {
+      "content": "SELECT * FROM users WHERE active = 1;",
+      "description": "SQL query for active users",
+      "category": "Snippet",
+      "tags": ["Snippet", "Command", "Programming"]
+    },
+    {
+      "content": "{ \"editor.formatOnSave\": true, \"editor.tabSize\": 2, \"editor.rulers\": [80, 120], \"editor.wordWrap\": \"bounded\" }",
+      "description": "VS Code editor settings config",
+      "category": "Snippet",
+      "tags": ["Config", "Software", "Customize"]
     },
     {
       "content": "Attended dotnet Conf 2024 virtual conference in November.",
@@ -76,7 +130,7 @@
       "content": "Research notes: vector databases like Pinecone and Weaviate are good options for semantic search with embedding models.",
       "description": "Vector database research notes",
       "category": "Note",
-      "tags": ["Research", "Notes", "Machine Learning", "Data Science", "Idea"]
+      "tags": ["Research", "Notes", "Machine Learning", "Data Science"]
     },
     {
       "content": "Key insight: prompt chaining significantly improves LLM accuracy on multi-step reasoning tasks.",
@@ -89,6 +143,48 @@
       "description": "Production deployment checklist",
       "category": "Note",
       "tags": ["Checklist", "Deployment", "Testing", "Workflow"]
+    },
+    {
+      "content": "Read later: 'The Art of Machine Learning' article.",
+      "description": "Read later note for ML article",
+      "category": "Note",
+      "tags": ["Read Later", "Machine Learning", "Learning"]
+    },
+    {
+      "content": "Checklist for deployment: test, optimize, integrate.",
+      "description": "Deployment checklist note",
+      "category": "Note",
+      "tags": ["Checklist", "Testing", "Optimization", "Integration"]
+    },
+    {
+      "content": "Benchmark finding: SQLite with WAL mode handles ~50k reads/sec on a dev laptop. Good enough for local-first apps with moderate load.",
+      "description": "SQLite WAL mode performance benchmark findings",
+      "category": "Note",
+      "tags": ["Notes", "Research", "Data Science", "Programming"]
+    },
+    {
+      "content": "When testing generative AI features, always cover edge cases: empty input, adversarial prompts, very long inputs, and non-English text. Standard unit tests alone miss LLM-specific failure modes.",
+      "description": "Testing strategy for generative AI features",
+      "category": "Note",
+      "tags": ["Generative AI", "Testing", "Notes", "Workflow"]
+    },
+    {
+      "content": "Currently reading 'Designing Data-Intensive Applications' by Martin Kleppmann. On chapter 6 (Partitioning). Key takeaway: replication and partitioning solve different scaling problems and are often combined.",
+      "description": "Current reading progress on Designing Data-Intensive Applications",
+      "category": "Note",
+      "tags": ["Learning", "Notes", "Research", "Career"]
+    },
+    {
+      "content": "Best interview advice: always ask about oncall burden and incident post-mortem culture before accepting an offer. These reveal engineering maturity more than tech stack questions.",
+      "description": "Engineering culture interview questions tip",
+      "category": "Note",
+      "tags": ["Career", "Favorite", "Notes"]
+    },
+    {
+      "content": "Draft: Opening section for tech blog post — 'TypeScript 5 const type parameters eliminate the need for manual as const assertions in generic functions, making library code cleaner and safer by default.'",
+      "description": "Draft opening for TypeScript 5 blog post",
+      "category": "Note",
+      "tags": ["Draft", "Programming", "Notes"]
     },
     {
       "content": "Write a system prompt for an AI coding assistant that helps debug Python code step by step, asking clarifying questions before suggesting fixes.",
@@ -109,6 +205,24 @@
       "tags": ["Prompt", "Prompt Engineering", "Draft"]
     },
     {
+      "content": "Write a prompt for generating creative story ideas.",
+      "description": "Prompt for story idea generation",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Inspiration"]
+    },
+    {
+      "content": "Write a system prompt for an AI writing assistant that reviews technical documentation for clarity, flags jargon without definitions, and suggests shorter alternatives for verbose sentences.",
+      "description": "Technical documentation review AI assistant prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Prompt Engineering", "Software", "Template"]
+    },
+    {
+      "content": "Create a template for an API integration software specification.",
+      "description": "API integration template prompt",
+      "category": "Prompt",
+      "tags": ["Prompt", "Template", "API", "Integration"]
+    },
+    {
       "content": "Idea: Build a browser extension that uses AI to summarize long articles in one click.",
       "description": "AI article summarizer browser extension idea",
       "category": "Idea",
@@ -125,6 +239,30 @@
       "description": "OpenAPI-to-TypeScript CLI tool idea",
       "category": "Idea",
       "tags": ["Project", "Inspiration", "API", "Automation"]
+    },
+    {
+      "content": "Idea: Build a local-first journaling app that uses an LLM to auto-tag entries and surface related past entries.",
+      "description": "LLM-powered local journaling app idea",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Generative AI", "Automation"]
+    },
+    {
+      "content": "Idea: Create a CLI tool that watches git commits and auto-drafts weekly summary emails for team updates.",
+      "description": "Git commit digest CLI tool idea",
+      "category": "Idea",
+      "tags": ["Project", "Inspiration", "Automation", "Work"]
+    },
+    {
+      "content": "Idea: Build a fitness tracking app.",
+      "description": "Fitness app project idea",
+      "category": "Idea",
+      "tags": ["Health", "Project", "Inspiration"]
+    },
+    {
+      "content": "Idea: Automate daily workflow tasks.",
+      "description": "Workflow automation project idea",
+      "category": "Idea",
+      "tags": ["Automation", "Workflow", "Project"]
     },
     {
       "content": "Completed AWS Solutions Architect Associate certification in March 2024.",
@@ -144,89 +282,11 @@
       "category": "History",
       "tags": ["Career", "Learning"]
     },
-        {
-      "content": "I want to make a ...",
-      "description": "Idea for a new project",
-      "category": "Idea",
-      "tags": ["Project", "Inspiration"]
-    },
-        {
-      "content": "I have an idea for a ...",
-      "description": "Idea for a new project",
-      "category": "Idea",
-      "tags": ["Project", "Inspiration", "Notes"]
-    },
-    {
-      "content": "console.log('Hello, world!');",
-      "description": "JavaScript hello world code snippet",
-      "category": "Snippet",
-      "tags": ["Snippet", "Programming"]
-    },
-    {
-      "content": "Read later: 'The Art of Machine Learning' article.",
-      "description": "Read later note for ML article",
-      "category": "Note",
-      "tags": ["Read Later", "Machine Learning", "Learning"]
-    },
-    {
-      "content": "Write a prompt for generating creative story ideas.",
-      "description": "Prompt for story idea generation",
-      "category": "Prompt",
-      "tags": ["Prompt", "Prompt Engineering", "Inspiration", "Idea"]
-    },
-    {
-      "content": "Idea: Build a fitness tracking app.",
-      "description": "Fitness app project idea",
-      "category": "Idea",
-      "tags": ["Health", "Project", "Inspiration"]
-    },
-    {
-      "content": "foreach(int i = 0; i < count; i++) { }",
-      "description": "C# foreach loop code snippet",
-      "category": "Snippet",
-      "tags": ["Snippet", "Programming"]
-    },
-        {
-      "content": "Create an AI prompt that will ...",
-      "description": "Prompt for AI creation",
-      "category": "Prompt",
-      "tags": ["Prompt", "Prompt Engineering", "Project"]
-    },
-    {
-      "content": "Update project documentation by Monday.",
-      "description": "Project documentation update reminder",
-      "category": "Reminder",
-      "tags": ["Update", "Project", "Work"]
-    },
-    {
-      "content": "SELECT * FROM users WHERE active = 1;",
-      "description": "SQL query code snippet to select active users",
-      "category": "Snippet",
-      "tags": ["Snippet", "Command", "Programming"]
-    },
     {
       "content": "Completed UX design course in 2022.",
       "description": "UX design course history",
       "category": "History",
       "tags": ["UX", "Learning"]
-    },
-    {
-      "content": "Checklist for deployment: test, optimize, integrate.",
-      "description": "Deployment checklist note",
-      "category": "Note",
-      "tags": ["Checklist", "Testing", "Optimization", "Integration"]
-    },
-    {
-      "content": "Create a template for an API integration software specification.",
-      "description": "API integration template prompt",
-      "category": "Prompt",
-      "tags": ["Prompt", "Template", "API", "Integration"]
-    },
-    {
-      "content": "Idea: Automate daily workflow tasks.",
-      "description": "Workflow automation project idea",
-      "category": "Idea",
-      "tags": ["Automation", "Workflow", "Project"]
     }
   ]
 }

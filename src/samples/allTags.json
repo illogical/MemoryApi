@@ -19,7 +19,7 @@
       ]
     },
     {
-      "Description": "Technical & Usage Tags (categorize technical content, code, prompts, or tool usage):",
+      "Description": "Technical & Usage Tags (categorize technical content — use Snippet for code samples, Config for settings and configuration files):",
       "Tags": [
         "Snippet", "Config", "Command", "API", "Automation", "Prompt Engineering", "Template", "Software", "Deployment", "Debugging", "Testing", "Optimization", "Integration", "Programming", "Utility"
       ]
