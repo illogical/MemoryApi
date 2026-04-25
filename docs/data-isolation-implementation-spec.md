@@ -16,6 +16,8 @@ MemoryAPI currently writes all data (SQLite, Qdrant, Neo4j) to a single shared s
 
 **Architecture:** Storage-area-first isolation. Environments differ by which files and collections they target — not by columns or metadata filters. Metadata is retained for provenance only.
 
+> **Neo4j Community Edition update:** Community Edition cannot create additional databases such as `memoryapi_dev` or `memoryapi_test`; it only supports one user database per server. For Community Edition, the supported isolation model is one Neo4j instance per environment, each using database `neo4j` and a distinct Bolt URI. The multi-database names in this spec apply to `NEO4J_ISOLATION_MODE=enterprise-databases`.
+
 ---
 
 ## 2. Finalized Decisions
@@ -25,6 +27,8 @@ Before reading further, these decisions are locked:
 | Question | Decision |
 |----------|----------|
 | Existing `data/memory.db` | Leave untouched. All three new env DBs start empty and are seeded explicitly. |
+| Neo4j Community Edition | Use separate Neo4j containers/instances per environment and keep `NEO4J_DATABASE=neo4j` in each one. |
+| Neo4j Enterprise Edition | Optionally use one server with separate databases: `memoryapi_prod`, `memoryapi_dev`, `memoryapi_test`. |
 | MemoryStatus values | `draft \| stored \| archived \| rejected` (4 values, see below) |
 | Cross-platform env vars in npm scripts | Install `cross-env` dev dependency; prefix scripts with `cross-env MEMORY_DATA_ENV=<env>` |
 | Old seed scripts (`resetAllAndLoadSeeds.ts`, `loadSeedMemories.ts`) | Replace with new environment-aware scripts |
@@ -636,12 +640,17 @@ SQLITE_DB_PATH=./data/dev/memory.db
 # test:        memoryapi_test_memories
 QDRANT_COLLECTION_NAME=memoryapi_dev_memories
 
-# Neo4j database for the selected environment (requires Neo4j Enterprise or separate containers).
-# production:  memoryapi_prod
-# development: memoryapi_dev (default)
-# test:        memoryapi_test
-# If using Neo4j Community Edition (single database only), use separate containers per env.
-NEO4J_DATABASE=memoryapi_dev
+# Neo4j Community Edition default: one instance per environment.
+NEO4J_ISOLATION_MODE=community-instances
+NEO4J_PROD_URI=bolt://localhost:7687
+NEO4J_DEV_URI=bolt://localhost:7688
+NEO4J_TEST_URI=bolt://localhost:7689
+NEO4J_DATABASE=neo4j
+
+# Enterprise alternative:
+# NEO4J_ISOLATION_MODE=enterprise-databases
+# NEO4J_URI=bolt://localhost:7687
+# configService derives memoryapi_prod / memoryapi_dev / memoryapi_test.
 
 # Optional: metadata for test/eval runs. Only meaningful when MEMORY_DATA_ENV=test.
 # MEMORY_TEST_RUN_TYPE can be: unit, integration, eval, manual
@@ -683,11 +692,13 @@ When writing seeds or fixtures: use `stored` for ground-truth data, `draft` for 
 
 ## Storage Targets by Environment
 
-| Environment | SQLite | Qdrant Collection | Neo4j Database |
-|-------------|--------|-------------------|----------------|
-| production  | `data/prod/memory.db` | `memoryapi_prod_memories` | `memoryapi_prod` |
-| development | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `memoryapi_dev`  |
-| test        | `data/test/memory.db` | `memoryapi_test_memories` | `memoryapi_test` |
+| Environment | SQLite | Qdrant Collection | Neo4j Target (Community default) |
+|-------------|--------|-------------------|----------------------------------|
+| production  | `data/prod/memory.db` | `memoryapi_prod_memories` | `bolt://localhost:7687` / `neo4j` |
+| development | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `bolt://localhost:7688` / `neo4j` |
+| test        | `data/test/memory.db` | `memoryapi_test_memories` | `bolt://localhost:7689` / `neo4j` |
+
+Enterprise deployments may use one Neo4j server with distinct databases: `memoryapi_prod`, `memoryapi_dev`, and `memoryapi_test`.
 
 ## Environment Guard Imports
 
@@ -885,7 +896,9 @@ Before running any verification, update your local `.env` file to reflect the ne
 MEMORY_DATA_ENV=development
 SQLITE_DB_PATH=./data/dev/memory.db
 QDRANT_COLLECTION_NAME=memoryapi_dev_memories
-NEO4J_DATABASE=memoryapi_dev
+NEO4J_ISOLATION_MODE=community-instances
+NEO4J_DEV_URI=bolt://localhost:7688
+NEO4J_DATABASE=neo4j
 MEMORY_ALLOW_PRODUCTION_WRITES=false
 ```
 

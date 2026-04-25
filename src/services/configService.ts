@@ -4,6 +4,35 @@ import path from 'path';
 // Load .env once at module load time so constructor only reads process.env
 dotenv.config();
 
+type MemoryDataEnvironment = 'production' | 'development' | 'test';
+type Neo4jIsolationMode = 'community-instances' | 'enterprise-databases';
+
+const ENVIRONMENT_STORAGE_TARGETS: Record<MemoryDataEnvironment, {
+    SQLITE_DB_PATH: string;
+    QDRANT_COLLECTION_NAME: string;
+}> = {
+    production: {
+        SQLITE_DB_PATH: path.join(process.cwd(), 'data', 'prod', 'memory.db'),
+        QDRANT_COLLECTION_NAME: 'memoryapi_prod_memories',
+    },
+    development: {
+        SQLITE_DB_PATH: path.join(process.cwd(), 'data', 'dev', 'memory.db'),
+        QDRANT_COLLECTION_NAME: 'memoryapi_dev_memories',
+    },
+    test: {
+        SQLITE_DB_PATH: path.join(process.cwd(), 'data', 'test', 'memory.db'),
+        QDRANT_COLLECTION_NAME: 'memoryapi_test_memories',
+    },
+};
+
+function isMemoryDataEnvironment(value: string): value is MemoryDataEnvironment {
+    return value === 'production' || value === 'development' || value === 'test';
+}
+
+function isNeo4jIsolationMode(value: string): value is Neo4jIsolationMode {
+    return value === 'community-instances' || value === 'enterprise-databases';
+}
+
 export interface ConfigValues {
     QDRANT_URL: string;
     LLM_HOST: string;
@@ -11,8 +40,12 @@ export interface ConfigValues {
     LLM_PROVIDER: string;
     EMBEDDING_MODEL: string;
     NEO4J_URI: string;
+    NEO4J_PROD_URI: string;
+    NEO4J_DEV_URI: string;
+    NEO4J_TEST_URI: string;
     NEO4J_USER: string;
     NEO4J_PASSWORD: string;
+    NEO4J_ISOLATION_MODE: string;
     PROMPT_TEMPLATE_BASE_PATH: string;
     SQLITE_DB_PATH: string;
     PORT: number;
@@ -42,8 +75,12 @@ class Config implements ConfigValues {
     public EMBEDDING_MODEL: string = 'nomic-embed-text:v1.5';
 
     public NEO4J_URI: string = 'bolt://localhost:7687';
+    public NEO4J_PROD_URI: string = 'bolt://localhost:7687';
+    public NEO4J_DEV_URI: string = 'bolt://localhost:7688';
+    public NEO4J_TEST_URI: string = 'bolt://localhost:7689';
     public NEO4J_USER: string = 'neo4j';
     public NEO4J_PASSWORD: string = 'password';
+    public NEO4J_ISOLATION_MODE: string = 'community-instances';
 
     // Data environment and isolation
     public MEMORY_DATA_ENV: string = 'development';
@@ -51,9 +88,9 @@ class Config implements ConfigValues {
     public MEMORY_TEST_RUN_ID: string = '';
     public MEMORY_TEST_RUN_TYPE: string = 'manual';
 
-    // Storage targets (change these to match MEMORY_DATA_ENV)
+    // Storage targets (derived from MEMORY_DATA_ENV)
     public QDRANT_COLLECTION_NAME: string = 'memoryapi_dev_memories';
-    public NEO4J_DATABASE: string = 'memoryapi_dev';
+    public NEO4J_DATABASE: string = 'neo4j';
 
     public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'src', 'prompts');
     public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'dev', 'memory.db');
@@ -93,8 +130,57 @@ class Config implements ConfigValues {
             }
         }
 
+        this.applyEnvironmentStorageTargets(overrides);
+
         if (missing.length > 0) {
             console.warn(`[Config] WARNING: The following env variables were not provided. Using defaults: ${missing.join(', ')}`);
+        }
+    }
+
+    private applyEnvironmentStorageTargets(overrides: Partial<ConfigValues>): void {
+        if (!isMemoryDataEnvironment(this.MEMORY_DATA_ENV)) {
+            return;
+        }
+
+        const targets = ENVIRONMENT_STORAGE_TARGETS[this.MEMORY_DATA_ENV];
+        const storageKeys = Object.keys(targets) as Array<keyof typeof targets>;
+
+        for (const key of storageKeys) {
+            if (key in overrides) {
+                continue;
+            }
+            (this as any)[key] = targets[key];
+        }
+
+        if (isNeo4jIsolationMode(this.NEO4J_ISOLATION_MODE)) {
+            this.applyNeo4jEnvironmentTargets(overrides, this.MEMORY_DATA_ENV, this.NEO4J_ISOLATION_MODE);
+        }
+    }
+
+    private applyNeo4jEnvironmentTargets(
+        overrides: Partial<ConfigValues>,
+        env: MemoryDataEnvironment,
+        mode: Neo4jIsolationMode
+    ): void {
+        if (mode === 'enterprise-databases') {
+            const envSlug = env === 'production' ? 'prod' : env === 'development' ? 'dev' : env;
+            if (!('NEO4J_DATABASE' in overrides)) {
+                this.NEO4J_DATABASE = `memoryapi_${envSlug}`;
+            }
+            return;
+        }
+
+        const uriByEnv: Record<MemoryDataEnvironment, string> = {
+            production: this.NEO4J_PROD_URI,
+            development: this.NEO4J_DEV_URI,
+            test: this.NEO4J_TEST_URI,
+        };
+
+        if (!('NEO4J_URI' in overrides)) {
+            this.NEO4J_URI = uriByEnv[env];
+        }
+        if (!('NEO4J_DATABASE' in overrides)) {
+            this.NEO4J_DATABASE = 'neo4j';
         }
     }
 }

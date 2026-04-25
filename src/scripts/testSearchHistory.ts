@@ -1,15 +1,16 @@
 import { SqlService } from '../services/sqlService';
 import sqlite3 from 'sqlite3';
-import path from 'path';
+import { config } from '../services/configService';
+import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'memory.db');
+const DB_PATH = config.SQLITE_DB_PATH;
 
 async function testSearchHistory() {
+    assertTestEnvironment('testSearchHistory');
     console.log("Testing SearchHistory...");
     const sqlService = new SqlService();
 
-    // Give it a moment to connect
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await sqlService.waitUntilReady();
 
     try {
         const searchText = "test search query";
@@ -76,7 +77,7 @@ async function testSearchHistory() {
     } catch (error) {
         console.error("Test failed:", error);
     } finally {
-        sqlService.close();
+        await sqlService.close();
     }
 }
 

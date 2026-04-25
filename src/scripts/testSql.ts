@@ -1,6 +1,8 @@
 import { SqlService } from '../services/sqlService';
+import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 
 async function testSqlService() {
+    assertTestEnvironment('testSql');
     const sqlService = new SqlService();
 
     try {

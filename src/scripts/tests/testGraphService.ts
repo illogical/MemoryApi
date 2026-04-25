@@ -1,10 +1,12 @@
 import { GraphService } from '../../services/graphService';
 import { MemoryCategory } from '../../models/memoryCategory';
 import { config } from '../../services/configService';
+import { assertTestEnvironment } from '../../services/memoryEnvironmentService';
 import fs from 'fs';
 import path from 'path';
 
 async function main() {
+    assertTestEnvironment('testGraphService');
     console.log(`Connecting to Neo4j at ${config.NEO4J_URI}...`);
     const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD, config.NEO4J_DATABASE);
 

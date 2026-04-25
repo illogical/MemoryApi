@@ -20,11 +20,11 @@
 import { BaseEvaluator, BaseEvaluationReport } from '../services/baseEvaluator';
 import { ModelProvider } from '../services/modelClients';
 import { config } from '../services/configService';
-import { assertNotProduction } from '../services/memoryEnvironmentService';
+import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 import * as fs from 'fs';
 import * as path from 'path';
 
-assertNotProduction('evaluateCategorization');
+assertTestEnvironment('evaluateCategorization');
 
 // ==================== Type Definitions ====================
 

@@ -29,11 +29,13 @@ When writing seeds or fixtures:
 
 ## Storage Targets by Environment
 
-| Environment | SQLite | Qdrant Collection | Neo4j Database |
-|-------------|--------|-------------------|----------------|
-| `production`  | `data/prod/memory.db` | `memoryapi_prod_memories` | `memoryapi_prod` |
-| `development` | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `memoryapi_dev`  |
-| `test`        | `data/test/memory.db` | `memoryapi_test_memories` | `memoryapi_test` |
+Default Neo4j isolation is Community Edition compatible: one Neo4j instance per environment, with database `neo4j` in each instance. Enterprise deployments may instead use one server with `memoryapi_prod`, `memoryapi_dev`, and `memoryapi_test` databases.
+
+| Environment | SQLite | Qdrant Collection | Neo4j Target (Community default) |
+|-------------|--------|-------------------|----------------------------------|
+| `production`  | `data/prod/memory.db` | `memoryapi_prod_memories` | `bolt://localhost:7687` / `neo4j` |
+| `development` | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `bolt://localhost:7688` / `neo4j` |
+| `test`        | `data/test/memory.db` | `memoryapi_test_memories` | `bolt://localhost:7689` / `neo4j` |
 
 ## Environment Guard Usage
 
@@ -69,6 +71,7 @@ npm run reset:dev         # wipe development environment
 npm run reset:test        # wipe test environment
 npm run refresh:dev       # reset + reseed development
 npm run refresh:test      # reset + reseed test
+npm run neo4j:community:up  # start separate Neo4j Community instances
 npm run migrate:statuses  # migrate old New/Reviewed/Archived status values
 npm run verify:data-isolation  # verify all three environments are isolated
 ```
@@ -79,4 +82,5 @@ npm run verify:data-isolation  # verify all three environments are isolated
 - Do not add `sampleMemories.json` entries to production seed.
 - Do not hardcode collection names (e.g., `'memories'`) — always use `config.QDRANT_COLLECTION_NAME`.
 - Do not instantiate `VectorService` without passing `config.QDRANT_COLLECTION_NAME` as the second argument.
-- Do not instantiate `GraphService` without passing `config.NEO4J_DATABASE` as the fourth argument.
+- Do not instantiate `GraphService` without passing `config.NEO4J_URI` and `config.NEO4J_DATABASE`.
+- Do not assume Neo4j Community Edition can create `memoryapi_dev` or `memoryapi_test` databases; use separate Community instances or switch to Enterprise mode.

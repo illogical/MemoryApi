@@ -1,8 +1,14 @@
 import path from 'path';
+import { Config } from '../services/configService';
+import {
+    assertCanWriteMemoryForEnvironment,
+    parseMemoryDataEnvironment
+} from '../services/memoryEnvironmentService';
 
 /**
  * Verifies that the data isolation model is correctly configured.
- * Checks that each environment maps to a distinct SQLite path, Qdrant collection, and Neo4j database.
+ * Checks that each environment maps to a distinct SQLite path, Qdrant collection, and Neo4j target.
+ * Neo4j can be isolated by per-environment Community instances or Enterprise databases.
  * Verifies that the production write guard throws when MEMORY_ALLOW_PRODUCTION_WRITES is false.
  *
  * Note: Config is a module singleton, so this script verifies the expected mapping
@@ -16,7 +22,6 @@ interface EnvExpectation {
     env: string;
     sqlite: string;
     qdrant: string;
-    neo4j: string;
 }
 
 const EXPECTATIONS: EnvExpectation[] = [
@@ -24,19 +29,16 @@ const EXPECTATIONS: EnvExpectation[] = [
         env: 'production',
         sqlite: path.join('data', 'prod', 'memory.db'),
         qdrant: 'memoryapi_prod_memories',
-        neo4j:  'memoryapi_prod',
     },
     {
         env: 'development',
         sqlite: path.join('data', 'dev', 'memory.db'),
         qdrant: 'memoryapi_dev_memories',
-        neo4j:  'memoryapi_dev',
     },
     {
         env: 'test',
         sqlite: path.join('data', 'test', 'memory.db'),
         qdrant: 'memoryapi_test_memories',
-        neo4j:  'memoryapi_test',
     },
 ];
 
@@ -55,19 +57,25 @@ async function verifyEnvMapping(): Promise<boolean> {
     let allOk = true;
 
     for (const exp of EXPECTATIONS) {
-        const sqliteEnv = exp.sqlite.replace(/\\/g, '/');
-        const sqliteExpected = `data/${exp.env === 'production' ? 'prod' : exp.env}/memory.db`;
-        const qdrantExpected = `memoryapi_${exp.env === 'production' ? 'prod' : exp.env}_memories`;
-        const neo4jExpected  = `memoryapi_${exp.env === 'production' ? 'prod' : exp.env}`;
+        const cfg = new Config({ MEMORY_DATA_ENV: exp.env });
+        const sqliteActual = path.normalize(cfg.SQLITE_DB_PATH);
+        const qdrantActual = cfg.QDRANT_COLLECTION_NAME;
+        const neo4jTarget = `${cfg.NEO4J_URI}/${cfg.NEO4J_DATABASE}`;
+        const envSlug = exp.env === 'production' ? 'prod' : exp.env === 'development' ? 'dev' : exp.env;
+        const sqliteExpected = `data/${envSlug}/memory.db`;
+        const qdrantExpected = `memoryapi_${envSlug}_memories`;
+        const neo4jExpectedDatabase = cfg.NEO4J_ISOLATION_MODE === 'enterprise-databases'
+            ? `memoryapi_${envSlug}`
+            : 'neo4j';
 
-        const sqliteOk = exp.sqlite.replace(/\\/g, '/').endsWith(sqliteExpected);
-        const qdrantOk = exp.qdrant === qdrantExpected;
-        const neo4jOk  = exp.neo4j  === neo4jExpected;
+        const sqliteOk = sqliteActual.replace(/\\/g, '/').endsWith(sqliteExpected);
+        const qdrantOk = qdrantActual === qdrantExpected;
+        const neo4jOk  = cfg.NEO4J_DATABASE === neo4jExpectedDatabase && cfg.NEO4J_URI.trim().length > 0;
 
         console.log(`${exp.env}:`);
-        sqliteOk ? pass(`sqlite  → ${exp.sqlite}`) : fail('sqlite', exp.sqlite, sqliteExpected);
-        qdrantOk ? pass(`qdrant  → ${exp.qdrant}`) : fail('qdrant', exp.qdrant, qdrantExpected);
-        neo4jOk  ? pass(`neo4j   → ${exp.neo4j}`)  : fail('neo4j',  exp.neo4j,  neo4jExpected);
+        sqliteOk ? pass(`sqlite  → ${sqliteActual}`) : fail('sqlite', sqliteActual, sqliteExpected);
+        qdrantOk ? pass(`qdrant  → ${qdrantActual}`) : fail('qdrant', qdrantActual, qdrantExpected);
+        neo4jOk  ? pass(`neo4j   → ${neo4jTarget}`)  : fail('neo4j',  neo4jTarget,  `*/${neo4jExpectedDatabase}`);
 
         allOk = allOk && sqliteOk && qdrantOk && neo4jOk;
     }
@@ -77,17 +85,18 @@ async function verifyEnvMapping(): Promise<boolean> {
 
 async function verifyStorageTargetsAreDistinct(): Promise<boolean> {
     console.log('\n--- Storage Targets Are Distinct ---\n');
-    const sqlitePaths  = EXPECTATIONS.map(e => e.sqlite);
-    const qdrantNames  = EXPECTATIONS.map(e => e.qdrant);
-    const neo4jNames   = EXPECTATIONS.map(e => e.neo4j);
+    const configs = EXPECTATIONS.map(e => new Config({ MEMORY_DATA_ENV: e.env }));
+    const sqlitePaths  = configs.map(c => c.SQLITE_DB_PATH);
+    const qdrantNames  = configs.map(c => c.QDRANT_COLLECTION_NAME);
+    const neo4jTargets = configs.map(c => `${c.NEO4J_URI}/${c.NEO4J_DATABASE}`);
 
     const sqliteDistinct = new Set(sqlitePaths).size === sqlitePaths.length;
     const qdrantDistinct = new Set(qdrantNames).size === qdrantNames.length;
-    const neo4jDistinct  = new Set(neo4jNames).size  === neo4jNames.length;
+    const neo4jDistinct  = new Set(neo4jTargets).size  === neo4jTargets.length;
 
     sqliteDistinct ? pass('All SQLite paths are distinct')  : fail('SQLite paths', 'duplicates found', 'all unique');
     qdrantDistinct ? pass('All Qdrant collections are distinct') : fail('Qdrant collections', 'duplicates found', 'all unique');
-    neo4jDistinct  ? pass('All Neo4j databases are distinct') : fail('Neo4j databases', 'duplicates found', 'all unique');
+    neo4jDistinct  ? pass('All Neo4j targets are distinct') : fail('Neo4j targets', 'duplicates found', 'all unique');
 
     return sqliteDistinct && qdrantDistinct && neo4jDistinct;
 }
@@ -95,34 +104,22 @@ async function verifyStorageTargetsAreDistinct(): Promise<boolean> {
 async function verifyProductionWriteGuard(): Promise<boolean> {
     console.log('\n--- Production Write Guard ---\n');
 
-    // Temporarily set env to production with writes disabled
-    const originalEnv     = process.env.MEMORY_DATA_ENV;
-    const originalAllowed = process.env.MEMORY_ALLOW_PRODUCTION_WRITES;
-    process.env.MEMORY_DATA_ENV = 'production';
-    process.env.MEMORY_ALLOW_PRODUCTION_WRITES = 'false';
-
-    let guardWorks = false;
     try {
-        // Dynamic import to get fresh module state for the guard check
-        // (In a real test harness, each environment would be a separate process)
-        const { assertCanWriteMemory } = await import('../services/memoryEnvironmentService.js');
-        // The guard reads config which is a singleton — we check by inspecting env vars directly
-        const env = process.env.MEMORY_DATA_ENV;
-        const allowed = process.env.MEMORY_ALLOW_PRODUCTION_WRITES === 'true';
-        if (env === 'production' && !allowed) {
-            guardWorks = true;
-            pass('Guard state: production + ALLOW=false would block writes');
-        } else {
-            fail('Guard state', `env=${env} allowed=${allowed}`, 'env=production allowed=false');
-        }
-    } catch {
-        guardWorks = false;
-    } finally {
-        process.env.MEMORY_DATA_ENV = originalEnv;
-        process.env.MEMORY_ALLOW_PRODUCTION_WRITES = originalAllowed;
+        assertCanWriteMemoryForEnvironment('verifyDataIsolation', parseMemoryDataEnvironment('production'), false);
+        fail('Production write guard', 'allowed', 'blocked');
+        return false;
+    } catch (error) {
+        pass('Production + ALLOW=false blocks writes');
     }
 
-    return guardWorks;
+    try {
+        assertCanWriteMemoryForEnvironment('verifyDataIsolation', parseMemoryDataEnvironment('production'), true);
+        pass('Production + ALLOW=true permits intentional writes');
+        return true;
+    } catch (error) {
+        fail('Production write opt-in', 'blocked', 'allowed');
+        return false;
+    }
 }
 
 async function main(): Promise<void> {
@@ -137,8 +134,9 @@ async function main(): Promise<void> {
 
     if (!allPassed) {
         console.log('Next steps:');
-        console.log('  - Update .env so SQLITE_DB_PATH, QDRANT_COLLECTION_NAME, and NEO4J_DATABASE');
-        console.log('    match your MEMORY_DATA_ENV (see .env.example for expected values).');
+        console.log('  - Update .env so MEMORY_DATA_ENV derives distinct SQLite, Qdrant, and Neo4j targets.');
+        console.log('  - For Neo4j Community Edition, set NEO4J_PROD_URI, NEO4J_DEV_URI, and NEO4J_TEST_URI.');
+        console.log('  - For Neo4j Enterprise, set NEO4J_ISOLATION_MODE=enterprise-databases.');
         console.log('  - Run "npm run seed:dev" to populate the development environment.');
         process.exit(1);
     }

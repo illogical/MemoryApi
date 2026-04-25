@@ -1,5 +1,8 @@
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
+import path from 'path';
 import { config, Config } from './configService';
+import { assertCanWriteMemory } from './memoryEnvironmentService';
 
 // Enable verbose logging
 sqlite3.verbose();
@@ -53,6 +56,9 @@ export class SqlService {
     }
 
     private openConnection(dbPath: string): void {
+        if (dbPath !== ':memory:') {
+            fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+        }
         this.db = new sqlite3.Database(dbPath, (err) => {
             if (err) {
                 console.error('Error opening database:', err.message);
@@ -245,6 +251,7 @@ export class SqlService {
             created?: string;
         }
     ): Promise<number> {
+        assertCanWriteMemory('SqlService.addMemory');
         const timestamp = new Date().toISOString();
         const createdAt = metadata?.created ?? timestamp;
         const tagsString = JSON.stringify(tags);
@@ -280,6 +287,7 @@ export class SqlService {
 
 
     public async updateMemory(id: number, content: string, description: string, tags: string[], category: string, status?: string): Promise<void> {
+        assertCanWriteMemory('SqlService.updateMemory');
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
 
@@ -303,11 +311,13 @@ export class SqlService {
     }
 
     public async updateMemoryStatus(id: number, status: string): Promise<void> {
+        assertCanWriteMemory('SqlService.updateMemoryStatus');
         const timestamp = new Date().toISOString();
         await this.run(`UPDATE Memories SET Status = ?, LastUpdated = ? WHERE ID = ?`, [status, timestamp, id]);
     }
 
     public async softDeleteMemory(id: number): Promise<void> {
+        assertCanWriteMemory('SqlService.softDeleteMemory');
         const timestamp = new Date().toISOString();
         await this.run(`UPDATE Memories SET Deleted = 1, LastUpdated = ? WHERE ID = ?`, [timestamp, id]);
     }
@@ -323,6 +333,7 @@ export class SqlService {
     }
 
     public async updateMemoryRelations(memoryId: number, graphId?: string, vectorId?: string): Promise<void> {
+        assertCanWriteMemory('SqlService.updateMemoryRelations');
         const updates: string[] = [];
         const params: any[] = [];
 
@@ -344,6 +355,7 @@ export class SqlService {
     }
 
     public async addTagSuggestion(tag: string): Promise<number> {
+        assertCanWriteMemory('SqlService.addTagSuggestion');
         const lowerTag = tag.toLowerCase(); // Ensure lowercase
         const timestamp = new Date().toISOString();
 
@@ -360,6 +372,7 @@ export class SqlService {
     }
 
     public async recordSuggestedTag(memoryId: number, tagId: number): Promise<void> {
+        assertCanWriteMemory('SqlService.recordSuggestedTag');
         await this.run(
             `INSERT OR IGNORE INTO MemorySuggestedTagsRelation (MemoryId, SuggestedTagId) VALUES (?, ?)`,
             [memoryId, tagId]
@@ -371,6 +384,7 @@ export class SqlService {
     }
 
     public async dismissTagSuggestion(id: number): Promise<void> {
+        assertCanWriteMemory('SqlService.dismissTagSuggestion');
         const timestamp = new Date().toISOString();
         await this.run(`UPDATE TagSuggestions SET Active = 0, LastUpdated = ? WHERE ID = ?`, [timestamp, id]);
     }
@@ -398,6 +412,7 @@ export class SqlService {
         resultCount: number,
         durationMilliseconds: number
     ): Promise<void> {
+        assertCanWriteMemory('SqlService.addSearchHistory');
         const timestamp = new Date().toISOString();
         const vectorResultsStr = JSON.stringify(vectorResults);
         const graphResultsStr = JSON.stringify(graphResults);

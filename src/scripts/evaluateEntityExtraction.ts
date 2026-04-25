@@ -19,10 +19,10 @@ import { BaseEvaluator } from '../services/baseEvaluator';
 import type { BaseEvaluationReport } from '../services/baseEvaluator';
 import { ModelProvider } from '../services/modelClients';
 import { config } from '../services/configService';
-import { assertNotProduction } from '../services/memoryEnvironmentService';
+import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 import { normalizeEntityNames } from '../utils/normalization';
 
-assertNotProduction('evaluateEntityExtraction');
+assertTestEnvironment('evaluateEntityExtraction');
 import * as fs from 'fs';
 import * as path from 'path';
 

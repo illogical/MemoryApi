@@ -16,6 +16,28 @@ function withEnvVar(key: string, value: string | undefined, fn: () => void): voi
     }
 }
 
+function withEnvVars(values: Record<string, string | undefined>, fn: () => void): void {
+    const originals: Record<string, string | undefined> = {};
+    for (const key of Object.keys(values)) {
+        originals[key] = process.env[key];
+        const value = values[key];
+        if (value === undefined) {
+            delete process.env[key];
+        } else {
+            process.env[key] = value;
+        }
+    }
+    try {
+        fn();
+    } finally {
+        for (const key of Object.keys(values)) {
+            const original = originals[key];
+            if (original === undefined) delete process.env[key];
+            else process.env[key] = original;
+        }
+    }
+}
+
 describe('Config — defaults (keys not set in .env)', () => {
     test('AGGREGATION_MAX_MEMORIES defaults to 25 when env not set', () => {
         withEnvVar('AGGREGATION_MAX_MEMORIES', undefined, () => {
@@ -89,6 +111,58 @@ describe('Config — constructor overrides', () => {
 
     test('missing optional vars do not throw', () => {
         expect(() => new Config()).not.toThrow();
+    });
+});
+
+describe('Config — data isolation targets', () => {
+    test('derives test storage targets from MEMORY_DATA_ENV for Neo4j Community instances', () => {
+        withEnvVars({
+            MEMORY_DATA_ENV: 'test',
+            SQLITE_DB_PATH: '/wrong/shared/memory.db',
+            QDRANT_COLLECTION_NAME: 'wrong_collection',
+            NEO4J_URI: 'bolt://wrong-shared:7687',
+            NEO4J_TEST_URI: 'bolt://test-neo4j:7687',
+            NEO4J_DATABASE: 'wrong_database',
+            NEO4J_ISOLATION_MODE: 'community-instances'
+        }, () => {
+            const cfg = new Config();
+            expect(cfg.SQLITE_DB_PATH.replace(/\\/g, '/')).toMatch(/data\/test\/memory\.db$/);
+            expect(cfg.QDRANT_COLLECTION_NAME).toBe('memoryapi_test_memories');
+            expect(cfg.NEO4J_URI).toBe('bolt://test-neo4j:7687');
+            expect(cfg.NEO4J_DATABASE).toBe('neo4j');
+        });
+    });
+
+    test('derives production storage targets from MEMORY_DATA_ENV for Neo4j Community instances', () => {
+        withEnvVar('MEMORY_DATA_ENV', 'production', () => {
+            const cfg = new Config();
+            expect(cfg.SQLITE_DB_PATH.replace(/\\/g, '/')).toMatch(/data\/prod\/memory\.db$/);
+            expect(cfg.QDRANT_COLLECTION_NAME).toBe('memoryapi_prod_memories');
+            expect(cfg.NEO4J_URI).toBe('bolt://localhost:7687');
+            expect(cfg.NEO4J_DATABASE).toBe('neo4j');
+        });
+    });
+
+    test('constructor storage overrides are still honored for isolated tests', () => {
+        withEnvVar('MEMORY_DATA_ENV', 'test', () => {
+            const cfg = new Config({ SQLITE_DB_PATH: ':memory:' });
+            expect(cfg.SQLITE_DB_PATH).toBe(':memory:');
+            expect(cfg.QDRANT_COLLECTION_NAME).toBe('memoryapi_test_memories');
+            expect(cfg.NEO4J_DATABASE).toBe('neo4j');
+        });
+    });
+
+    test('enterprise mode derives Neo4j database names instead of per-env URIs', () => {
+        withEnvVars({
+            MEMORY_DATA_ENV: 'test',
+            NEO4J_URI: 'bolt://enterprise-neo4j:7687',
+            NEO4J_TEST_URI: 'bolt://community-test:7687',
+            NEO4J_ISOLATION_MODE: 'enterprise-databases'
+        }, () => {
+            const cfg = new Config();
+            expect(cfg.NEO4J_URI).toBe('bolt://enterprise-neo4j:7687');
+            expect(cfg.NEO4J_DATABASE).toBe('memoryapi_test');
+        });
     });
 });
 

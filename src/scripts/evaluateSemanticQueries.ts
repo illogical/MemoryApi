@@ -24,10 +24,10 @@
 import path from 'path';
 import fs from 'fs';
 import { config } from '../services/configService';
-import { assertNotProduction } from '../services/memoryEnvironmentService';
+import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 import { MemoryRAGSystem } from '../services/memoryRAGSystem';
 
-assertNotProduction('evaluateSemanticQueries');
+assertTestEnvironment('evaluateSemanticQueries');
 import { MemoryReportService } from '../services/memoryReportService';
 
 // Load environment variables

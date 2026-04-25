@@ -11,6 +11,7 @@ import { MemoryTextProcessor } from './memoryTextProcessor';
 import { MemoryReportService } from './memoryReportService';
 import { SqlService, sqlService } from './sqlService';
 import { config } from './configService';
+import { assertCanWriteMemory } from './memoryEnvironmentService';
 import { IngestionContext } from '../models/ingestionContext';
 import { normalizeEntityNames } from '../utils/normalization';
 
@@ -164,6 +165,7 @@ class MemoryRAGSystem {
      * Upserts the memory record into Qdrant and Neo4j. Also adds to SQL for relational tracking.
      */
     async upsertMemory(memory: Memory, embedding: number[], id?: string, ingestionContext?: IngestionContext): Promise<string> {
+        assertCanWriteMemory('MemoryRAGSystem.upsertMemory');
         this.loggingService.trace('[upsertMemory] Called');
         const memoryId = id || randomUUID();
         let sqlMemoryId: number | null = null;
@@ -303,6 +305,7 @@ class MemoryRAGSystem {
     }
 
     async updateMemory(id: string, updates: Partial<Memory>): Promise<void> {
+        assertCanWriteMemory('MemoryRAGSystem.updateMemory');
         this.loggingService.trace(`[updateMemory] Called for ID: ${id}`);
 
         let vector: number[] | undefined = undefined;
@@ -337,6 +340,7 @@ class MemoryRAGSystem {
     }
 
     async deleteMemory(id: string): Promise<void> {
+        assertCanWriteMemory('MemoryRAGSystem.deleteMemory');
         this.loggingService.trace(`[deleteMemory] Called for ID: ${id}`);
         await this.orchestrator.deleteMemory(id);
     }

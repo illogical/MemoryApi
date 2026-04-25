@@ -66,13 +66,15 @@ MemoryAPI supports three data environments: **production**, **development**, and
 
 ## Storage Targets by Environment
 
-| Environment | SQLite | Qdrant Collection | Neo4j Database |
-|-------------|--------|-------------------|----------------|
-| `production`  | `data/prod/memory.db` | `memoryapi_prod_memories` | `memoryapi_prod` |
-| `development` | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `memoryapi_dev`  |
-| `test`        | `data/test/memory.db` | `memoryapi_test_memories` | `memoryapi_test` |
+The default Neo4j strategy is **Community Edition compatible**: run one Neo4j instance per environment and use the built-in `neo4j` database in each instance.
 
-Set `MEMORY_DATA_ENV` in your `.env` to select an environment. Each storage target variable (`SQLITE_DB_PATH`, `QDRANT_COLLECTION_NAME`, `NEO4J_DATABASE`) must match the selected environment.
+| Environment | SQLite | Qdrant Collection | Neo4j Target (Community default) |
+|-------------|--------|-------------------|----------------------------------|
+| `production`  | `data/prod/memory.db` | `memoryapi_prod_memories` | `bolt://localhost:7687` / `neo4j` |
+| `development` | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `bolt://localhost:7688` / `neo4j` |
+| `test`        | `data/test/memory.db` | `memoryapi_test_memories` | `bolt://localhost:7689` / `neo4j` |
+
+Set `MEMORY_DATA_ENV` in your `.env` to select an environment. `configService` derives SQLite, Qdrant, and Neo4j targets from that value. For Neo4j Community Edition, set `NEO4J_PROD_URI`, `NEO4J_DEV_URI`, and `NEO4J_TEST_URI`; `NEO4J_DATABASE` remains `neo4j` in each separate instance.
 
 ## Memory Status Lifecycle
 
@@ -133,9 +135,34 @@ npm run eval:entities
 
 Running evals with `MEMORY_DATA_ENV=production` is blocked by a runtime guard.
 
-## Neo4j Multi-Database
+## Neo4j Isolation
 
-If your Neo4j instance supports multiple databases (Enterprise Edition), set `NEO4J_DATABASE` per environment. If using Community Edition (single database), use **separate Neo4j containers** for production, development, and test, with each container accessible on a different port and addressed via `NEO4J_URI`.
+Neo4j Community Edition does **not** support creating additional databases. Because of that constraint, the default isolation strategy is separate Community containers:
+
+```bash
+npm run neo4j:community:up
+npm run neo4j:community:ps
+```
+
+This starts three Neo4j Community instances from [docker-compose.neo4j-community.yml](docker-compose.neo4j-community.yml):
+
+| Environment | Browser | Bolt URI | Database |
+|-------------|---------|----------|----------|
+| `production` | `http://localhost:7474` | `bolt://localhost:7687` | `neo4j` |
+| `development` | `http://localhost:7475` | `bolt://localhost:7688` | `neo4j` |
+| `test` | `http://localhost:7476` | `bolt://localhost:7689` | `neo4j` |
+
+Set these variables when using Community Edition:
+
+```env
+NEO4J_ISOLATION_MODE=community-instances
+NEO4J_PROD_URI=bolt://localhost:7687
+NEO4J_DEV_URI=bolt://localhost:7688
+NEO4J_TEST_URI=bolt://localhost:7689
+NEO4J_DATABASE=neo4j
+```
+
+Enterprise alternative: set `NEO4J_ISOLATION_MODE=enterprise-databases` and point `NEO4J_URI` at one Neo4j Enterprise server. In that mode, `configService` derives `NEO4J_DATABASE` as `memoryapi_prod`, `memoryapi_dev`, or `memoryapi_test`.
 
 ## Future AI Agent Guidance
 
@@ -172,7 +199,12 @@ See [docs/AI_AGENTS.md](docs/AI_AGENTS.md) for rules that new tests, evals, and 
    LLM_HOST=http://localhost:11434
    PROMPT_TEMPLATE_BASE_PATH=./prompts
    SQLITE_DB_PATH=./data/memory.db
-   NEO4J_URI=bolt://localhost:7687
+   NEO4J_ISOLATION_MODE=community-instances
+   NEO4J_PROD_URI=bolt://localhost:7687
+   NEO4J_DEV_URI=bolt://localhost:7688
+   NEO4J_TEST_URI=bolt://localhost:7689
+   NEO4J_URI=bolt://localhost:7688
+   NEO4J_DATABASE=neo4j
    NEO4J_USER=neo4j
    NEO4J_PASSWORD=password
    TODOIST_TOKEN=your_todoist_api_token_here

@@ -2,6 +2,16 @@
 // jest.unstable_mockModule must come before dynamic imports in ESM
 import { jest } from '@jest/globals';
 
+jest.unstable_mockModule('@lmstudio/sdk', () => ({
+    LMStudioClient: jest.fn().mockImplementation(() => ({
+        llm: {
+            load: async () => ({
+                respond: async () => ({ content: '' })
+            })
+        }
+    }))
+}));
+
 const { LMStudioModelClient, OllamaModelClient, LMApiClient, ModelClientFactory } =
     await import('../../services/modelClients.js');
 

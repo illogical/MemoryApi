@@ -1,0 +1,44 @@
+services:
+  neo4j-prod:
+    image: neo4j:5-community
+    container_name: memoryapi-neo4j-prod
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-password}"
+    volumes:
+      - neo4j_prod_data:/data
+      - neo4j_prod_logs:/logs
+
+  neo4j-dev:
+    image: neo4j:5-community
+    container_name: memoryapi-neo4j-dev
+    ports:
+      - "7475:7474"
+      - "7688:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-password}"
+    volumes:
+      - neo4j_dev_data:/data
+      - neo4j_dev_logs:/logs
+
+  neo4j-test:
+    image: neo4j:5-community
+    container_name: memoryapi-neo4j-test
+    ports:
+      - "7476:7474"
+      - "7689:7687"
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-password}"
+    volumes:
+      - neo4j_test_data:/data
+      - neo4j_test_logs:/logs
+
+volumes:
+  neo4j_prod_data:
+  neo4j_prod_logs:
+  neo4j_dev_data:
+  neo4j_dev_logs:
+  neo4j_test_data:
+  neo4j_test_logs:
