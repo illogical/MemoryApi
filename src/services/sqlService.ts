@@ -85,31 +85,31 @@ export class SqlService {
             LastUpdated TEXT NOT NULL,
             Status TEXT NOT NULL DEFAULT 'New',
             Deleted BOOLEAN DEFAULT 0,
-            SourceType TEXT,
-            Durability TEXT,
-            Dataset TEXT,
             IngestionBatchId TEXT,
             UserReviewed TEXT,
             Tools TEXT,
-            Projects TEXT,
-            Topics TEXT
+            Projects TEXT
         )`);
         // Migrations: add new columns if they don't exist (for existing DBs)
         const newColumns: { name: string; def: string }[] = [
-            { name: 'SourceType', def: 'TEXT' },
-            { name: 'Durability', def: 'TEXT' },
-            { name: 'Dataset', def: 'TEXT' },
             { name: 'IngestionBatchId', def: 'TEXT' },
             { name: 'UserReviewed', def: 'TEXT' },
             { name: 'Tools', def: 'TEXT' },
             { name: 'Projects', def: 'TEXT' },
-            { name: 'Topics', def: 'TEXT' },
         ];
         for (const col of newColumns) {
             try {
                 await this.runRaw(`ALTER TABLE Memories ADD COLUMN ${col.name} ${col.def}`);
             } catch {
                 // Column already exists — ignore
+            }
+        }
+        // Drop legacy columns
+        for (const col of ['SourceType', 'Durability', 'Dataset', 'Topics']) {
+            try {
+                await this.runRaw(`ALTER TABLE Memories DROP COLUMN ${col}`);
+            } catch {
+                // Column doesn't exist — ignore
             }
         }
         await this.runRaw(`CREATE TABLE IF NOT EXISTS MemoryDatabaseRelations (
@@ -151,7 +151,6 @@ export class SqlService {
         )`);
         await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_created ON Memories(Created)`);
         await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_tagsuggestions_tagtext ON TagSuggestions(TagText)`);
-        await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_sourcetype ON Memories(SourceType)`);
         await this.runRaw(`CREATE INDEX IF NOT EXISTS idx_memories_ingestionbatchid ON Memories(IngestionBatchId)`);
     }
 
@@ -239,36 +238,27 @@ export class SqlService {
         category: string,
         status: string = 'New',
         metadata?: {
-            sourceType?: string;
-            durability?: string;
-            dataset?: string;
             ingestionBatchId?: string;
             userReviewed?: string;
             tools?: string[];
             projects?: string[];
-            topics?: string[];
         }
     ): Promise<number> {
         const timestamp = new Date().toISOString();
         const tagsString = JSON.stringify(tags);
         const toolsString = metadata?.tools ? JSON.stringify(metadata.tools) : null;
         const projectsString = metadata?.projects ? JSON.stringify(metadata.projects) : null;
-        const topicsString = metadata?.topics ? JSON.stringify(metadata.topics) : null;
 
         try {
             const memoryId = await this.runInsert(
-                `INSERT INTO Memories (Content, Description, Tags, Category, Created, LastUpdated, Status, Deleted, SourceType, Durability, Dataset, IngestionBatchId, UserReviewed, Tools, Projects, Topics)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO Memories (Content, Description, Tags, Category, Created, LastUpdated, Status, Deleted, IngestionBatchId, UserReviewed, Tools, Projects)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
                 [
                     content, description, tagsString, category, timestamp, timestamp, status,
-                    metadata?.sourceType ?? null,
-                    metadata?.durability ?? null,
-                    metadata?.dataset ?? null,
                     metadata?.ingestionBatchId ?? null,
                     metadata?.userReviewed ?? null,
                     toolsString,
-                    projectsString,
-                    topicsString
+                    projectsString
                 ]
             );
 
@@ -429,21 +419,11 @@ export class SqlService {
     }
 
     public async getAllMemories(filters?: {
-        sourceType?: string;
-        dataset?: string;
         category?: string;
     }): Promise<any[]> {
         const conditions: string[] = ['m.Deleted = 0'];
         const params: any[] = [];
 
-        if (filters?.sourceType) {
-            conditions.push('m.SourceType = ?');
-            params.push(filters.sourceType);
-        }
-        if (filters?.dataset) {
-            conditions.push('m.Dataset = ?');
-            params.push(filters.dataset);
-        }
         if (filters?.category) {
             conditions.push('m.Category = ?');
             params.push(filters.category);
@@ -451,8 +431,8 @@ export class SqlService {
 
         const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
         return this.all(
-            `SELECT m.ID, m.Content, m.Category, m.Tags, m.SourceType, m.Durability, m.Dataset,
-                    m.IngestionBatchId, m.UserReviewed, m.Tools, m.Projects, m.Topics,
+            `SELECT m.ID, m.Content, m.Category, m.Tags,
+                    m.IngestionBatchId, m.UserReviewed, m.Tools, m.Projects,
                     m.Created, m.LastUpdated, m.Status,
                     r.GraphId, r.VectorId
              FROM Memories m
@@ -464,8 +444,6 @@ export class SqlService {
     }
 
     public async validateMemoryPopulation(filters?: {
-        sourceType?: string;
-        dataset?: string;
         category?: string;
     }, expectedCount?: number): Promise<MemoryPopulationValidationResult> {
         const memories = await this.getAllMemories(filters);

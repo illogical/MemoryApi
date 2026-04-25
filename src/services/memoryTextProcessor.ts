@@ -169,13 +169,13 @@ class MemoryTextProcessor {
         classification: string;
         tags: string[];
         suggestedTags: string[];
-        entities: { tools: string[]; projects: string[]; topics: string[] };
+        entities: { tools: string[]; projects: string[] };
     }> {
         this.loggingService.trace('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Called');
         try {
             this.loggingService.info('[MemoryTextProcessor.summarizeClassifyAndTagTextParallel] Starting parallel summarize, classify, tag, suggestTags, and extractEntities');
             const entityPromise = skipEntityExtraction
-                ? Promise.resolve({ tools: [], projects: [], topics: [] })
+                ? Promise.resolve({ tools: [], projects: [] })
                 : this.extractEntities(text);
 
             const [summary, classification, tags, suggestedTags, entities] = await Promise.all([
@@ -193,7 +193,7 @@ class MemoryTextProcessor {
         }
     }
 
-    async extractEntities(content: string): Promise<{ tools: string[]; projects: string[]; topics: string[] }> {
+    async extractEntities(content: string): Promise<{ tools: string[]; projects: string[] }> {
         this.loggingService.trace('[MemoryTextProcessor.extractEntities] Called');
         const prompt = this.promptTemplateService.renderEntityExtraction(content);
         this.loggingService.debug(`[MemoryTextProcessor.extractEntities] Prompt: ${prompt}`);
@@ -211,12 +211,11 @@ class MemoryTextProcessor {
 
             return {
                 tools: normalizeEntityNames(Array.isArray(parsed.tools) ? parsed.tools.filter((t: any) => typeof t === 'string') : []),
-                projects: normalizeEntityNames(Array.isArray(parsed.projects) ? parsed.projects.filter((p: any) => typeof p === 'string') : []),
-                topics: normalizeEntityNames(Array.isArray(parsed.topics) ? parsed.topics.filter((t: any) => typeof t === 'string') : [])
+                projects: normalizeEntityNames(Array.isArray(parsed.projects) ? parsed.projects.filter((p: any) => typeof p === 'string') : [])
             };
         } catch (error) {
             this.loggingService.error(`[MemoryTextProcessor.extractEntities] Error parsing JSON response: ${error}`);
-            return { tools: [], projects: [], topics: [] };
+            return { tools: [], projects: [] };
         }
     }
 

@@ -4,316 +4,296 @@
       "content": "I do not enjoy cooking because I find it time-consuming and not rewarding enough.",
       "description": "I'm not a fan of cooking due to its time-consuming nature and lack of personal satisfaction.",
       "category": "Preference",
-      "tags": ["Food", "Avoid"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["food", "lifestyle"],
-      "isRealUserMemory": true
+      "tags": [
+        "Food",
+        "Avoid"
+      ]
     },
     {
       "content": "I prefer working in the afternoons.",
       "description": "Work time preference",
       "category": "Preference",
-      "tags": ["Productivity"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["productivity", "work-habits"],
-      "isRealUserMemory": true
+      "tags": [
+        "Productivity"
+      ]
     },
     {
       "content": "My favorite programming language is C#",
       "description": "Programming language preference",
       "category": "Preference",
-      "tags": ["Programming", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["C#"],
-      "topics": ["programming", "language-preferences"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Programming",
+        "Favorite"
+      ],
+      "tools": [
+        "C#"
+      ]
     },
     {
       "content": "I went to the VSLive conference in 2025 in Orlando.",
       "description": "I went to the VSLive conference in 2025 in Orlando.",
       "category": "Event",
-      "tags": ["Work", "Travel"],
-      "sourceType": "explicit-user-memory",
-      "durability": "historical",
-      "dataset": "dev",
-      "topics": ["conferences", "travel"],
-      "isRealUserMemory": true
+      "tags": [
+        "Work",
+        "Travel"
+      ]
     },
     {
       "content": "My favorite cuisine is Mexican.",
       "description": "Cuisine preference",
       "category": "Preference",
-      "tags": ["Food", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["food", "lifestyle"],
-      "isRealUserMemory": true
+      "tags": [
+        "Food",
+        "Favorite"
+      ]
     },
     {
       "content": "I prefer reading science fiction and futuristic novels with an emphasis on advanced technology and space exploration and character development.",
       "description": "Reading genre preference",
       "category": "Preference",
-      "tags": ["Book", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["reading", "science-fiction"],
-      "isRealUserMemory": true
+      "tags": [
+        "Book",
+        "Favorite"
+      ]
     },
     {
       "content": "Remember that FancyZones is my go-to free software tool/utility for window management on Windows. It is installed as part of Microsoft PowerToys. Hold Shift while dragging a window to see the zone layout and drop the window into a zone. Zones are easily customized in the PowerToys settings.",
       "description": "Windows window management tool preference",
       "category": "Preference",
-      "tags": ["Utility", "Productivity", "Customize", "Software", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["FancyZones", "PowerToys"],
-      "topics": ["window-management", "productivity", "windows"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Utility",
+        "Productivity",
+        "Customize",
+        "Software",
+        "Favorite"
+      ],
+      "tools": [
+        "FancyZones",
+        "PowerToys"
+      ]
     },
     {
       "content": "Magnet is my go-to software tool/utility for window management on MacOS. I like the iCloud settings sync and the Commands configuration for window drop zones, menu bar shortcuts and the maximize button options on hover.",
       "description": "MacOS window management tool preference",
       "category": "Preference",
-      "tags": ["Utility", "Productivity", "Customize", "Software", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["Magnet"],
-      "topics": ["window-management", "productivity", "macos"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Utility",
+        "Productivity",
+        "Customize",
+        "Software",
+        "Favorite"
+      ],
+      "tools": [
+        "Magnet"
+      ]
     },
     {
       "content": "I have been a computer geek since childhood and have always enjoyed tinkering with technology and learned my first programming languages such as C++, C#, JavaScript, and HTML. I no longer use C++ but still utilize the other languages for work and personal projects.",
       "description": "Personal interest in technology and programming background",
       "category": "Preference",
-      "tags": ["Programming", "Learning", "Career"],
-      "sourceType": "explicit-user-memory",
-      "durability": "historical",
-      "dataset": "dev",
-      "tools": ["C#", "JavaScript", "HTML"],
-      "topics": ["programming", "career", "background"],
-      "isRealUserMemory": true
+      "tags": [
+        "Programming",
+        "Learning",
+        "Career"
+      ],
+      "tools": [
+        "C#",
+        "JavaScript",
+        "HTML"
+      ]
     },
     {
       "content": "I enjoy using Visual Studio Code as my primary code editor for most programming tasks due to its extensive extension ecosystem, lightweight performance, and cross-platform support.",
       "description": "Code editor preference",
       "category": "Preference",
-      "tags": ["Programming", "Software", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["VS Code"],
-      "topics": ["code-editor", "programming", "tooling"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Programming",
+        "Software",
+        "Favorite"
+      ],
+      "tools": [
+        "VS Code"
+      ]
     },
     {
       "content": "My preferred tech stack consists of Bun, Vite, TypeScript, and React.js. I like to structure projects so that both the API and web frontend can hot-reload automatically when my dev machine pulls the latest changes via git pull.",
       "description": "Preferred tech stack with hot-reload dev workflow",
       "category": "Preference",
-      "tags": ["Programming", "Config", "Favorite", "Productivity"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["Bun", "Vite", "TypeScript", "React"],
-      "topics": ["tech-stack", "web-development", "developer-experience"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Programming",
+        "Config",
+        "Favorite",
+        "Productivity"
+      ],
+      "tools": [
+        "Bun",
+        "Vite",
+        "TypeScript",
+        "React"
+      ]
     },
     {
       "content": "Prompt engineering tip: Ask the AI to 'think step by step' or 'reason through this before answering' to significantly improve accuracy on complex or multi-step tasks.",
       "description": "Chain of thought prompting technique tip",
       "category": "Note",
-      "tags": ["Tip", "Prompt Engineering", "Generative AI"],
-      "sourceType": "seed-import",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["prompt-engineering", "ai", "tips"]
+      "tags": [
+        "Tip",
+        "Prompt Engineering",
+        "Generative AI"
+      ]
     },
     {
       "content": "Prompt engineering tip: Provide explicit context and constraints upfront; state your role, the desired output format, and any limits before describing the task itself.",
       "description": "Prompt structure tip: context and constraints first",
       "category": "Note",
-      "tags": ["Tip", "Prompt Engineering", "Generative AI"],
-      "sourceType": "seed-import",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["prompt-engineering", "ai", "tips"]
+      "tags": [
+        "Tip",
+        "Prompt Engineering",
+        "Generative AI"
+      ]
     },
     {
       "content": "Prompt engineering tip: Use delimiters such as triple backticks, XML tags, or ### headers to clearly separate instructions from content, preventing the model from conflating the two.",
       "description": "Prompt tip: use delimiters to separate instructions from content",
       "category": "Note",
-      "tags": ["Tip", "Prompt Engineering", "Generative AI"],
-      "sourceType": "seed-import",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["prompt-engineering", "ai", "tips"]
+      "tags": [
+        "Tip",
+        "Prompt Engineering",
+        "Generative AI"
+      ]
     },
     {
       "content": "Command+Space opens Raycast on Mac — my go-to launcher for app switching, quick calculations, clipboard history, and custom scripts.",
       "description": "Raycast launcher keyboard shortcut on Mac",
       "category": "Note",
-      "tags": ["Shortcut", "Utility", "Productivity", "Software"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["Raycast"],
-      "topics": ["productivity", "macos", "shortcuts"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Shortcut",
+        "Utility",
+        "Productivity",
+        "Software"
+      ],
+      "tools": [
+        "Raycast"
+      ]
     },
     {
       "content": "Shift+Ctrl+C takes a screenshot on both Mac and Windows.",
       "description": "Cross-platform screenshot keyboard shortcut",
       "category": "Note",
-      "tags": ["Shortcut", "Utility", "Productivity"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["productivity", "shortcuts", "cross-platform"],
-      "isRealUserMemory": true
+      "tags": [
+        "Shortcut",
+        "Utility",
+        "Productivity"
+      ]
     },
     {
       "content": "Ctrl+Space activates SuperWhisper for voice dictation — press once to start recording and again to stop and transcribe.",
       "description": "SuperWhisper voice dictation keyboard shortcut",
       "category": "Note",
-      "tags": ["Shortcut", "Utility", "Productivity", "Software"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["SuperWhisper"],
-      "topics": ["voice-dictation", "productivity", "shortcuts"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Shortcut",
+        "Utility",
+        "Productivity",
+        "Software"
+      ],
+      "tools": [
+        "SuperWhisper"
+      ]
     },
     {
       "content": "Terminator 2: Judgment Day (1991) is one of my all-time favorite movies, an iconic sci-fi action film with groundbreaking visual effects and a memorable story about fate and sacrifice.",
       "description": "Favorite movie: Terminator 2",
       "category": "Preference",
-      "tags": ["Movie", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["movies", "science-fiction", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "Movie",
+        "Favorite"
+      ]
     },
     {
       "content": "Nothing But Trouble (1991) is a favorite cult classic dark comedy/horror film, surreal humor, a bizarre aesthetic, and an unforgettable cast.",
       "description": "Favorite movie: Nothing But Trouble",
       "category": "Preference",
-      "tags": ["Movie", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["movies", "comedy", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "Movie",
+        "Favorite"
+      ]
     },
     {
       "content": "Short Circuit (1986) is one of my favorite movies, a heartfelt sci-fi comedy featuring Johnny 5, a military robot that gains sentience and wants to live.",
       "description": "Favorite movie: Short Circuit",
       "category": "Preference",
-      "tags": ["Movie", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["movies", "science-fiction", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "Movie",
+        "Favorite"
+      ]
     },
     {
       "content": "Dark (Netflix, 2017-2020) is one of my favorite TV shows, a masterfully complex German sci-fi thriller involving time travel, interconnected family trees, and multiple timelines.",
       "description": "Favorite TV show: Dark",
       "category": "Preference",
-      "tags": ["TV Show", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["tv-shows", "science-fiction", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "TV Show",
+        "Favorite"
+      ]
     },
     {
       "content": "Breaking Bad (AMC, 2008-2013) is one of my favorite TV shows. Widely considered one of the greatest dramas ever made, following Walter White's transformation from chemistry teacher to drug kingpin.",
       "description": "Favorite TV show: Breaking Bad",
       "category": "Preference",
-      "tags": ["TV Show", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["tv-shows", "drama", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "TV Show",
+        "Favorite"
+      ]
     },
     {
       "content": "The Office (NBC, 2005-2013) is one of my favorite TV shows. A mockumentary comedy about the everyday lives of office workers at Dunder Mifflin paper company in Scranton, PA. Loved the characters and humor.",
       "description": "Favorite TV show: The Office",
       "category": "Preference",
-      "tags": ["TV Show", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "topics": ["tv-shows", "comedy", "favorites"],
-      "isRealUserMemory": true
+      "tags": [
+        "TV Show",
+        "Favorite"
+      ]
     },
     {
       "content": "I prefer Vitest for unit testing in TypeScript and JavaScript projects. My testing strategy covers three levels: unit tests, React component tests, and end-to-end tests.",
       "description": "Testing framework and strategy preference",
       "category": "Preference",
-      "tags": ["Testing", "Programming", "Favorite"],
-      "sourceType": "explicit-user-memory",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["Vitest", "TypeScript", "JavaScript", "React"],
-      "topics": ["testing", "programming", "test-strategy"],
-      "isRealUserMemory": true,
-      "isEvalFixture": true,
-      "expectedUseCase": "tool-recall",
-      "shouldBeDiscoverableBy": ["semantic", "graph"]
+      "tags": [
+        "Testing",
+        "Programming",
+        "Favorite"
+      ],
+      "tools": [
+        "Vitest",
+        "TypeScript",
+        "JavaScript",
+        "React"
+      ]
     },
     {
       "content": "The 'deno' npm package allows you to run TypeScript directly without transpiling to JavaScript first, useful for scripts and CLI tools that don't need a build step.",
       "description": "Deno npm package for running TypeScript without transpiling",
       "category": "Note",
-      "tags": ["Resource", "Programming", "Tip"],
-      "sourceType": "seed-import",
-      "durability": "durable",
-      "dataset": "dev",
-      "tools": ["TypeScript", "Node.js"],
-      "topics": ["programming", "tooling", "typescript"]
+      "tags": [
+        "Resource",
+        "Programming",
+        "Tip"
+      ],
+      "tools": [
+        "TypeScript",
+        "Node.js"
+      ]
     },
     {
       "content": "Comparing gemma4 and qwen3.5 models for use in agent harnesses. Interested in evaluating their reasoning quality, tool use accuracy, and performance across different parameter sizes.",
       "description": "Comparison of gemma4 vs qwen3.5 models for AI agent use cases",
       "category": "Note",
-      "tags": ["Comparison", "Generative AI", "Research", "Machine Learning"],
-      "sourceType": "seed-import",
-      "durability": "working",
-      "dataset": "dev",
-      "topics": ["llm-evaluation", "ai-agents", "model-comparison"]
+      "tags": [
+        "Comparison",
+        "Generative AI",
+        "Research",
+        "Machine Learning"
+      ]
     }
   ]
 }

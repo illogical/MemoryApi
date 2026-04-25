@@ -1,9 +1,8 @@
 You are an entity extractor. Given a memory, extract the following:
 - tools: software tools, apps, CLIs, platforms, or programming languages mentioned
 - projects: project names or codebases referenced
-- topics: abstract topics or domains this memory relates to
 
 Return ONLY valid JSON in this format, with no explanation or extra text:
-{"tools":[],"projects":[],"topics":[]}
+{"tools":[],"projects":[]}
 
 Memory: {{content}}

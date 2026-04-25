@@ -44,14 +44,10 @@ async function initializeDatabase() {
         LastUpdated TEXT NOT NULL,
         Status TEXT NOT NULL DEFAULT 'New',
         Deleted BOOLEAN DEFAULT 0,
-        SourceType TEXT,
-        Durability TEXT,
-        Dataset TEXT,
         IngestionBatchId TEXT,
         UserReviewed TEXT,
         Tools TEXT,
-        Projects TEXT,
-        Topics TEXT
+        Projects TEXT
       );
     `);
 
@@ -116,7 +112,6 @@ async function initializeDatabase() {
     console.log('Creating indexes...');
     await runRun('CREATE INDEX IF NOT EXISTS idx_memories_created ON Memories(Created);');
     await runRun('CREATE INDEX IF NOT EXISTS idx_tagsuggestions_tagtext ON TagSuggestions(TagText);');
-    await runRun('CREATE INDEX IF NOT EXISTS idx_memories_sourcetype ON Memories(SourceType);');
     await runRun('CREATE INDEX IF NOT EXISTS idx_memories_ingestionbatchid ON Memories(IngestionBatchId);');
 
     console.log('Database initialization completed successfully.');

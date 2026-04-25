@@ -90,22 +90,15 @@ export class GraphService {
                 category: memory.Category ? memory.Category.toString() : 'Uncategorized',
                 tags: memory.Tags || [],
                 embedding: embedding || [],
-                sourceType: memory.SourceType || null,
-                durability: memory.Durability || null,
-                dataset: memory.Dataset || null,
                 tools: memory.Tools || [],
-                projects: memory.Projects || [],
-                topics: memory.Topics || []
+                projects: memory.Projects || []
             };
 
             const query = `
                 MERGE (m:Memory {id: $id})
                 SET m.content = $content,
                     m.description = $description,
-                    m.lastUpdated = $lastUpdated,
-                    m.sourceType = $sourceType,
-                    m.durability = $durability,
-                    m.dataset = $dataset
+                    m.lastUpdated = $lastUpdated
                 
                 FOREACH (_ IN CASE WHEN size($embedding) > 0 THEN [1] ELSE [] END |
                     SET m.embedding = $embedding
@@ -131,12 +124,6 @@ export class GraphService {
                 FOREACH (projName IN $projects |
                     MERGE (p:Project {name: projName})
                     MERGE (m)-[:RELATES_TO_PROJECT]->(p)
-                )
-
-                // Topic Relationships
-                FOREACH (topicName IN $topics |
-                    MERGE (tp:Topic {name: topicName})
-                    MERGE (m)-[:ABOUT_TOPIC]->(tp)
                 )
             `;
 

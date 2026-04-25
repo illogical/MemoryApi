@@ -25,8 +25,6 @@ import { SeedMemoryLoader } from '../services/seedMemoryLoader';
 import { MemoryReportService } from '../services/memoryReportService';
 import { LoggingService } from '../services/loggingService';
 import { IngestionContext } from '../models/ingestionContext';
-import { MemorySourceType } from '../models/memorySourceType';
-import { MemoryDataset } from '../models/memoryDataset';
 import { Memory } from '../models/memory';
 
 async function deleteSqliteDb(): Promise<void> {
@@ -152,9 +150,7 @@ async function main() {
     console.log(`  - Reading from: ${seedFilePath}`);
 
     const ingestionContext: IngestionContext = {
-        batchId,
-        sourceType: MemorySourceType.SeedImport,
-        dataset: MemoryDataset.Dev
+        batchId
     };
 
     const loader = new SeedMemoryLoader();
@@ -186,7 +182,6 @@ async function main() {
                 Tags: prepared.tagsList,
                 Tools: prepared.tools,
                 Projects: prepared.projects,
-                Topics: prepared.topics,
                 LastUpdated: new Date().toISOString()
             };
             const embedding = await ragSystem.generateEmbedding(memoryToUpsert.Content);
@@ -214,10 +209,7 @@ async function main() {
         await reportService.generateVerificationReport(vectorService, graphService, sqlService);
 
         const sqlValidation = await sqlService.validateMemoryPopulation(
-            {
-                sourceType: MemorySourceType.SeedImport,
-                dataset: MemoryDataset.Dev
-            },
+            undefined,
             seedMemories.length
         );
 

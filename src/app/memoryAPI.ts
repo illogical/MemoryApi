@@ -320,8 +320,8 @@ memoryRouter.post('/seeds/memories', async (req: Request, res: Response) => {
 // GET /api/admin/memories — list all memories with optional filters
 memoryRouter.get('/admin/memories', async (req: Request, res: Response) => {
     try {
-        const { sourceType, dataset, category } = req.query as Record<string, string | undefined>;
-        const memories = await sqlService.getAllMemories({ sourceType, dataset, category });
+        const { category } = req.query as Record<string, string | undefined>;
+        const memories = await sqlService.getAllMemories({ category });
         res.json({ count: memories.length, memories });
     } catch (error) {
         logger.error(`Error listing all memories: ${error}`);

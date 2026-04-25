@@ -67,14 +67,10 @@ export class VectorService {
                         Tags: memory.Tags,
                         Category: memory.Category,
                         LastUpdated: new Date().toISOString(),
-                        SourceType: memory.SourceType,
-                        Durability: memory.Durability,
-                        Dataset: memory.Dataset,
                         IngestionBatchId: memory.IngestionBatchId,
                         UserReviewed: memory.UserReviewed,
                         Tools: memory.Tools,
-                        Projects: memory.Projects,
-                        Topics: memory.Topics
+                        Projects: memory.Projects
                     }
                 }
             ]

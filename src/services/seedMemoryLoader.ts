@@ -35,13 +35,8 @@ export class SeedMemoryLoader {
                 Category: seed.category as MemoryCategory | undefined,
                 Tags: normalizeTags(seed.tags || []),
                 LastUpdated: new Date().toISOString(),
-                // Pass explicit metadata and entity values (used as ground truth for seeds)
-                SourceType: seed.sourceType as any,
-                Durability: seed.durability as any,
-                Dataset: seed.dataset as any,
                 Tools: seed.tools,
-                Projects: seed.projects,
-                Topics: seed.topics
+                Projects: seed.projects
             }));
         }
 
@@ -75,12 +70,8 @@ export class SeedMemoryLoader {
                     Category: seed.category as MemoryCategory | undefined,
                     Tags: normalizeTags(seed.tags || []),
                     LastUpdated: new Date().toISOString(),
-                    SourceType: seed.sourceType as any,
-                    Durability: seed.durability as any,
-                    Dataset: seed.dataset as any,
                     Tools: seed.tools,
-                    Projects: seed.projects,
-                    Topics: seed.topics
+                    Projects: seed.projects
                 };
                 try {
                     await ragSystem.addMemory(memory);

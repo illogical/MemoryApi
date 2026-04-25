@@ -116,18 +116,14 @@ server.tool(
 // Register list_all_memories tool — admin-level export of all stored memories
 server.tool(
   'list_all_memories',
-  'List all stored memories with optional filtering by sourceType, dataset, or category. Returns ID, Content, Category, SourceType, Durability, Dataset, Tags, and IngestionBatchId per record.',
+  'List all stored memories with optional filtering by category. Returns ID, Content, Category, Tags, Tools, Projects, and IngestionBatchId per record.',
   {
-    sourceType: z.string().describe('Filter by source type (e.g. seed-import, explicit-user-memory).').optional(),
-    dataset: z.string().describe('Filter by dataset (prod, dev, test).').optional(),
     category: z.string().describe('Filter by memory category.').optional()
   } as any,
   async (args: any) => {
     logger.info(`MCP Tool [list_all_memories] invoked`);
     try {
       const memories = await sqlService.getAllMemories({
-        sourceType: args.sourceType,
-        dataset: args.dataset,
         category: args.category
       });
       logger.info(`MCP Tool [list_all_memories] returning ${memories.length} memories`);

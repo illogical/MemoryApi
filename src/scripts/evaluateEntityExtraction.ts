@@ -1,14 +1,14 @@
 /**
  * Entity Extraction Evaluation Script
  *
- * Compares LLM-extracted entities (tools, projects, topics) against the
+ * Compares LLM-extracted entities (tools, projects) against the
  * hand-curated ground-truth values in seedMemories.json.
  *
  * Key Metrics:
  * - Precision: Of the entities predicted, how many were in ground truth?
  * - Recall: Of the ground-truth entities, how many were predicted?
  * - F1 Score: Harmonic mean of precision and recall
- * - Per-entity-type breakdown (tools / projects / topics)
+ * - Per-entity-type breakdown (tools / projects)
  *
  * Usage:
  *   npx tsx src/scripts/evaluateEntityExtraction.ts
@@ -28,7 +28,6 @@ import * as path from 'path';
 interface EntityGroundTruth {
     tools: string[];
     projects: string[];
-    topics: string[];
 }
 
 interface EntityMetrics {
@@ -48,7 +47,6 @@ interface EntityEvalCase {
     metrics: {
         tools: EntityMetrics;
         projects: EntityMetrics;
-        topics: EntityMetrics;
     };
     durationMs: number;
 }
@@ -66,7 +64,6 @@ interface EntityEvalReport {
     provider: string;
     tools: AggregateEntityMetrics;
     projects: AggregateEntityMetrics;
-    topics: AggregateEntityMetrics;
     cases: EntityEvalCase[];
     averageDurationMs: number;
 }
@@ -96,11 +93,10 @@ class EntityExtractionEvaluator extends BaseEvaluator {
             const parsed = JSON.parse(jsonStr);
             return {
                 tools: normalizeEntityNames(Array.isArray(parsed.tools) ? parsed.tools.filter((t: any) => typeof t === 'string') : []),
-                projects: normalizeEntityNames(Array.isArray(parsed.projects) ? parsed.projects.filter((p: any) => typeof p === 'string') : []),
-                topics: normalizeEntityNames(Array.isArray(parsed.topics) ? parsed.topics.filter((t: any) => typeof t === 'string') : [])
+                projects: normalizeEntityNames(Array.isArray(parsed.projects) ? parsed.projects.filter((p: any) => typeof p === 'string') : [])
             };
         } catch {
-            return { tools: [], projects: [], topics: [] };
+            return { tools: [], projects: [] };
         }
     }
 
@@ -159,7 +155,7 @@ async function main() {
 
     // Only evaluate entries that have explicit ground-truth entity values
     const fixtures = (seedsRaw.memories as any[]).filter(
-        m => (m.tools?.length || m.projects?.length || m.topics?.length)
+        m => (m.tools?.length || m.projects?.length)
     );
 
     console.log(`\n=== Entity Extraction Evaluation ===`);
@@ -175,8 +171,7 @@ async function main() {
         const seed = fixtures[i];
         const groundTruth: EntityGroundTruth = {
             tools: normalizeEntityNames(seed.tools || []),
-            projects: normalizeEntityNames(seed.projects || []),
-            topics: normalizeEntityNames(seed.topics || [])
+            projects: normalizeEntityNames(seed.projects || [])
         };
 
         const start = Date.now();
@@ -190,14 +185,13 @@ async function main() {
             predicted,
             metrics: {
                 tools: evaluator.calcMetrics(groundTruth.tools, predicted.tools),
-                projects: evaluator.calcMetrics(groundTruth.projects, predicted.projects),
-                topics: evaluator.calcMetrics(groundTruth.topics, predicted.topics)
+                projects: evaluator.calcMetrics(groundTruth.projects, predicted.projects)
             },
             durationMs
         };
 
         cases.push(evalCase);
-        console.log(`  [${i + 1}/${fixtures.length}] Tools F1=${evalCase.metrics.tools.f1Score.toFixed(2)}, Topics F1=${evalCase.metrics.topics.f1Score.toFixed(2)} (${durationMs}ms)`);
+        console.log(`  [${i + 1}/${fixtures.length}] Tools F1=${evalCase.metrics.tools.f1Score.toFixed(2)}, Projects F1=${evalCase.metrics.projects.f1Score.toFixed(2)} (${durationMs}ms)`);
     }
 
     const report: EntityEvalReport = {
@@ -206,13 +200,12 @@ async function main() {
         provider,
         tools: evaluator.aggregate(cases, 'tools'),
         projects: evaluator.aggregate(cases, 'projects'),
-        topics: evaluator.aggregate(cases, 'topics'),
         cases,
         averageDurationMs: cases.reduce((s, c) => s + c.durationMs, 0) / cases.length
     };
 
     console.log('\n--- Aggregate Results ---');
-    for (const type of ['tools', 'projects', 'topics'] as const) {
+    for (const type of ['tools', 'projects'] as const) {
         const m = report[type];
         if (m.totalCases === 0) continue;
         console.log(`${type.padEnd(10)}: P=${m.averagePrecision.toFixed(3)}  R=${m.averageRecall.toFixed(3)}  F1=${m.averageF1Score.toFixed(3)}  (n=${m.totalCases})`);

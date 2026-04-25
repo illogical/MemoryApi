@@ -97,7 +97,7 @@ class MemoryRAGSystem {
     async summarizeClassifyAndTagTextParallel(
         text: string,
         skipEntityExtraction: boolean = false
-    ): Promise<{ summary: string; classification: string; tags: string[]; suggestedTags: string[]; entities: { tools: string[]; projects: string[]; topics: string[] }; }> {
+    ): Promise<{ summary: string; classification: string; tags: string[]; suggestedTags: string[]; entities: { tools: string[]; projects: string[] }; }> {
         this.loggingService.trace('[summarizeClassifyAndTagTextParallel] Called');
         const processor = this.getOrCreateTextProcessor();
         return await processor.summarizeClassifyAndTagTextParallel(text, skipEntityExtraction);
@@ -116,9 +116,8 @@ class MemoryRAGSystem {
         tagsList: string[];
         tools: string[];
         projects: string[];
-        topics: string[];
     }> {
-        const hasExplicitEntities = !!(memory.Tools?.length || memory.Projects?.length || memory.Topics?.length);
+        const hasExplicitEntities = !!(memory.Tools?.length || memory.Projects?.length);
         const { summary, classification, tags, suggestedTags, entities } =
             await this.summarizeClassifyAndTagTextParallel(memory.Content, hasExplicitEntities);
 
@@ -139,9 +138,8 @@ class MemoryRAGSystem {
         // Use explicit entity values from seed; fall back to LLM-extracted
         const tools = hasExplicitEntities ? normalizeEntityNames(memory.Tools || []) : entities.tools;
         const projects = hasExplicitEntities ? normalizeEntityNames(memory.Projects || []) : entities.projects;
-        const topics = hasExplicitEntities ? normalizeEntityNames(memory.Topics || []) : entities.topics;
 
-        return { summary, classification, tags, suggestedTags, description, category, tagsList, tools, projects, topics };
+        return { summary, classification, tags, suggestedTags, description, category, tagsList, tools, projects };
     }
 
     /**
@@ -173,8 +171,6 @@ class MemoryRAGSystem {
         // Merge ingestion context into memory if provided
         if (ingestionContext) {
             memory.IngestionBatchId = ingestionContext.batchId;
-            memory.SourceType = ingestionContext.sourceType;
-            memory.Dataset = ingestionContext.dataset;
         }
 
         // this is a new memory that skipped review. Automatically set the status to Reviewed.
@@ -190,14 +186,10 @@ class MemoryRAGSystem {
                 memory.Category || 'Uncategorized',
                 memory.Status || "Reviewed",
                 {
-                    sourceType: memory.SourceType,
-                    durability: memory.Durability,
-                    dataset: memory.Dataset,
                     ingestionBatchId: memory.IngestionBatchId,
                     userReviewed: memory.UserReviewed,
                     tools: memory.Tools,
-                    projects: memory.Projects,
-                    topics: memory.Topics
+                    projects: memory.Projects
                 }
             );
             this.loggingService.debug(`[upsertMemory] Created SQL row ${sqlMemoryId} for external ID ${memoryId}`);
@@ -253,7 +245,6 @@ class MemoryRAGSystem {
                     Tags: prepared.tagsList,
                     Tools: prepared.tools,
                     Projects: prepared.projects,
-                    Topics: prepared.topics,
                     LastUpdated: new Date().toISOString()
                 };
                 this.loggingService.info(`[addMemory] Upserting memory: ${JSON.stringify(memoryToUpsert, null, 2)}`);
