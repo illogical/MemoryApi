@@ -3,11 +3,11 @@ import { config } from '../services/configService.js';
 import { SqlService } from '../services/sqlService.js';
 import { GraphService } from '../services/graphService.js';
 
-const COLLECTION_NAME = 'memories';
+const COLLECTION_NAME = config.QDRANT_COLLECTION_NAME;
 
 async function migrateCreatedTimestamp(): Promise<void> {
-    const sqlService = new SqlService(config.SQLITE_DB_PATH);
-    const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+    const sqlService = new SqlService();
+    const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD, config.NEO4J_DATABASE);
     const qdrantClient = new QdrantClient({ url: config.QDRANT_URL });
 
     try {

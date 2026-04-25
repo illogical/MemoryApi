@@ -1,5 +1,6 @@
 export enum MemoryStatus {
-    New = "New",
-    Reviewed = "Reviewed",
-    Archived = "Archived"
+    Draft    = 'draft',
+    Stored   = 'stored',
+    Archived = 'archived',
+    Rejected = 'rejected',
 }

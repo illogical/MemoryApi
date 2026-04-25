@@ -24,6 +24,14 @@ export interface ConfigValues {
     AGGREGATION_OVERFLOW_THRESHOLD_CHARS: number;
     AGGREGATION_CONDENSATION_BATCH_SIZE: number;
     AGGREGATION_CONTENT_MAX_CHARS: number;
+    // Data environment and isolation
+    MEMORY_DATA_ENV: string;
+    MEMORY_ALLOW_PRODUCTION_WRITES: boolean;
+    MEMORY_TEST_RUN_ID: string;
+    MEMORY_TEST_RUN_TYPE: string;
+    // Storage targets (one per environment)
+    QDRANT_COLLECTION_NAME: string;
+    NEO4J_DATABASE: string;
 }
 
 class Config implements ConfigValues {
@@ -37,8 +45,18 @@ class Config implements ConfigValues {
     public NEO4J_USER: string = 'neo4j';
     public NEO4J_PASSWORD: string = 'password';
 
+    // Data environment and isolation
+    public MEMORY_DATA_ENV: string = 'development';
+    public MEMORY_ALLOW_PRODUCTION_WRITES: boolean = false;
+    public MEMORY_TEST_RUN_ID: string = '';
+    public MEMORY_TEST_RUN_TYPE: string = 'manual';
+
+    // Storage targets (change these to match MEMORY_DATA_ENV)
+    public QDRANT_COLLECTION_NAME: string = 'memoryapi_dev_memories';
+    public NEO4J_DATABASE: string = 'memoryapi_dev';
+
     public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'src', 'prompts');
-    public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'memory.db');
+    public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'dev', 'memory.db');
     public PORT: number = 3000;
     public TODOIST_API_KEY: string = 'your_todoist_api_token_here';
 
@@ -63,7 +81,9 @@ class Config implements ConfigValues {
             }
             const envValue = process.env[key];
             if (envValue) {
-                if (typeof (this as any)[key] === 'number') {
+                if (typeof (this as any)[key] === 'boolean') {
+                    (this as any)[key] = envValue === 'true';
+                } else if (typeof (this as any)[key] === 'number') {
                     (this as any)[key] = parseFloat(envValue);
                 } else {
                     (this as any)[key] = envValue;

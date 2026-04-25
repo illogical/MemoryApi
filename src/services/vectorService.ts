@@ -6,11 +6,12 @@ import { MemoryCategory } from '../models/memoryCategory';
 export class VectorService {
     private client: QdrantClient;
     private loggingService: LoggingService;
-    private readonly COLLECTION_NAME = 'memories';
+    private readonly collectionName: string;
     private readonly VECTOR_SIZE = 768;
 
-    constructor(qdrantUrl: string, loggingService: LoggingService) {
+    constructor(qdrantUrl: string, collectionName: string, loggingService: LoggingService) {
         this.client = new QdrantClient({ url: qdrantUrl });
+        this.collectionName = collectionName;
         this.loggingService = loggingService;
     }
 
@@ -19,12 +20,12 @@ export class VectorService {
         try {
             const collections = await this.client.getCollections();
             const exists = collections.collections.some(
-                c => c.name === this.COLLECTION_NAME
+                c => c.name === this.collectionName
             );
 
             if (!exists) {
-                this.loggingService.log(`[VectorService.initializeCollection] Creating collection: ${this.COLLECTION_NAME}`);
-                await this.client.createCollection(this.COLLECTION_NAME, {
+                this.loggingService.log(`[VectorService.initializeCollection] Creating collection: ${this.collectionName}`);
+                await this.client.createCollection(this.collectionName, {
                     vectors: {
                         size: this.VECTOR_SIZE,
                         distance: 'Cosine'
@@ -32,19 +33,19 @@ export class VectorService {
                 });
 
                 this.loggingService.log('[VectorService.initializeCollection] Creating payload index for Category');
-                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+                await this.client.createPayloadIndex(this.collectionName, {
                     field_name: 'Category',
                     field_schema: 'keyword'
                 });
 
                 this.loggingService.log('[VectorService.initializeCollection] Creating payload index for Tags');
-                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+                await this.client.createPayloadIndex(this.collectionName, {
                     field_name: 'Tags',
                     field_schema: 'keyword'
                 });
 
                 this.loggingService.log('[VectorService.initializeCollection] Creating payload index for Created');
-                await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+                await this.client.createPayloadIndex(this.collectionName, {
                     field_name: 'Created',
                     field_schema: 'datetime'
                 });
@@ -62,7 +63,7 @@ export class VectorService {
     async upsertMemory(memory: Memory, embedding: number[], id: string): Promise<string> {
         this.loggingService.trace('[VectorService.upsertMemory] Called');
 
-        await this.client.upsert(this.COLLECTION_NAME, {
+        await this.client.upsert(this.collectionName, {
             points: [
                 {
                     id: id,
@@ -88,7 +89,7 @@ export class VectorService {
 
     async getMemoriesByCategory(category: MemoryCategory, limit: number = 10): Promise<MemoryWithId[]> {
         this.loggingService.trace(`[VectorService.getMemoriesByCategory] Called with category: ${category}, limit: ${limit}`);
-        const response = await this.client.scroll(this.COLLECTION_NAME, {
+        const response = await this.client.scroll(this.collectionName, {
             filter: {
                 must: [
                     {
@@ -121,7 +122,7 @@ export class VectorService {
             }
             : undefined;
 
-        const response = await this.client.search(this.COLLECTION_NAME, {
+        const response = await this.client.search(this.collectionName, {
             vector: queryEmbedding,
             limit,
             filter,
@@ -151,7 +152,7 @@ export class VectorService {
             });
         }
 
-        const response = await this.client.scroll(this.COLLECTION_NAME, {
+        const response = await this.client.scroll(this.collectionName, {
             filter: { must: mustConditions },
             limit: 100,
             with_payload: true,
@@ -167,7 +168,7 @@ export class VectorService {
     async updateMemory(id: string, updates: Partial<Memory>, embedding?: number[]): Promise<void> {
         this.loggingService.trace(`[VectorService.updateMemory] Called for ID: ${id}`);
 
-        const points = await this.client.retrieve(this.COLLECTION_NAME, {
+        const points = await this.client.retrieve(this.collectionName, {
             ids: [id],
             with_payload: true,
             with_vector: true
@@ -187,7 +188,7 @@ export class VectorService {
 
         const vector = embedding || points[0].vector as number[];
 
-        await this.client.upsert(this.COLLECTION_NAME, {
+        await this.client.upsert(this.collectionName, {
             points: [
                 {
                     id,
@@ -200,7 +201,7 @@ export class VectorService {
 
     async deleteMemory(id: string): Promise<void> {
         this.loggingService.trace(`[VectorService.deleteMemory] Called for ID: ${id}`);
-        await this.client.delete(this.COLLECTION_NAME, {
+        await this.client.delete(this.collectionName, {
             points: [id]
         });
     }
@@ -208,7 +209,7 @@ export class VectorService {
     async getMemoryById(id: string): Promise<MemoryWithId | null> {
         this.loggingService.trace(`[VectorService.getMemoryById] Called with ID: ${id}`);
         try {
-            const points = await this.client.retrieve(this.COLLECTION_NAME, {
+            const points = await this.client.retrieve(this.collectionName, {
                 ids: [id],
                 with_payload: true,
                 with_vector: false
@@ -233,7 +234,7 @@ export class VectorService {
         const counts = {} as Record<MemoryCategory, number>;
 
         for (const category of Object.values(MemoryCategory)) {
-            const response = await this.client.count(this.COLLECTION_NAME, {
+            const response = await this.client.count(this.collectionName, {
                 filter: {
                     must: [{ key: 'Category', match: { value: category } }]
                 },
@@ -251,7 +252,7 @@ export class VectorService {
         let offset: string | number | null = null;
 
         while (true) {
-            const response = await this.client.scroll(this.COLLECTION_NAME, {
+            const response = await this.client.scroll(this.collectionName, {
                 limit: 100,
                 offset: offset ?? undefined,
                 with_payload: true,
@@ -280,18 +281,18 @@ export class VectorService {
 
     async deleteCollection(): Promise<void> {
         try {
-            await this.client.deleteCollection(this.COLLECTION_NAME);
-            this.loggingService.log(`Collection '${this.COLLECTION_NAME}' deleted successfully.`);
+            await this.client.deleteCollection(this.collectionName);
+            this.loggingService.log(`Collection '${this.collectionName}' deleted successfully.`);
         } catch (error) {
-            this.loggingService.error(`Error deleting collection '${this.COLLECTION_NAME}': ${error}`);
-            throw new Error(`Failed to delete collection '${this.COLLECTION_NAME}'.`);
+            this.loggingService.error(`Error deleting collection '${this.collectionName}': ${error}`);
+            throw new Error(`Failed to delete collection '${this.collectionName}'.`);
         }
     }
 
     async getRecordCount(): Promise<number> {
         this.loggingService.trace('[VectorService.getRecordCount] Called');
         try {
-            const collectionInfo = await this.client.getCollection(this.COLLECTION_NAME);
+            const collectionInfo = await this.client.getCollection(this.collectionName);
             return collectionInfo.points_count ?? 0;
         } catch (error) {
             this.loggingService.error(`[VectorService.getRecordCount] Error: ${error}`);

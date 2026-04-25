@@ -5,7 +5,12 @@ import { SeedMemory, SeedMemoryFile } from '../models/seedMemory';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { Memory } from '../models/memory';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryStatus } from '../models/memoryStatus';
 import { normalizeTags } from '../utils/normalization';
+
+export interface SeedLoadOptions {
+    defaultStatus?: MemoryStatus;
+}
 
 
 
@@ -40,7 +45,8 @@ export class SeedMemoryLoader {
             }));
         }
 
-    public async loadSeedMemoriesToDatabases(jsonFilePath: string, ragSystem: MemoryRAGSystem): Promise<void> {
+    public async loadSeedMemoriesToDatabases(jsonFilePath: string, ragSystem: MemoryRAGSystem, options: SeedLoadOptions = {}): Promise<void> {
+        const { defaultStatus = MemoryStatus.Stored } = options;
         try {
             // Ensure the collection exists before loading seed memories
             await ragSystem.initializeCollection();
@@ -71,7 +77,8 @@ export class SeedMemoryLoader {
                     Tags: normalizeTags(seed.tags || []),
                     LastUpdated: new Date().toISOString(),
                     Tools: seed.tools,
-                    Projects: seed.projects
+                    Projects: seed.projects,
+                    Status: defaultStatus
                 };
                 try {
                     await ragSystem.addMemory(memory);

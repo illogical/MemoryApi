@@ -10,15 +10,22 @@
     "api": "npx tsx src/app/index.ts",
     "mcp": "npx tsx src/app/memoryMcpServer.ts",
     "hot": "nodemon --watch src --ext ts,js,json --exec npx tsx src/app/index.ts",
-    "eval:tagging": "npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio",
-    "eval:category": "npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio",
-    "eval:aggregation": "npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio",
-    "eval:entities": "npx tsx src/scripts/evaluateEntityExtraction.ts --model=phi-4 --provider=lmstudio",
+    "eval:tagging": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/evaluateTagging.ts --model=phi-4 --provider=lmstudio",
+    "eval:category": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/evaluateCategorization.ts --model=phi-4 --provider=lmstudio",
+    "eval:aggregation": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/evaluateSemanticQueries.ts --model=phi-4 --provider=lmstudio",
+    "eval:entities": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/evaluateEntityExtraction.ts --model=phi-4 --provider=lmstudio",
+    "seed:prod": "cross-env MEMORY_DATA_ENV=production MEMORY_ALLOW_PRODUCTION_WRITES=true npx tsx src/scripts/seedEnvironment.ts",
+    "seed:dev": "cross-env MEMORY_DATA_ENV=development npx tsx src/scripts/seedEnvironment.ts",
+    "seed:test": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/seedEnvironment.ts",
+    "reset:dev": "cross-env MEMORY_DATA_ENV=development npx tsx src/scripts/resetEnvironment.ts",
+    "reset:test": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/resetEnvironment.ts",
+    "refresh:dev": "cross-env MEMORY_DATA_ENV=development npx tsx src/scripts/refreshEnvironment.ts",
+    "refresh:test": "cross-env MEMORY_DATA_ENV=test npx tsx src/scripts/refreshEnvironment.ts",
+    "migrate:statuses": "npx tsx src/scripts/migrateMemoryStatuses.ts",
+    "verify:data-isolation": "npx tsx src/scripts/verifyDataIsolation.ts",
     "add-memory": "npx tsx src/scripts/addMemory.ts",
     "search-memories": "npx tsx src/scripts/searchMemories.ts",
     "init-sql": "npx tsx src/scripts/initSqlDb.ts",
-    "reset": "npx tsx src/scripts/resetVectorAndGraph.ts",
-    "reset:full": "npx tsx src/scripts/resetAllAndLoadSeeds.ts",
     "migrate:created": "npx tsx src/scripts/migrateCreatedTimestamp.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
@@ -38,6 +45,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "cross-env": "^10.1.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.11",
     "ts-jest": "^29.4.9",
@@ -47,11 +55,15 @@
   "jest": {
     "preset": "ts-jest/presets/default-esm",
     "testEnvironment": "node",
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
-    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/scripts/**",
@@ -62,13 +74,16 @@
     "forceExit": true,
     "injectGlobals": true,
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", {
-        "useESM": true,
-        "tsconfig": {
-          "module": "ES2022",
-          "moduleResolution": "node"
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true,
+          "tsconfig": {
+            "module": "ES2022",
+            "moduleResolution": "node"
+          }
         }
-      }]
+      ]
     }
   }
 }

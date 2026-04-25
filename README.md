@@ -60,7 +60,86 @@ The system supports **LMApi**, a specialized provider that pools multiple Ollama
 - [src/app/index.ts](src/app/index.ts): Entry point for the Express server; mounts API routers and serves the review UI.
 - [src/routes/](src/routes/), [src/controllers/](src/controllers/), [src/models/](src/models/): Example structure for modular API development.
 
+# Memory Data Environments
 
+MemoryAPI supports three data environments: **production**, **development**, and **test**. Each environment points at separate SQLite, Qdrant, and Neo4j targets so that tests, evaluations, and development work cannot corrupt real memories.
+
+## Storage Targets by Environment
+
+| Environment | SQLite | Qdrant Collection | Neo4j Database |
+|-------------|--------|-------------------|----------------|
+| `production`  | `data/prod/memory.db` | `memoryapi_prod_memories` | `memoryapi_prod` |
+| `development` | `data/dev/memory.db`  | `memoryapi_dev_memories`  | `memoryapi_dev`  |
+| `test`        | `data/test/memory.db` | `memoryapi_test_memories` | `memoryapi_test` |
+
+Set `MEMORY_DATA_ENV` in your `.env` to select an environment. Each storage target variable (`SQLITE_DB_PATH`, `QDRANT_COLLECTION_NAME`, `NEO4J_DATABASE`) must match the selected environment.
+
+## Memory Status Lifecycle
+
+| Status     | Meaning                              | Included in search? |
+|------------|--------------------------------------|---------------------|
+| `draft`    | Pending human review                 | No                  |
+| `stored`   | Active, reviewed memory              | **Yes**             |
+| `archived` | Retired/stale                        | No                  |
+| `rejected` | Human-reviewed and excluded          | No                  |
+
+Only `stored` memories appear in semantic search results. New memories created via the review UI start as `draft` until promoted.
+
+## Seeding Policy
+
+| Environment | Sources | Initial status |
+|-------------|---------|----------------|
+| `production`  | `seedMemories.json` only | `stored` |
+| `development` | `seedMemories.json` + `sampleMemories.json` | seed=`stored`, sample=`draft` |
+| `test`        | `seedMemories.json` + `sampleMemories.json` | seed=`stored`, sample=`draft` |
+
+`seedMemories.json` is curated ground-truth data. `sampleMemories.json` is non-production demo/eval data and must never be seeded into production.
+
+## Production Write Safety
+
+Production writes are blocked by default. The guard is controlled by two env vars:
+- `MEMORY_DATA_ENV=production` — activates production storage targets.
+- `MEMORY_ALLOW_PRODUCTION_WRITES=true` — required opt-in for seed/write operations.
+
+Reset and destructive scripts always refuse production regardless of `MEMORY_ALLOW_PRODUCTION_WRITES`.
+
+**To intentionally seed production:**
+```bash
+MEMORY_DATA_ENV=production MEMORY_ALLOW_PRODUCTION_WRITES=true npm run seed:prod
+```
+
+## Development Refresh Workflow
+
+```bash
+npm run refresh:dev    # reset dev stores + reseed (seed + sample data)
+npm run refresh:test   # reset test stores + reseed
+```
+
+Or in two steps:
+```bash
+npm run reset:dev      # wipe all dev stores (SQLite + Qdrant + Neo4j)
+npm run seed:dev       # seed dev from seedMemories.json + sampleMemories.json
+```
+
+## Test / Eval Workflow
+
+All eval scripts automatically target the `test` environment:
+```bash
+npm run eval:tagging      # MEMORY_DATA_ENV=test is set automatically
+npm run eval:category
+npm run eval:aggregation
+npm run eval:entities
+```
+
+Running evals with `MEMORY_DATA_ENV=production` is blocked by a runtime guard.
+
+## Neo4j Multi-Database
+
+If your Neo4j instance supports multiple databases (Enterprise Edition), set `NEO4J_DATABASE` per environment. If using Community Edition (single database), use **separate Neo4j containers** for production, development, and test, with each container accessible on a different port and addressed via `NEO4J_URI`.
+
+## Future AI Agent Guidance
+
+See [docs/AI_AGENTS.md](docs/AI_AGENTS.md) for rules that new tests, evals, and scripts must follow.
 
 # Getting Started
 

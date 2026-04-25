@@ -22,24 +22,48 @@ describe('SqlService — schema and lifecycle', () => {
     });
 
     test('addMemory + getMemory round-trip', async () => {
-        const id = await svc.addMemory('Test content', 'desc', ['tag1'], 'Note', 'New');
+        const id = await svc.addMemory('Test content', 'desc', ['tag1'], 'Note', 'draft');
         expect(typeof id).toBe('number');
         const mem = await svc.getMemory(id);
         expect(mem).toBeDefined();
         expect(mem.Content).toBe('Test content');
         expect(mem.Description).toBe('desc');
         expect(mem.Category).toBe('Note');
+        expect(typeof mem.Created).toBe('string');
+        expect(new Date(mem.Created).toISOString()).toBe(mem.Created);
+        expect(typeof mem.LastUpdated).toBe('string');
+        expect(mem.Created).toBe(mem.LastUpdated);
+    });
+
+    test('addMemory respects caller-supplied created timestamp', async () => {
+        const customCreated = '2024-01-15T10:00:00.000Z';
+        const id = await svc.addMemory('Test content', 'desc', [], 'Note', 'draft', {
+            created: customCreated
+        });
+        const mem = await svc.getMemory(id);
+        expect(mem.Created).toBe(customCreated);
+        expect(mem.LastUpdated).not.toBe(customCreated);
+    });
+
+    test('updateMemory preserves Created but changes LastUpdated', async () => {
+        const id = await svc.addMemory('Original', 'desc', [], 'Note', 'draft');
+        const before = await svc.getMemory(id);
+        await new Promise(r => setTimeout(r, 5));
+        await svc.updateMemory(id, 'Updated', 'new desc', [], 'Note');
+        const after = await svc.getMemory(id);
+        expect(after.Created).toBe(before.Created);
+        expect(after.LastUpdated).not.toBe(before.LastUpdated);
     });
 
     test('getMemoryCount increments after addMemory', async () => {
-        await svc.addMemory('A', 'a desc', [], 'Note', 'New');
-        await svc.addMemory('B', 'b desc', [], 'Preference', 'New');
+        await svc.addMemory('A', 'a desc', [], 'Note', 'draft');
+        await svc.addMemory('B', 'b desc', [], 'Preference', 'draft');
         const count = await svc.getMemoryCount();
         expect(count).toBe(2);
     });
 
     test('updateMemory persists changes', async () => {
-        const id = await svc.addMemory('Original', 'desc', [], 'Note', 'New');
+        const id = await svc.addMemory('Original', 'desc', [], 'Note', 'draft');
         await svc.updateMemory(id, 'Updated', 'new desc', ['updated-tag'], 'Preference');
         const mem = await svc.getMemory(id);
         expect(mem.Content).toBe('Updated');
@@ -47,7 +71,7 @@ describe('SqlService — schema and lifecycle', () => {
     });
 
     test('softDeleteMemory hides record', async () => {
-        const id = await svc.addMemory('To delete', 'desc', [], 'Note', 'New');
+        const id = await svc.addMemory('To delete', 'desc', [], 'Note', 'draft');
         await svc.softDeleteMemory(id);
         const mem = await svc.getMemory(id);
         expect(mem).toBeUndefined();
@@ -61,7 +85,7 @@ describe('SqlService — schema and lifecycle', () => {
     });
 
     test('updateMemoryRelations stores graphId and vectorId', async () => {
-        const id = await svc.addMemory('With relations', 'desc', [], 'Note', 'New');
+        const id = await svc.addMemory('With relations', 'desc', [], 'Note', 'draft');
         await svc.updateMemoryRelations(id, 'graph-abc', 'vector-xyz');
         const mem = await svc.getMemory(id);
         expect(mem.GraphId).toBe('graph-abc');

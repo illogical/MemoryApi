@@ -6,7 +6,7 @@ import path from 'path';
 
 async function main() {
     console.log(`Connecting to Neo4j at ${config.NEO4J_URI}...`);
-    const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+    const graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD, config.NEO4J_DATABASE);
 
     try {
         // 1. Initialize Schema

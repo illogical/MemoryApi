@@ -4,6 +4,7 @@ import { ModelClient, EmbeddingClient, ModelClientFactory } from './modelClients
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
 import { MemoryCategory } from '../models/memoryCategory';
+import { MemoryStatus } from '../models/memoryStatus';
 import { Memory, MemoryWithId } from '../models/memory';
 import { MemoryPostSearchAggregator } from './memoryPostSearchAggregator';
 import { MemoryTextProcessor } from './memoryTextProcessor';
@@ -184,7 +185,7 @@ class MemoryRAGSystem {
                 memory.Description || '',
                 memory.Tags || [],
                 memory.Category || 'Uncategorized',
-                memory.Status || "Reviewed",
+                memory.Status || MemoryStatus.Stored,
                 {
                     ingestionBatchId: memory.IngestionBatchId,
                     userReviewed: memory.UserReviewed,
@@ -202,7 +203,7 @@ class MemoryRAGSystem {
             const existingMemory = await this.sqlService.getMemory(sqlMemoryId);
             if(existingMemory)
             {
-                await this.sqlService.updateMemoryStatus(sqlMemoryId, "Reviewed");
+                await this.sqlService.updateMemoryStatus(sqlMemoryId, MemoryStatus.Stored);
                 this.loggingService.debug(`[upsertMemory] Reusing SQL row ${sqlMemoryId} for reviewed memory ${memoryId}`);
             }
         }

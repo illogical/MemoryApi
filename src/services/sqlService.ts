@@ -83,7 +83,7 @@ export class SqlService {
             Category TEXT,
             Created TEXT NOT NULL,
             LastUpdated TEXT NOT NULL,
-            Status TEXT NOT NULL DEFAULT 'New',
+            Status TEXT NOT NULL DEFAULT 'draft',
             Deleted BOOLEAN DEFAULT 0,
             IngestionBatchId TEXT,
             UserReviewed TEXT,

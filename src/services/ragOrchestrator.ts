@@ -18,8 +18,8 @@ export class RAGOrchestrator {
         this.loggingService = loggingService;
         
         // Initialize services
-        this.vectorService = new VectorService(config.QDRANT_URL, this.loggingService);
-        this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD);
+        this.vectorService = new VectorService(config.QDRANT_URL, config.QDRANT_COLLECTION_NAME, this.loggingService);
+        this.graphService = new GraphService(config.NEO4J_URI, config.NEO4J_USER, config.NEO4J_PASSWORD, config.NEO4J_DATABASE);
         this.sqlService = sqlService;
         this.reminderService = new ReminderService(config.TODOIST_API_KEY, this.loggingService);
     }
