@@ -28,6 +28,14 @@ Memory API is a TypeScript/Node.js backend service designed to store, retrieve, 
 - **TypeScript Models & Services:** Strongly-typed interfaces for memory objects, modular services for prompt templates and business logic.
 - **Dockerized Deployment:** Includes Dockerfile and docker-compose for easy local or cloud deployment.
 
+## Running under HomeBase
+
+MemoryApi can also run as a hosted application inside [HomeBase](https://home.bangus-city.ts.net)'s shared Express process, mounted at `/memoryapi/` (see `src/host/`). In that mode:
+- `SQLITE_DB_PATH` and `PROMPT_TEMPLATE_BASE_PATH` are derived from HomeBase's injected `dataPath`/`repositoryRoot`, not `.env`.
+- `LLM_HOST` is overridden to reach LMApi over loopback (`http://127.0.0.1:<HOMEBASE_PORT>/lmapi`) instead of the standalone `.env` value, since both apps share the same host process.
+- `QDRANT_URL`/`NEO4J_*_URI` still come from `.env`/process env as usual.
+- Standalone mode (`npm run dev`/`api`/`start`) is unaffected — it keeps serving `/api/...` at the process root exactly as before.
+
 ### Core Services
 
 #### MemoryRAGSystem (src/services/memoryRAGSystem.ts)
@@ -135,16 +143,23 @@ npm run eval:entities
 
 Running evals with `MEMORY_DATA_ENV=production` is blocked by a runtime guard.
 
-## Neo4j Isolation
+## Starting MemoryApi's databases
 
-Neo4j Community Edition does **not** support creating additional databases. Because of that constraint, the default isolation strategy is separate Community containers:
+MemoryApi runs infrequently (single-user, low-traffic), so this is easy to forget: bring up Qdrant + all three Neo4j Community instances with one command before starting the API.
 
 ```bash
-npm run neo4j:community:up
-npm run neo4j:community:ps
+npm run databases:up      # starts Qdrant + 3 Neo4j instances
+npm run databases:ps      # check they're healthy
+npm run databases:down    # stop them
 ```
 
-This starts three Neo4j Community instances from [docker-compose.neo4j-community.yml](docker-compose.neo4j-community.yml):
+This uses [docker-compose.databases.yml](docker-compose.databases.yml), which publishes every port on `127.0.0.1` only (no LAN exposure — this is a personal service). `.env`'s `QDRANT_URL`/`NEO4J_*_URI` should point at `localhost` accordingly. If a container's data volume is fresh, reseed it: `npm run seed:dev` / `npm run seed:test` / `npm run seed:prod`.
+
+## Neo4j Isolation
+
+Neo4j Community Edition does **not** support creating additional databases. Because of that constraint, the default isolation strategy is separate Community containers, started via `npm run databases:up` above.
+
+This starts three Neo4j Community instances from [docker-compose.databases.yml](docker-compose.databases.yml):
 
 | Environment | Browser | Bolt URI | Database |
 |-------------|---------|----------|----------|

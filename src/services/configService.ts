@@ -187,3 +187,13 @@ class Config implements ConfigValues {
 
 export { Config };
 export const config = new Config();
+
+/**
+ * Rebuilds the shared `config` singleton in place using real constructor
+ * overrides (not just process.env), so callers can safely override values
+ * like SQLITE_DB_PATH that applyEnvironmentStorageTargets() would otherwise
+ * silently recompute from process.cwd() and discard.
+ */
+export function reconfigure(overrides: Partial<ConfigValues>): void {
+    Object.assign(config, new Config(overrides));
+}

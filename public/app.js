@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch initial data
     Promise.all([
-        fetch('/api/review/categories').then(res => res.json()),
-        fetch('/api/review/tags').then(res => res.json()),
-        fetch('/api/review/queue').then(res => res.json()),
+        fetch('api/review/categories').then(res => res.json()),
+        fetch('api/review/tags').then(res => res.json()),
+        fetch('api/review/queue').then(res => res.json()),
         fetchSuggestedTags()
     ]).then(([cats, tags, queue]) => {
         categories = cats;
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchSuggestedTags(threshold = 5) {
         try {
-            const res = await fetch(`/api/memories/suggested-tags?threshold=${threshold}`);
+            const res = await fetch(`api/memories/suggested-tags?threshold=${threshold}`);
             if (!res.ok) return;
             const tags = await res.json();
             renderSuggestedTags(tags);
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function dismissSuggestedTag(id) {
         try {
-            const res = await fetch(`/api/memories/suggested-tags/${id}`, {
+            const res = await fetch(`api/memories/suggested-tags/${id}`, {
                 method: 'DELETE'
             });
             return res.ok;
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const timeout = 5000; // 5 second timeout for status checks
 
         // Create independent promises for each status check
-        const vectorPromise = fetchWithTimeout('/api/status/vector', { timeout })
+        const vectorPromise = fetchWithTimeout('api/status/vector', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update Vector UI immediately
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('vector-status', { active: false }, true);
             });
 
-        const graphPromise = fetchWithTimeout('/api/status/graph', { timeout })
+        const graphPromise = fetchWithTimeout('api/status/graph', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update Graph UI immediately
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('graph-status', { active: false }, true);
             });
 
-        const sqlPromise = fetchWithTimeout('/api/status/sql', { timeout })
+        const sqlPromise = fetchWithTimeout('api/status/sql', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update SQL UI immediately
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatusUI('sql-status', { active: false }, true);
             });
 
-        const modelPromise = fetchWithTimeout('/api/status/model-provider', { timeout })
+        const modelPromise = fetchWithTimeout('api/status/model-provider', { timeout })
             .then(res => res.json())
             .then(data => {
                 // Update Model UI immediately
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveAndOptionallyCommit(id, data, saveToSeed = false, showAlert = true) {
         try {
             // Save to review queue
-            const res = await fetch(`/api/review/queue/${id}`, {
+            const res = await fetch(`api/review/queue/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -581,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function addSeedMemory(data)
     {
-        const seedRes = await fetch('/api/seeds/memories', {
+        const seedRes = await fetch('api/seeds/memories', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function commitMemory(id) {
         if (!confirm('Are you sure you want to add this memory to the database?')) return;
         try {
-            const res = await fetch(`/api/review/commit/${id}`, {
+            const res = await fetch(`api/review/commit/${id}`, {
                 method: 'POST'
             });
             if (res.ok) {
@@ -641,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function deleteMemory(id) {
         if (!confirm('Are you sure you want to delete this memory?')) return;
         try {
-            const res = await fetch(`/api/review/queue/${id}`, {
+            const res = await fetch(`api/review/queue/${id}`, {
                 method: 'DELETE'
             });
             if (res.ok) {

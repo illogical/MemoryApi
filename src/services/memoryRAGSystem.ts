@@ -65,6 +65,10 @@ class MemoryRAGSystem {
         );
     }
 
+    async dispose(): Promise<void> {
+        await this.orchestrator.dispose();
+    }
+
     async loadInferenceModel(): Promise<void> {
         this.loggingService.trace('[loadInferenceModel] Called');
         try {

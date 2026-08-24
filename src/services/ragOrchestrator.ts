@@ -24,6 +24,13 @@ export class RAGOrchestrator {
         this.reminderService = new ReminderService(config.TODOIST_API_KEY, this.loggingService);
     }
 
+    async dispose(): Promise<void> {
+        await Promise.all([
+            this.sqlService.close(),
+            this.graphService.close(),
+        ]);
+    }
+
     async initialize(): Promise<void> {
         this.loggingService.log('[RAGOrchestrator] Initializing services...');
         await Promise.all([
