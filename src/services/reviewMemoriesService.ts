@@ -3,10 +3,8 @@ import { MemoryCategory } from '../models/memoryCategory';
 import { MemoryRAGSystem } from './memoryRAGSystem';
 import { SqlService } from './sqlService';
 import { LoggingService } from './loggingService';
-import path from 'path';
+import { config } from './configService';
 import fs from 'fs/promises';
-
-const TAGS_FILE = path.join(process.cwd(), 'src', 'samples', 'allTags.json');
 
 export interface MemoryQueueItem extends Memory {
     id: string; // Maintain ID as string for frontend compatibility, though SQL uses int
@@ -123,7 +121,7 @@ export class ReviewMemoriesService {
 
     async getAllTags(): Promise<string[]> {
         try {
-            const data = await fs.readFile(TAGS_FILE, 'utf-8');
+            const data = await fs.readFile(config.TAGS_FILE_PATH, 'utf-8');
             const json = JSON.parse(data);
             const tags: string[] = [];
             if (json.TagGroups && Array.isArray(json.TagGroups)) {

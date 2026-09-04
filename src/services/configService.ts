@@ -48,6 +48,7 @@ export interface ConfigValues {
     NEO4J_ISOLATION_MODE: string;
     PROMPT_TEMPLATE_BASE_PATH: string;
     SQLITE_DB_PATH: string;
+    TAGS_FILE_PATH: string;
     PORT: number;
     TODOIST_API_KEY: string;
     AGGREGATION_MAX_MEMORIES: number;
@@ -94,6 +95,7 @@ class Config implements ConfigValues {
 
     public PROMPT_TEMPLATE_BASE_PATH: string = path.join(process.cwd(), 'src', 'prompts');
     public SQLITE_DB_PATH: string = path.join(process.cwd(), 'data', 'dev', 'memory.db');
+    public TAGS_FILE_PATH: string = path.join(process.cwd(), 'src', 'samples', 'allTags.json');
     public PORT: number = 3000;
     public TODOIST_API_KEY: string = 'your_todoist_api_token_here';
 

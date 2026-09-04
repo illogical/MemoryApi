@@ -11,7 +11,7 @@ Input: "My favorite programming language is C#"
 Category: Preference
 
 Input: "foreach(int i = 0; i < count; i++) { }"
-Category: Code snippet
+Category: Snippet
 
 Input: "Met John at the conference last June"
 Category: Event

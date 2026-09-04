@@ -67,6 +67,7 @@ export default function createMemoryApiAdapter(options: HostedApplicationOptions
             reconfigure({
                 SQLITE_DB_PATH: join(options.dataPath, 'memory.db'),
                 PROMPT_TEMPLATE_BASE_PATH: join(options.repositoryRoot, 'src', 'prompts'),
+                TAGS_FILE_PATH: join(options.repositoryRoot, 'src', 'samples', 'allTags.json'),
                 LLM_HOST: `http://127.0.0.1:${homebasePort}/lmapi`,
             });
 
