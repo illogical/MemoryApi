@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { IngestionTask, TaskModelConfig } from '../models/ingestionTask';
 
 // Load .env once at module load time so constructor only reads process.env
 dotenv.config();
@@ -37,6 +38,9 @@ export interface ConfigValues {
     QDRANT_URL: string;
     LLM_HOST: string;
     LLM_MODEL: string;
+    LLM_MODEL_CLASSIFICATION: string;
+    LLM_MODEL_TAGGING: string;
+    LLM_MODEL_SUMMARY: string;
     LLM_PROVIDER: string;
     EMBEDDING_MODEL: string;
     NEO4J_URI: string;
@@ -72,6 +76,9 @@ class Config implements ConfigValues {
     public QDRANT_URL: string = 'http://localhost:6333';
     public LLM_HOST: string = 'http://localhost:11434';
     public LLM_MODEL: string = 'granite-3.3';
+    public LLM_MODEL_CLASSIFICATION: string = '';
+    public LLM_MODEL_TAGGING: string = '';
+    public LLM_MODEL_SUMMARY: string = '';
     public LLM_PROVIDER: string = 'ollama';
     public EMBEDDING_MODEL: string = 'nomic-embed-text:v1.5';
 
@@ -133,9 +140,45 @@ class Config implements ConfigValues {
         }
 
         this.applyEnvironmentStorageTargets(overrides);
+        this.applyTaskModelDefaults(overrides);
 
         if (missing.length > 0) {
             console.warn(`[Config] WARNING: The following env variables were not provided. Using defaults: ${missing.join(', ')}`);
+        }
+    }
+
+    get TASK_MODELS(): Record<IngestionTask, TaskModelConfig> {
+        return {
+            classification: {
+                model: this.LLM_MODEL_CLASSIFICATION,
+                temperature: 0.3,
+                maxTokens: 50,
+            },
+            tagging: {
+                model: this.LLM_MODEL_TAGGING,
+                temperature: 0.3,
+                maxTokens: 100,
+            },
+            summary: {
+                model: this.LLM_MODEL_SUMMARY,
+                temperature: 0.3,
+                maxTokens: 150,
+            },
+        };
+    }
+
+    private applyTaskModelDefaults(overrides: Partial<ConfigValues>): void {
+        const taskModelKeys: Array<keyof Pick<ConfigValues,
+            'LLM_MODEL_CLASSIFICATION' | 'LLM_MODEL_TAGGING' | 'LLM_MODEL_SUMMARY'>> = [
+            'LLM_MODEL_CLASSIFICATION',
+            'LLM_MODEL_TAGGING',
+            'LLM_MODEL_SUMMARY',
+        ];
+
+        for (const key of taskModelKeys) {
+            if (!(key in overrides) && !process.env[key]) {
+                this[key] = this.LLM_MODEL;
+            }
         }
     }
 

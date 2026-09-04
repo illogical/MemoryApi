@@ -38,7 +38,7 @@ async function main() {
 
     // Ensure collection exists (safe to call)
     try {
-        await rag.initializeCollection();
+        await rag.initialize();
     } catch (e) {
         // If collection exists, initialization may succeed silently or throw; ignore non-critical errors
     }

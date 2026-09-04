@@ -37,8 +37,7 @@ async function main() {
 
     console.log('Initializing system...');
     try {
-        await ragSystem.initializeCollection();
-        await ragSystem.loadInferenceModel();
+        await ragSystem.initialize();
 
         const memory: Memory = {
             Content: content,

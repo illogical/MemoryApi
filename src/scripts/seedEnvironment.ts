@@ -35,8 +35,7 @@ async function run(): Promise<void> {
     const ragSystem = new MemoryRAGSystem();
     const loader = new SeedMemoryLoader();
 
-    await ragSystem.initializeCollection();
-    await ragSystem.loadInferenceModel();
+    await ragSystem.initialize();
 
     // All environments seed from seedMemories.json with status=stored
     if (!fs.existsSync(SEED_FILE)) {

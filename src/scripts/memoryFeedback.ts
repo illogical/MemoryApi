@@ -7,6 +7,7 @@ import { MemoryReportService, ReportStats } from '../services/memoryReportServic
 
 async function main() {
     const ragSystem = new MemoryRAGSystem();
+    await ragSystem.initializeForSearch();
 
     // Load feedback queries from JSON file
     // Find the first argument that doesn't start with --

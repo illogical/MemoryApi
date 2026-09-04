@@ -18,11 +18,12 @@
  */
 
 import { BaseEvaluator, BaseEvaluationReport } from '../services/baseEvaluator';
-import { ModelProvider } from '../services/modelClients';
+import { isModelProvider, ModelProvider } from '../services/modelClients';
 import { config } from '../services/configService';
 import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 import * as fs from 'fs';
 import * as path from 'path';
+import { renderedTaskMessages } from '../models/ingestionTask';
 
 assertTestEnvironment('evaluateCategorization');
 
@@ -35,6 +36,9 @@ interface EvaluationCase {
     predictedCategory: string;
     metrics: CaseMetrics;
     prompt: string;
+    promptVersion: string;
+    taxonomySha256?: string;
+    finishReason?: string;
 }
 
 interface CaseMetrics {
@@ -63,6 +67,7 @@ interface EvaluationReport extends BaseEvaluationReport {
         maxTokens: number;
         seedMemoriesPath: string;
         averageCategoryGenTime?: number;
+        finishReasons?: Record<string, number>;
     };
 }
 
@@ -70,13 +75,15 @@ interface EvaluationReport extends BaseEvaluationReport {
 
 class CategorizationEvaluator extends BaseEvaluator {
     private validCategories: Set<string>;
+    private lastFinishReason: string | undefined;
 
     constructor(
-        modelName: string = config.LLM_MODEL,
+        modelName: string = config.TASK_MODELS.classification.model,
         promptBasePath: string = config.PROMPT_TEMPLATE_BASE_PATH,
         provider: ModelProvider = config.LLM_PROVIDER as ModelProvider
     ) {
-        super(modelName, promptBasePath, provider, 0.3, 50);
+        const runtime = config.TASK_MODELS.classification;
+        super(modelName, promptBasePath, provider, runtime.temperature, runtime.maxTokens);
         this.validCategories = this.loadValidCategories();
     }
 
@@ -104,13 +111,11 @@ class CategorizationEvaluator extends BaseEvaluator {
     async generateCategory(content: string): Promise<string> {
         const prompt = this.promptService.renderClassification(content);
         this.logger.debug(`Generating category (${this.provider}) for content: ${content.substring(0, 50)}...`);
-        const response = await this.modelClient.respond([
-            { role: 'system', content: 'You are a precise classification assistant. Output only the single most relevant category name, nothing else.' },
-            { role: 'user', content: prompt }
-        ], {
+        const response = await this.modelClient.respond(renderedTaskMessages(prompt), {
             temperature: this.temperature,
             maxTokens: this.maxTokens
         });
+        this.lastFinishReason = response.finishReason;
         const responseText = (response.content || '').trim();
         this.logger.debug(`Raw model response: ${responseText}`);
 
@@ -227,7 +232,10 @@ class CategorizationEvaluator extends BaseEvaluator {
                     groundTruthCategory: memory.category,
                     predictedCategory,
                     metrics,
-                    prompt
+                    promptVersion: prompt.promptVersion,
+                    taxonomySha256: prompt.taxonomySha256,
+                    ...(this.lastFinishReason && { finishReason: this.lastFinishReason }),
+                    prompt: JSON.stringify(renderedTaskMessages(prompt), null, 2)
                 });
 
                 // Log immediate feedback
@@ -258,14 +266,20 @@ class CategorizationEvaluator extends BaseEvaluator {
         const report: EvaluationReport = {
             timestamp: new Date().toISOString(),
             modelName: `${this.provider}:${this.modelName}`,
-            promptVersion: '1.0',
+            promptVersion: cases[0]?.promptVersion ?? 'unknown',
+            taxonomySha256: cases[0]?.taxonomySha256,
             aggregateMetrics,
             cases,
             config: {
                 temperature: this.temperature,
                 maxTokens: this.maxTokens,
                 seedMemoriesPath: seedPath,
-                averageCategoryGenTime: Number((averageGenTime / 1000).toFixed(2))
+                averageCategoryGenTime: Number((averageGenTime / 1000).toFixed(2)),
+                finishReasons: cases.reduce<Record<string, number>>((counts, evalCase) => {
+                    const reason = evalCase.finishReason ?? 'unspecified';
+                    counts[reason] = (counts[reason] ?? 0) + 1;
+                    return counts;
+                }, {})
             },
             prompt: firstPrompt
         };
@@ -369,10 +383,11 @@ class CategorizationEvaluator extends BaseEvaluator {
 async function main() {
     // Parse command line arguments
     const args = process.argv.slice(2);
+    const findLastArg = (prefix: string) => [...args].reverse().find(arg => arg.startsWith(prefix));
     console.log('[Categorization Evaluation] Starting script...');
-    const modelNameArg = args.find(arg => arg.startsWith('--model='));
-    const outputArg = args.find(arg => arg.startsWith('--output='));
-    const providerArg = args.find(arg => arg.startsWith('--provider='));
+    const modelNameArg = findLastArg('--model=');
+    const outputArg = findLastArg('--output=');
+    const providerArg = findLastArg('--provider=');
 
     const modelName = modelNameArg ? modelNameArg.split('=')[1] : undefined;
     if (!modelName) {
@@ -381,11 +396,12 @@ async function main() {
     }
     console.log(`[Categorization Evaluation] Using model: ${modelName}`);
 
-    const provider = providerArg ? (providerArg.split('=')[1] as ModelProvider) : 'lmstudio';
-    if (provider !== 'lmstudio' && provider !== 'ollama') {
-        console.error('Error: --provider must be either "lmstudio" or "ollama"');
+    const providerValue = providerArg ? providerArg.split('=')[1] : 'lmstudio';
+    if (!isModelProvider(providerValue)) {
+        console.error('Error: --provider must be "lmstudio", "ollama", or "lmapi"');
         process.exit(1);
     }
+    const provider: ModelProvider = providerValue;
     console.log(`[Categorization Evaluation] Provider: ${provider}`);
 
     const outputPath = outputArg

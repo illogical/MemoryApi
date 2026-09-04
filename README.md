@@ -211,6 +211,9 @@ See [docs/AI_AGENTS.md](docs/AI_AGENTS.md) for rules that new tests, evals, and 
    EMBEDDING_MODEL=nomic-embed-text:v1.5
    LLM_PROVIDER=ollama # Options: lmstudio, ollama, lmapi
    LLM_MODEL=phi4
+   LLM_MODEL_CLASSIFICATION= # Optional; defaults to LLM_MODEL
+   LLM_MODEL_TAGGING=        # Optional; defaults to LLM_MODEL
+   LLM_MODEL_SUMMARY=        # Optional; defaults to LLM_MODEL
    LLM_HOST=http://localhost:11434
    PROMPT_TEMPLATE_BASE_PATH=./prompts
    SQLITE_DB_PATH=./data/memory.db

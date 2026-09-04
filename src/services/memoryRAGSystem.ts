@@ -14,11 +14,13 @@ import { config } from './configService';
 import { assertCanWriteMemory } from './memoryEnvironmentService';
 import { IngestionContext } from '../models/ingestionContext';
 import { normalizeEntityNames } from '../utils/normalization';
+import { TaskModelRuntimeRegistry, TaskRuntimeStatus } from './taskModelRuntime';
 
 class MemoryRAGSystem {
     private orchestrator: RAGOrchestrator;
     private embeddingClient: EmbeddingClient;
     private modelClient: ModelClient; // Abstraction for provider-specific inference
+    private taskModelRuntime: TaskModelRuntimeRegistry;
     private promptTemplateService: PromptTemplateService = new PromptTemplateService(config.PROMPT_TEMPLATE_BASE_PATH);
     private loggingService: LoggingService = new LoggingService();
     private memoryReportService: MemoryReportService = new MemoryReportService('reports');
@@ -30,6 +32,8 @@ class MemoryRAGSystem {
     private readonly MAX_MEMORIES_PER_CLUSTER = config.AGGREGATION_MAX_MEMORIES_PER_CLUSTER;
 
     private memoryTextProcessor: MemoryTextProcessor | null = null;
+    private embeddingReady = false;
+    private embeddingInitializationPromise: Promise<void> | undefined;
 
     private postSearchAggregator: MemoryPostSearchAggregator;
 
@@ -41,11 +45,15 @@ class MemoryRAGSystem {
 
         // Initialize embedding client
         this.embeddingClient = ModelClientFactory.createEmbeddingClient(config.LLM_PROVIDER, config.LLM_HOST);
-        this.embeddingClient.load(config.EMBEDDING_MODEL);
 
         // Initialize model client abstraction
         this.modelClient = ModelClientFactory.createModelClient(config.LLM_PROVIDER, config.LLM_HOST);
-        this.modelClient.load(config.LLM_MODEL);
+        this.taskModelRuntime = new TaskModelRuntimeRegistry(
+            config.LLM_MODEL,
+            this.modelClient,
+            config.TASK_MODELS,
+            () => ModelClientFactory.createModelClient(config.LLM_PROVIDER, config.LLM_HOST)
+        );
 
         // Re-initialize aggregator with graph service
         this.postSearchAggregator = new MemoryPostSearchAggregator(
@@ -72,18 +80,47 @@ class MemoryRAGSystem {
     async loadInferenceModel(): Promise<void> {
         this.loggingService.trace('[loadInferenceModel] Called');
         try {
-            this.loggingService.log(`[loadInferenceModel] Loading inference model (${this.modelClient.provider}): ${this.modelClient.modelName}`);
-            await this.modelClient.load(this.modelClient.modelName);
-            this.loggingService.log('[loadInferenceModel] Inference model loaded successfully');
+            this.loggingService.log(`[loadInferenceModel] Loading inference models (${this.modelClient.provider}): ${this.taskModelRuntime.models.join(', ')}`);
+            await this.taskModelRuntime.initialize();
+            this.loggingService.log('[loadInferenceModel] Inference models validated and loaded successfully');
         } catch (error) {
-            this.loggingService.error(`[loadInferenceModel] Error loading inference model: ${error}`);
-            throw new Error(`Failed to load inference model. ${error instanceof Error ? error.message : String(error)}`);
+            this.loggingService.error(`[loadInferenceModel] Error loading inference models: ${error}`);
+            throw new Error(`Failed to load inference models. ${error instanceof Error ? error.message : String(error)}`);
         }
+    }
+
+    async initializeEmbeddingModel(): Promise<void> {
+        if (this.embeddingReady) return;
+        if (!this.embeddingInitializationPromise) {
+            this.embeddingInitializationPromise = this.embeddingClient.load(config.EMBEDDING_MODEL)
+                .then(() => {
+                    this.embeddingReady = true;
+                })
+                .finally(() => {
+                    this.embeddingInitializationPromise = undefined;
+                });
+        }
+        return this.embeddingInitializationPromise;
     }
 
     async initializeCollection(): Promise<void> {
         this.loggingService.trace('[initializeCollection] Delegating to orchestrator');
         await this.orchestrator.initialize();
+    }
+
+    async initializeForSearch(): Promise<void> {
+        await Promise.all([
+            this.initializeCollection(),
+            this.initializeEmbeddingModel(),
+        ]);
+    }
+
+    async initialize(): Promise<void> {
+        await Promise.all([
+            this.initializeCollection(),
+            this.initializeEmbeddingModel(),
+            this.loadInferenceModel(),
+        ]);
     }
 
 
@@ -94,7 +131,8 @@ class MemoryRAGSystem {
                 this.modelClient,
                 this.promptTemplateService,
                 this.loggingService,
-                this.sqlService
+                this.sqlService,
+                task => this.taskModelRuntime.getRuntime(task)
             );
         }
         return this.memoryTextProcessor;
@@ -154,6 +192,7 @@ class MemoryRAGSystem {
     async generateEmbedding(text: string): Promise<number[]> {
         this.loggingService.trace('[generateEmbedding] Called');
         try {
+            await this.initializeEmbeddingModel();
             this.loggingService.debug(`[generateEmbedding] Generating embedding for text using ${this.embeddingClient.modelName}`);
             const embedding = await this.timeModelResponse(() => this.embeddingClient.embed(text), 'generateEmbedding');
             this.loggingService.debug(`[generateEmbedding] Embedding result length: ${embedding.length}`);
@@ -531,30 +570,43 @@ class MemoryRAGSystem {
 
     async getModelProviderStatus(): Promise<{
         active: boolean;
+        providerConnected: boolean;
         provider: string;
         host: string;
         model: string;
         availableModels: string[];
+        inference: TaskRuntimeStatus;
     }> {
+        const inference = this.getInferenceStatus();
         try {
-            const models = await this.modelClient.listModels();
+            const models = this.modelClient.listAvailableModels
+                ? await this.modelClient.listAvailableModels()
+                : await this.modelClient.listModels();
             return {
-                active: true,
+                active: inference.active,
+                providerConnected: true,
                 provider: this.modelClient.provider,
                 host: this.modelClient.baseUrl,
-                model: this.modelClient.modelName,
-                availableModels: models
+                model: this.modelClient.modelName || config.LLM_MODEL,
+                availableModels: models,
+                inference,
             };
         } catch (error) {
             this.loggingService.error(`[getModelProviderStatus] Error: ${error}`);
             return {
                 active: false,
+                providerConnected: false,
                 provider: this.modelClient.provider,
                 host: this.modelClient.baseUrl,
-                model: this.modelClient.modelName,
-                availableModels: []
+                model: this.modelClient.modelName || config.LLM_MODEL,
+                availableModels: [],
+                inference,
             };
         }
+    }
+
+    getInferenceStatus(): TaskRuntimeStatus {
+        return this.taskModelRuntime.getStatus();
     }
 
     public getSqlService(): SqlService {

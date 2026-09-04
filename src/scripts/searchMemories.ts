@@ -38,7 +38,7 @@ async function main() {
     const ragSystem = new MemoryRAGSystem();
 
     try {
-        await ragSystem.initializeCollection(); // Ensure collection exists, though strictly not needed for search if it definitely exists
+        await ragSystem.initializeForSearch();
 
         console.log(`Searching for: "${query}" (Limit: ${limit}${category ? `, Category: ${category}` : ''})`);
         const results = await ragSystem.searchMemories(query, category, limit);

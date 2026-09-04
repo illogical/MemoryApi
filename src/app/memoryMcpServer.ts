@@ -148,12 +148,12 @@ async function main() {
     logger.info('Memory MCP server connected via stdio transport');
 
     // Initialize memory system after connection (non-blocking background task)
-    memorySystem.initializeCollection()
+    memorySystem.initialize()
       .then(() => {
-        logger.info('Memory collection initialized successfully');
+        logger.info('Memory system initialized successfully');
       })
       .catch(err => {
-        logger.error(`Warning: Failed to initialize Qdrant collection: ${err.message}`);
+        logger.error(`Warning: Memory system initialization is degraded: ${err.message}`);
       });
 
     logger.info('Memory MCP server ready');

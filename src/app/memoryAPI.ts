@@ -15,7 +15,7 @@ const seedMemoryLoader = new SeedMemoryLoader();
 // Initialization function to be called by the main entrypoint
 export async function initializeMemorySystem() {
     logger.info('Initializing MemoryRAGSystem...');
-    await memorySystem.initializeCollection();
+    await memorySystem.initialize();
     logger.info('MemoryRAGSystem initialization complete');
 }
 

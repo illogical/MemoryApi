@@ -86,6 +86,38 @@ describe('Config — env var overrides', () => {
     });
 });
 
+describe('Config — ingestion task models', () => {
+    test('task models default to LLM_MODEL with current production parameters', () => {
+        withEnvVars({
+            LLM_MODEL: undefined,
+            LLM_MODEL_CLASSIFICATION: undefined,
+            LLM_MODEL_TAGGING: undefined,
+            LLM_MODEL_SUMMARY: undefined
+        }, () => {
+            const cfg = new Config({ LLM_MODEL: 'shared-model' });
+            expect(cfg.TASK_MODELS).toEqual({
+                classification: { model: 'shared-model', temperature: 0.3, maxTokens: 50 },
+                tagging: { model: 'shared-model', temperature: 0.3, maxTokens: 100 },
+                summary: { model: 'shared-model', temperature: 0.3, maxTokens: 150 }
+            });
+        });
+    });
+
+    test('resolves each task model override independently', () => {
+        withEnvVars({
+            LLM_MODEL: 'shared-model',
+            LLM_MODEL_CLASSIFICATION: 'classifier',
+            LLM_MODEL_TAGGING: 'tagger',
+            LLM_MODEL_SUMMARY: 'summarizer'
+        }, () => {
+            const cfg = new Config();
+            expect(cfg.TASK_MODELS.classification.model).toBe('classifier');
+            expect(cfg.TASK_MODELS.tagging.model).toBe('tagger');
+            expect(cfg.TASK_MODELS.summary.model).toBe('summarizer');
+        });
+    });
+});
+
 describe('Config — constructor overrides', () => {
     test('constructor override takes precedence over env var', () => {
         withEnvVar('PORT', '8080', () => {

@@ -1,4 +1,5 @@
 import { LMStudioClient, LLM } from '@lmstudio/sdk';
+import { TransportProvenance } from '../models/ingestionTask';
 
 export interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
@@ -7,13 +8,19 @@ export interface ChatMessage {
 
 export type ModelProvider = 'lmstudio' | 'ollama' | 'lmapi';
 
+export function isModelProvider(value: string): value is ModelProvider {
+    return value === 'lmstudio' || value === 'ollama' || value === 'lmapi';
+}
+
 export interface ModelClient {
     readonly modelName: string;
     readonly provider: ModelProvider;
     readonly baseUrl: string;
+    readonly transport: TransportProvenance;
     load(modelName: string): Promise<void>;
-    respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }>;
+    respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string; finishReason?: string }>;
     listModels(): Promise<string[]>;
+    listAvailableModels?(): Promise<string[]>;
 }
 
 export interface EmbeddingClient {
@@ -48,6 +55,10 @@ export class LMStudioModelClient implements ModelClient {
 
     get baseUrl(): string {
         return this._baseUrl;
+    }
+
+    get transport(): TransportProvenance {
+        return { endpoint: 'lmstudio-sdk', messageShape: 'chat-messages' };
     }
 
     async load(modelName: string): Promise<void> {
@@ -106,6 +117,10 @@ export class OllamaModelClient implements ModelClient {
 
     get baseUrl(): string {
         return this._baseUrl;
+    }
+
+    get transport(): TransportProvenance {
+        return { endpoint: '/api/generate', messageShape: 'flattened-prompt' };
     }
 
     async load(modelName: string): Promise<void> {
@@ -220,25 +235,24 @@ export class LMApiClient implements ModelClient {
         return this._baseUrl;
     }
 
+    get transport(): TransportProvenance {
+        return { endpoint: '/api/chat/completions/any', messageShape: 'chat-messages' };
+    }
+
     async load(modelName: string): Promise<void> {
         this._modelName = modelName;
     }
 
-    async respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string }> {
-        // Convert messages to a single prompt string, similar to Ollama style, as LMApi expects 'prompt'
-        const prompt = messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-
+    async respond(messages: ChatMessage[], options?: { temperature: number; maxTokens: number }): Promise<{ content: string; finishReason?: string }> {
         const body = {
             model: this._modelName,
-            prompt, // Send prompt instead of messages
+            messages,
             stream: false,
-            options: {
-                temperature: options?.temperature ?? this.temperatureDefault,
-                num_predict: options?.maxTokens ?? this.maxTokensDefault,
-            }
+            temperature: options?.temperature ?? this.temperatureDefault,
+            max_tokens: options?.maxTokens ?? this.maxTokensDefault,
         };
 
-        const res = await fetch(`${this._baseUrl}/api/generate/any`, {
+        const res = await fetch(`${this._baseUrl}${this.transport.endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -248,18 +262,57 @@ export class LMApiClient implements ModelClient {
             throw new Error(`LMApi request failed: ${res.status} ${text}`);
         }
         const data = await res.json();
-        // Handle response format - support both 'content' and 'response' fields
-        return { content: data.content || data.response || '' };
+        const choice = data?.choices?.[0];
+        if (typeof choice?.message?.content !== 'string') {
+            throw new Error('LMApi response invalid: expected choices[0].message.content');
+        }
+        return {
+            content: choice.message.content,
+            ...(typeof choice.finish_reason === 'string' && { finishReason: choice.finish_reason }),
+        };
     }
 
     async listModels(): Promise<string[]> {
-        // Assuming a similar endpoint or purely placeholder if unknown
-        // User didn't specify list endpoint, so we'll try a common pattern or return empty/current model
-        // For now, let's assume /api/models or similar doesn't exist or isn't specified. 
-        // We'll implemented a safe fallback or try to fetch if we can guess.
-        // Given "The generation endpoint will be /api/generate/any", maybe there isn't a list endpoint.
-        // I'll return the current model as a single item list to support the interface.
-        return [this._modelName];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        try {
+            const res = await fetch(`${this._baseUrl}/api/models`, { signal: controller.signal });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`LMApi request failed: ${res.status} ${text}`);
+            }
+            const data = await res.json();
+            if (!Array.isArray(data?.models) || !data.models.every((model: unknown) => typeof model === 'string')) {
+                throw new Error('LMApi models response invalid: expected a string array in "models"');
+            }
+            return data.models;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    async listAvailableModels(): Promise<string[]> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        try {
+            const res = await fetch(`${this._baseUrl}/api/models/by-server`, { signal: controller.signal });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`LMApi request failed: ${res.status} ${text}`);
+            }
+            const data = await res.json();
+            if (!Array.isArray(data?.servers) || !data.servers.every((server: unknown) => {
+                const candidate = server as { models?: unknown };
+                return Array.isArray(candidate?.models)
+                    && candidate.models.every((model: unknown) => typeof model === 'string');
+            })) {
+                throw new Error('LMApi available-models response invalid: expected servers[].models string arrays');
+            }
+            return [...new Set<string>(data.servers.flatMap((server: { models: string[] }) => server.models))]
+                .sort((a, b) => a.localeCompare(b));
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
 }
 

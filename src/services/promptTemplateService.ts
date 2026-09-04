@@ -2,16 +2,29 @@
 // Includes simple in-memory caching for render methods to optimize repeated calls.
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
+import { RenderedTaskPrompt } from '../models/ingestionTask';
+
+const PROMPT_VERSIONS = {
+  classification: 'transport-v1',
+  tagging: 'transport-v1',
+  summary: 'transport-v1',
+} as const;
+
+export function wrapMemoryContent(content: string): string {
+  const escapedContent = content.replace(/<\/memory\s*>/gi, '&lt;/memory&gt;');
+  return `<memory>\n${escapedContent}\n</memory>`;
+}
 
 export class PromptTemplateService {
 
   private templateBasePath: string;
 
   // Cache for classification prompts: key is userInput, value is rendered output
-  private classificationCache: Map<string, string> = new Map();
+  private classificationCache: Map<string, RenderedTaskPrompt> = new Map();
 
   // Cache for tagging prompts: key is content, value is rendered output
-  private taggingCache: Map<string, string> = new Map();
+  private taggingCache: Map<string, RenderedTaskPrompt> = new Map();
 
   // Cache for tag suggestion prompts: key is content, value is rendered output
   private tagSuggestionCache: Map<string, string> = new Map();
@@ -29,7 +42,7 @@ export class PromptTemplateService {
     return path.join(this.templateBasePath, templateFileName);
   }
 
-  renderClassification(userInput: string): string {
+  renderClassification(userInput: string): RenderedTaskPrompt {
     // Returns a rendered classification prompt, using cache for repeated inputs
     if (this.classificationCache.has(userInput)) {
       return this.classificationCache.get(userInput)!;
@@ -39,21 +52,26 @@ export class PromptTemplateService {
     
     // Load categories from allCategories.json (relative to prompts directory)
     const categoriesPath = path.join(this.templateBasePath, '../samples/allCategories.json');
-    const categoriesData = JSON.parse(fs.readFileSync(categoriesPath, 'utf-8'));
+    const categoriesSource = fs.readFileSync(categoriesPath, 'utf-8');
+    const categoriesData = JSON.parse(categoriesSource);
     
     // Format categories: - Category1\n- Category2\n...
     const formattedCategories = categoriesData.Categories.map((cat: string) => `- ${cat}`).join('\n');
     
     // Replace placeholders in template
     template = template.replace(/{{categories}}/g, formattedCategories);
-    template = template.replace(/{{user_input}}/g, userInput);
-    
-    const output = template;
+    const output: RenderedTaskPrompt = {
+      system: template,
+      user: wrapMemoryContent(userInput),
+      promptId: 'classification',
+      promptVersion: PROMPT_VERSIONS.classification,
+      taxonomySha256: createHash('sha256').update(categoriesSource).digest('hex'),
+    };
     this.classificationCache.set(userInput, output);
     return output;
   }
 
-  renderTagging(content: string): string {
+  renderTagging(content: string): RenderedTaskPrompt {
     // Returns a rendered tagging prompt, using cache for repeated content
     // Loads tags from allTags.json and formats them for the template
     if (this.taggingCache.has(content)) {
@@ -64,7 +82,8 @@ export class PromptTemplateService {
 
     // Load tags from allTags.json (relative to prompts directory)
     const tagsPath = path.join(this.templateBasePath, '../samples/allTags.json');
-    const tagsData = JSON.parse(fs.readFileSync(tagsPath, 'utf-8'));
+    const tagsSource = fs.readFileSync(tagsPath, 'utf-8');
+    const tagsData = JSON.parse(tagsSource);
 
     // Format tags: tag1, tag2, ...
     const formattedTags = tagsData.TagGroups.map((group: any) => {
@@ -73,25 +92,30 @@ export class PromptTemplateService {
     }).join('\n');
 
     // Replace placeholders in template
-    template = template.replace(/{{content}}/g, content);
     template = template.replace(/{{tags}}/g, formattedTags);
-    // Store rendered output in cache
-    this.taggingCache.set(content, template);
-
-    // TEMPORARY DEBUG LOGGING
-    console.debug('[renderTagging] Rendered tagging prompt:', template);
-
-    return template;
+    const output: RenderedTaskPrompt = {
+      system: template,
+      user: wrapMemoryContent(content),
+      promptId: 'tagging',
+      promptVersion: PROMPT_VERSIONS.tagging,
+      taxonomySha256: createHash('sha256').update(tagsSource).digest('hex'),
+    };
+    this.taggingCache.set(content, output);
+    return output;
   }
 
   /**
    * Renders the memory_summary.txt template with provided content.
    */
-  renderMemorySummary(content: string): string {
+  renderMemorySummary(content: string): RenderedTaskPrompt {
     const templatePath = this.resolveTemplatePath('memory_summary.txt');
-    let template = fs.readFileSync(templatePath, 'utf-8');
-    template = template.replace(/{{content}}/g, content);
-    return template;
+    const template = fs.readFileSync(templatePath, 'utf-8');
+    return {
+      system: template,
+      user: wrapMemoryContent(content),
+      promptId: 'memory-summary',
+      promptVersion: PROMPT_VERSIONS.summary,
+    };
   }
 
   /**

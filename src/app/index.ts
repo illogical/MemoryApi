@@ -52,6 +52,9 @@ export async function getHealth(): Promise<HealthSummary> {
     ];
 
     const failed: string[] = [];
+    if (!memorySystem.getInferenceStatus().active) {
+        failed.push('inference');
+    }
     for (const [name, check] of checks) {
         try {
             const count = await check();
@@ -64,7 +67,7 @@ export async function getHealth(): Promise<HealthSummary> {
     if (failed.length > 0) {
         return { ready: false, summary: `Unreachable: ${failed.join(', ')}` };
     }
-    return { ready: true, summary: 'Vector, graph, and SQL stores reachable' };
+    return { ready: true, summary: 'Inference, vector, graph, and SQL services reachable' };
 }
 
 const isMain = process.argv[1] !== undefined

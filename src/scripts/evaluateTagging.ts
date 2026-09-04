@@ -20,11 +20,12 @@
  */
 
 import { BaseEvaluator, SeedMemory, BaseEvaluationReport } from '../services/baseEvaluator';
-import { ModelProvider } from '../services/modelClients';
+import { isModelProvider, ModelProvider } from '../services/modelClients';
 import { config } from '../services/configService';
 import { assertTestEnvironment } from '../services/memoryEnvironmentService';
 import * as fs from 'fs';
 import * as path from 'path';
+import { renderedTaskMessages } from '../models/ingestionTask';
 
 assertTestEnvironment('evaluateTagging');
 
@@ -37,6 +38,9 @@ interface EvaluationCase {
     predictedTags: string[];
     metrics: CaseMetrics;
     prompt: string;
+    promptVersion: string;
+    taxonomySha256?: string;
+    finishReason?: string;
 }
 
 interface CaseMetrics {
@@ -68,6 +72,7 @@ interface EvaluationReport extends BaseEvaluationReport {
         maxTokens: number;
         seedMemoriesPath: string;
         averageTagGenTime?: number;
+        finishReasons?: Record<string, number>;
     };
 }
 
@@ -75,13 +80,15 @@ interface EvaluationReport extends BaseEvaluationReport {
 
 class TaggingEvaluator extends BaseEvaluator {
     private validTags: Set<string>;
+    private lastFinishReason: string | undefined;
 
     constructor(
-        modelName: string = config.LLM_MODEL,
+        modelName: string = config.TASK_MODELS.tagging.model,
         promptBasePath: string = config.PROMPT_TEMPLATE_BASE_PATH,
         provider: ModelProvider = config.LLM_PROVIDER as ModelProvider
     ) {
-        super(modelName, promptBasePath, provider, 0.3, 100);
+        const runtime = config.TASK_MODELS.tagging;
+        super(modelName, promptBasePath, provider, runtime.temperature, runtime.maxTokens);
         this.validTags = this.loadValidTags(promptBasePath);
     }
 
@@ -107,13 +114,11 @@ class TaggingEvaluator extends BaseEvaluator {
     async generateTags(content: string): Promise<string[]> {
         const prompt = this.promptService.renderTagging(content);
         this.logger.debug(`Generating tags (${this.provider}) for content: ${content.substring(0, 50)}...`);
-        const response = await this.modelClient.respond([
-            { role: 'system', content: 'You are a precise tagging assistant. Output only comma-separated tags, nothing else.' },
-            { role: 'user', content: prompt }
-        ], {
+        const response = await this.modelClient.respond(renderedTaskMessages(prompt), {
             temperature: this.temperature,
             maxTokens: this.maxTokens
         });
+        this.lastFinishReason = response.finishReason;
         const responseText = (response.content || '').trim();
         this.logger.debug(`Raw model response: ${responseText}`);
         // Clean up the response and split into tags
@@ -272,7 +277,10 @@ class TaggingEvaluator extends BaseEvaluator {
                     groundTruthTags: memory.tags,
                     predictedTags,
                     metrics,
-                    prompt
+                    promptVersion: prompt.promptVersion,
+                    taxonomySha256: prompt.taxonomySha256,
+                    ...(this.lastFinishReason && { finishReason: this.lastFinishReason }),
+                    prompt: JSON.stringify(renderedTaskMessages(prompt), null, 2)
                 });
 
                 // Log immediate feedback
@@ -308,14 +316,20 @@ class TaggingEvaluator extends BaseEvaluator {
         const report: EvaluationReport = {
             timestamp: new Date().toISOString(),
             modelName: `${this.provider}:${this.modelName}`,
-            promptVersion: '1.0', // You can increment this when you modify the prompt
+            promptVersion: cases[0]?.promptVersion ?? 'unknown',
+            taxonomySha256: cases[0]?.taxonomySha256,
             aggregateMetrics,
             cases,
             config: {
                 temperature: this.temperature,
                 maxTokens: this.maxTokens,
                 seedMemoriesPath: seedPath,
-                averageTagGenTime: Number((averageGenTime / 1000).toFixed(2))
+                averageTagGenTime: Number((averageGenTime / 1000).toFixed(2)),
+                finishReasons: cases.reduce<Record<string, number>>((counts, evalCase) => {
+                    const reason = evalCase.finishReason ?? 'unspecified';
+                    counts[reason] = (counts[reason] ?? 0) + 1;
+                    return counts;
+                }, {})
             },
             prompt: firstPrompt
         };
@@ -416,10 +430,11 @@ class TaggingEvaluator extends BaseEvaluator {
 async function main() {
     // Parse command line arguments
     const args = process.argv.slice(2);
+    const findLastArg = (prefix: string) => [...args].reverse().find(arg => arg.startsWith(prefix));
     console.log('[Tagging Evaluation] Starting script...');
-    const modelNameArg = args.find(arg => arg.startsWith('--model='));
-    const outputArg = args.find(arg => arg.startsWith('--output='));
-    const providerArg = args.find(arg => arg.startsWith('--provider='));
+    const modelNameArg = findLastArg('--model=');
+    const outputArg = findLastArg('--output=');
+    const providerArg = findLastArg('--provider=');
 
     const modelName = modelNameArg ? modelNameArg.split('=')[1] : undefined;
     if (!modelName) {
@@ -427,11 +442,12 @@ async function main() {
         process.exit(1);
     }
     console.log(`[Tagging Evaluation] Using model: ${modelName}`);
-    const provider = providerArg ? (providerArg.split('=')[1] as ModelProvider) : 'lmstudio';
-    if (provider !== 'lmstudio' && provider !== 'ollama') {
-        console.error('Error: --provider must be either "lmstudio" or "ollama"');
+    const providerValue = providerArg ? providerArg.split('=')[1] : 'lmstudio';
+    if (!isModelProvider(providerValue)) {
+        console.error('Error: --provider must be "lmstudio", "ollama", or "lmapi"');
         process.exit(1);
     }
+    const provider: ModelProvider = providerValue;
     console.log(`[Tagging Evaluation] Provider: ${provider}`);
     const outputPath = outputArg
         ? outputArg.split('=')[1]

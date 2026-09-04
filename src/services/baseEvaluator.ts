@@ -15,7 +15,7 @@
 
 import { PromptTemplateService } from './promptTemplateService';
 import { LoggingService } from './loggingService';
-import { ModelClient, LMStudioModelClient, OllamaModelClient, ModelProvider } from './modelClients';
+import { ModelClient, ModelClientFactory, ModelProvider } from './modelClients';
 import * as fs from 'fs';
 import * as path from 'path';
 import { config } from './configService';
@@ -48,6 +48,7 @@ export interface BaseEvaluationReport {
     timestamp: string;
     modelName: string;
     promptVersion: string;
+    taxonomySha256?: string;
     aggregateMetrics: BaseAggregateMetrics;
     cases: any[];
     config: {
@@ -55,6 +56,7 @@ export interface BaseEvaluationReport {
         maxTokens: number;
         seedMemoriesPath: string;
         averageGenTime?: number;
+        finishReasons?: Record<string, number>;
     };
     prompt?: string;
 }
@@ -82,7 +84,7 @@ export abstract class BaseEvaluator {
         this.modelName = modelName;
         this.provider = provider;
         const baseUrl = config.LLM_HOST;
-        this.modelClient = provider === 'ollama' ? new OllamaModelClient(baseUrl) : new LMStudioModelClient(baseUrl);
+        this.modelClient = ModelClientFactory.createModelClient(provider, baseUrl);
         this.temperature = temperature;
         this.maxTokens = maxTokens;
     }

@@ -4,30 +4,48 @@ import { ModelClient } from './modelClients';
 import { SqlService } from './sqlService';
 import { normalizeEntityNames } from '../utils/normalization';
 import { MemoryCategory } from '../models/memoryCategory';
+import { IngestionTask, renderedTaskMessages, TaskModelConfig } from '../models/ingestionTask';
+import { config } from './configService';
 
 const MAX_LLM_ATTEMPTS = 3;
+
+export interface TaskRuntime {
+    client: ModelClient;
+    config: TaskModelConfig;
+}
+
+export type TaskRuntimeResolver = (task: IngestionTask) => TaskRuntime;
 
 class MemoryTextProcessor {
     private modelClient: ModelClient;
     private promptTemplateService: PromptTemplateService;
     private loggingService: LoggingService;
     private sqlService: SqlService;
+    private taskRuntimeResolver: TaskRuntimeResolver;
 
-    constructor(modelClient: ModelClient, promptTemplateService: PromptTemplateService, loggingService: LoggingService, sqlService: SqlService) {
+    constructor(
+        modelClient: ModelClient,
+        promptTemplateService: PromptTemplateService,
+        loggingService: LoggingService,
+        sqlService: SqlService,
+        taskRuntimeResolver: TaskRuntimeResolver = task => ({ client: modelClient, config: config.TASK_MODELS[task] })
+    ) {
         this.modelClient = modelClient;
         this.promptTemplateService = promptTemplateService;
         this.loggingService = loggingService;
         this.sqlService = sqlService;
+        this.taskRuntimeResolver = taskRuntimeResolver;
     }
 
     async summarizeText(text: string): Promise<string> {
         this.loggingService.trace('[MemoryTextProcessor.summarizeText] Called');
         const prompt = this.promptTemplateService.renderMemorySummary(text);
-        this.loggingService.debug(`[MemoryTextProcessor.summarizeText] Prompt: ${prompt}`);
-        const response = await this.timeModelResponse(() => this.modelClient.respond([
-            { role: 'system', content: 'You are a concise memory summarizer. Output only the summary.' },
-            { role: 'user', content: prompt }
-        ], { temperature: 0.3, maxTokens: 150 }), 'summarizeText');
+        const runtime = this.taskRuntimeResolver('summary');
+        this.loggingService.debug(`[MemoryTextProcessor.summarizeText] Prompt: ${JSON.stringify(prompt)}`);
+        const response = await this.timeModelResponse(() => runtime.client.respond(renderedTaskMessages(prompt), {
+            temperature: runtime.config.temperature,
+            maxTokens: runtime.config.maxTokens,
+        }), 'summarizeText');
         this.loggingService.debug(`[MemoryTextProcessor.summarizeText] Response: ${response.content}`);
         return response.content.trim();
     }
@@ -36,14 +54,12 @@ class MemoryTextProcessor {
         this.loggingService.trace('[MemoryTextProcessor.classifyText] Called');
         const validCategories = this.promptTemplateService.getValidCategories();
         const prompt = this.promptTemplateService.renderClassification(text);
-        this.loggingService.debug(`[MemoryTextProcessor.classifyText] Prompt: ${prompt}`);
+        const runtime = this.taskRuntimeResolver('classification');
+        this.loggingService.debug(`[MemoryTextProcessor.classifyText] Prompt: ${JSON.stringify(prompt)}`);
 
-        const call = () => this.timeModelResponse(() => this.modelClient.respond(
-            [
-                { role: 'system', content: 'You classify content into a single category. Output only the category.' },
-                { role: 'user', content: prompt }
-            ],
-            { temperature: 0.3, maxTokens: 50 }
+        const call = () => this.timeModelResponse(() => runtime.client.respond(
+            renderedTaskMessages(prompt),
+            { temperature: runtime.config.temperature, maxTokens: runtime.config.maxTokens }
         ), 'classifyText').then(r => r.content.trim());
 
         const validate = (raw: string, attempt: number): string | null => {
@@ -67,14 +83,12 @@ class MemoryTextProcessor {
             this.promptTemplateService.getValidTags().map(t => [t.toLowerCase(), t])
         );
         const prompt = this.promptTemplateService.renderTagging(text);
-        this.loggingService.debug(`[MemoryTextProcessor.tagText] Prompt: ${prompt}`);
+        const runtime = this.taskRuntimeResolver('tagging');
+        this.loggingService.debug(`[MemoryTextProcessor.tagText] Prompt: ${JSON.stringify(prompt)}`);
 
-        const call = () => this.timeModelResponse(() => this.modelClient.respond(
-            [
-                { role: 'system', content: 'Output only comma-separated tags, nothing else.' },
-                { role: 'user', content: prompt }
-            ],
-            { temperature: 0.3, maxTokens: 100 }
+        const call = () => this.timeModelResponse(() => runtime.client.respond(
+            renderedTaskMessages(prompt),
+            { temperature: runtime.config.temperature, maxTokens: runtime.config.maxTokens }
         ), 'tagText').then(r => r.content.trim());
 
         const validate = (raw: string, attempt: number): string[] | null => {
